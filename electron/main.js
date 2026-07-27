@@ -64,6 +64,8 @@ function openLoginWindow(providerId, url, partition) {
       sandbox: false,
       nodeIntegration: false,
       contextIsolation: true,
+      enableWebAuthn: true,
+      enableCredentialsService: true,
     },
   });
 
