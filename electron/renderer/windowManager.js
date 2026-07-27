@@ -1,22 +1,20 @@
 /**
- * TeamAI v4 — Window Manager (webview-based)
- * Chaque fenêtre = toolbar HTML visible + <webview> en dessous.
- * Google OAuth interceptions, navigation, prompt dispatch.
+ * TeamAI v5 — Window Manager (webview)
+ * Grid with resize handles, multi-line prompt, provider cards.
  */
 const WinManager = {
-  frames: new Map(), // id → { frame, webview, combo, urlBar }
+  frames: new Map(),
   providers: [],
   _zoom: 0,
   _idCounter: 0,
+  _resizing: null, // { id, startX, startY, startW, startH, startRect }
 
   async init() {
     this.providers = await teamai.getProviders() || [];
     this._zoom = await teamai.getZoom() || 0;
 
-    // Listen for global prompt dispatch
     teamai.onExecJsAll((text) => this._dispatchToAll(text));
 
-    this._renderZoomLabel();
     this._setupZoomButtons();
     this._restoreOrCreateDefault();
   },
@@ -27,36 +25,29 @@ const WinManager = {
       try {
         const data = JSON.parse(saved);
         if (data.views?.length > 0 && confirm('Restaurer la session précédente ?')) {
-          for (const v of data.views) {
-            this._createWebView(v.providerId || 'default', v.url);
-          }
+          for (const v of data.views) this._createView(v.providerId || 'default', v.url);
           return;
         }
       } catch {}
     }
-    // Default: open all providers
     for (const pid of ['gpt5_terra','gpt5_sol','gemini','raisonnement','claude','zglm','kimi','grok','nemotron','venice']) {
-      this._createWebView(pid);
+      this._createView(pid);
     }
   },
 
-  _createWebView(providerId, initialUrl = null) {
+  _createView(providerId, initialUrl = null) {
     const prov = this.providers.find(p => p.id === providerId)
       || { id: providerId, label: providerId, url: 'about:blank', icon: '🌐' };
-
     this._idCounter++;
     const id = `wv_${this._idCounter}`;
     const partition = `persist:teamai_${providerId}_${this._idCounter}`;
     const container = document.getElementById('grid-container');
     if (!container) return id;
 
-    // Create frame
     const frame = document.createElement('div');
     frame.className = 'window-frame';
     frame.dataset.id = id;
-    frame.id = id;
 
-    // Toolbar HTML — visible ABOVE the webview
     const comboOps = this.providers.map(p =>
       `<option value="${p.id}" ${p.id === prov.id ? 'selected' : ''}>${p.icon} ${p.label}</option>`
     ).join('');
@@ -68,189 +59,144 @@ const WinManager = {
         <button class="nav-btn" data-action="back">◀</button>
         <button class="nav-btn" data-action="forward">▶</button>
         <button class="nav-btn" data-action="reload">⟳</button>
-        <input class="url-bar" placeholder="URL..." spellcheck="false" value="${initialUrl || prov.url || ''}">
+        <input class="url-bar" placeholder="URL..." spellcheck="false" value="${initialUrl || prov.url}">
         <button class="close-btn">✕</button>
       </div>
       <div class="webview-area"></div>
+      <div class="resize-handle"></div>
     `;
-
     container.appendChild(frame);
 
-    // Create webview element
     const webview = document.createElement('webview');
-    webview.src = initialUrl || prov.url || 'about:blank';
+    webview.src = initialUrl || prov.url;
     webview.setAttribute('partition', partition);
     webview.setAttribute('allowpopups', '');
     webview.style.width = '100%';
     webview.style.height = '100%';
     webview.style.border = 'none';
+    frame.querySelector('.webview-area').appendChild(webview);
 
-    const webviewArea = frame.querySelector('.webview-area');
-    webviewArea.appendChild(webview);
-
-    // Wire up toolbar
+    // Wire up
     const combo = frame.querySelector('.provider-combo');
     const urlBar = frame.querySelector('.url-bar');
     const entry = { frame, webview, combo, urlBar, providerId: prov.id };
     this.frames.set(id, entry);
 
-    // Events
     this._bindToolbar(id, entry);
     this._bindWebView(id, entry);
-
-    // Size
-    this._sizeAll();
+    this._bindResize(id, entry);
+    this._layout();
 
     return id;
   },
 
   _bindToolbar(id, entry) {
     const { frame, combo, urlBar, webview } = entry;
-
     combo.addEventListener('change', () => {
       const prov = this.providers.find(p => p.id === combo.value);
-      if (prov) {
-        entry.providerId = prov.id;
-        webview.src = prov.url;
-        urlBar.value = prov.url;
-      }
+      if (prov) { entry.providerId = prov.id; webview.src = prov.url; urlBar.value = prov.url; }
     });
-
     frame.querySelectorAll('.nav-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        try {
-          if (btn.dataset.action === 'back') webview.goBack();
+        try { if (btn.dataset.action === 'back') webview.goBack();
           else if (btn.dataset.action === 'forward') webview.goForward();
-          else if (btn.dataset.action === 'reload') webview.reload();
-        } catch {}
+          else if (btn.dataset.action === 'reload') webview.reload(); } catch {}
       });
     });
-
     urlBar.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        let url = urlBar.value.trim();
-        if (!url) return;
-        if (!url.startsWith('http') && url.includes('.')) url = 'https://' + url;
-        else if (!url.includes('.')) url = 'https://www.google.com/search?q=' + encodeURIComponent(url);
-        webview.src = url;
+        let url = urlBar.value.trim(); if (!url) return;
+        webview.src = !url.startsWith('http') && url.includes('.') ? 'https://' + url
+          : !url.includes('.') ? 'https://www.google.com/search?q=' + encodeURIComponent(url) : url;
       }
     });
-
-    frame.querySelector('.close-btn').addEventListener('click', () => {
-      this._removeView(id);
-    });
+    frame.querySelector('.close-btn').addEventListener('click', () => this._remove(id));
   },
 
   _bindWebView(id, entry) {
-    const { webview, urlBar, combo } = entry;
-
-    // Update URL bar on navigation
-    webview.addEventListener('did-navigate', (e) => {
-      if (e.url && e.url !== 'about:blank') urlBar.value = e.url;
-    });
-    webview.addEventListener('did-navigate-in-page', (e) => {
-      if (e.url && e.url !== 'about:blank') urlBar.value = e.url;
-    });
-
-    // Update page title in sidebar
-    webview.addEventListener('page-title-updated', (e) => {
-      Sidebar.updateWindowTitle(id, e.title);
-    });
-
-    // Google OAuth: intercept popups → open in Electron window
+    const { webview, urlBar } = entry;
+    webview.addEventListener('did-navigate', (e) => { if (e.url && e.url !== 'about:blank') urlBar.value = e.url; });
+    webview.addEventListener('did-navigate-in-page', (e) => { if (e.url && e.url !== 'about:blank') urlBar.value = e.url; });
+    webview.addEventListener('page-title-updated', (e) => Sidebar.updateWindowTitle(id, e.title));
     webview.addEventListener('new-window', (e) => {
-      const needsAuth = e.url.includes('accounts.google.com') || e.url.includes('oauth')
-        || e.url.includes('login.google') || e.url.includes('googleapis.com');
-      if (needsAuth) {
+      if (e.url.includes('accounts.google.com') || e.url.includes('oauth')) {
         e.preventDefault();
-        const partition = webview.getAttribute('partition') || '';
-        teamai.openAuthWindow(e.url, partition);
+        teamai.openAuthWindow(e.url, webview.getAttribute('partition') || '');
       }
-      // else: allow default (opens in system browser)
     });
   },
 
-  _removeView(id) {
+  _bindResize(id, entry) {
+    const handle = entry.frame.querySelector('.resize-handle');
+    if (!handle) return;
+    let startX, startY, startW, startH;
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      startX = e.clientX; startY = e.clientY;
+      startW = entry.frame.offsetWidth; startH = entry.frame.offsetHeight;
+      const onMove = (ev) => {
+        const dw = ev.clientX - startX; const dh = ev.clientY - startY;
+        entry.frame.style.width = Math.max(150, startW + dw) + 'px';
+        entry.frame.style.height = Math.max(120, startH + dh) + 'px';
+        entry.frame.style.flexGrow = '0';
+      };
+      const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  },
+
+  _remove(id) {
     const entry = this.frames.get(id);
     if (!entry) return;
     entry.frame.remove();
     this.frames.delete(id);
-    this._sizeAll();
-    Sidebar.renderStats();
+    this._layout();
+    Sidebar.renderAll();
   },
 
   _dispatchToAll(text) {
     const safe = JSON.stringify(text);
-    const js = `
-      (function() {
-        const sels = ['#prompt-textarea','[contenteditable="true"]','textarea','.ProseMirror','[role="textbox"]'];
-        for (const s of sels) {
-          const el = document.querySelector(s);
-          if (!el) continue;
-          el.focus();
-          if (el.isContentEditable || el.tagName === 'DIV') {
-            el.textContent = ''; document.execCommand('insertText', false, ${safe});
-          } else { el.value = ${safe}; }
-          el.dispatchEvent(new Event('input', {bubbles:true}));
-          el.dispatchEvent(new Event('change', {bubbles:true}));
-          setTimeout(() => {
-            const ev = new KeyboardEvent('keydown', {key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true});
-            el.dispatchEvent(ev);
-            const sendBtns = document.querySelectorAll('button[data-testid="send-button"],button[type="submit"],button:has(svg)');
-            for (const b of sendBtns) { if (b.offsetParent !== null) { b.click(); break; } }
-          }, 600);
-          return 'ok';
-        }
-        return 'not_found';
-      })();
-    `;
-    for (const [, entry] of this.frames) {
-      try { entry.webview.executeJavaScript(js).catch(() => {}); } catch {}
-    }
+    const js = `(function(){
+      const sels=['#prompt-textarea','[contenteditable="true"]','textarea','.ProseMirror','[role="textbox"]'];
+      for(const s of sels){const el=document.querySelector(s);if(!el)continue;
+        el.focus();
+        if(el.isContentEditable||el.tagName==='DIV'){el.textContent='';document.execCommand('insertText',false,${safe});}
+        else{el.value=${safe};}
+        el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));
+        setTimeout(()=>{
+          const ev=new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true});
+          el.dispatchEvent(ev);
+          const btns=document.querySelectorAll('button[data-testid="send-button"],button[type="submit"],button:has(svg)');
+          for(const b of btns){if(b.offsetParent!==null){b.click();break;}}
+        },600);return 'ok';
+      }return 'not_found';
+    })();`;
+    for (const [, e] of this.frames) { try { e.webview.executeJavaScript(js).catch(() => {}); } catch {} }
   },
 
-  _sizeAll() {
+  _layout() {
     const container = document.getElementById('grid-container');
     if (!container) return;
+    const viewport = document.getElementById('viewport');
+    if (!viewport) return;
+    const vpW = viewport.clientWidth - 6;
+    const zoom = 1 + this._zoom * 0.15;
     const total = this.frames.size;
     if (total === 0) return;
 
-    const viewport = document.getElementById('viewport');
-    if (!viewport) return;
-    const vpW = viewport.clientWidth - 8;
-    const vpH = viewport.clientHeight - 8;
-    const zoom = 1 + this._zoom * 0.15;
-
-    // Grid: 2 cols for <5, 3 cols for 5-9, 4 cols for 10+
-    const cols = total <= 4 ? 2 : total <= 9 ? 3 : 4;
-    const gap = 4;
-    const totalGapW = (cols - 1) * gap;
-    const cellW = Math.floor((vpW - totalGapW) / cols);
-    const rows = Math.ceil(total / cols);
-    const toolbarH = 34;
-    const totalGapH = (rows - 1) * gap;
-    const cellH = Math.floor((vpH - totalGapH) / rows);
-
-    // Each frame: width = cellW, height = toolbarH + cellH
-    const fw = Math.floor(cellW * zoom);
-    const fh = Math.floor((toolbarH + cellH) * zoom);
-
     let idx = 0;
-    for (const [, entry] of this.frames) {
-      entry.frame.style.width = fw + 'px';
-      entry.frame.style.height = fh + 'px';
+    for (const [, e] of this.frames) {
+      const badge = e.frame.querySelector('.num-badge');
+      if (badge) badge.textContent = idx + 1;
+      if (!e.frame.style.width || e.frame.style.flexGrow !== '0') {
+        // auto-size based on grid
+        e.frame.style.flexGrow = '1';
+        e.frame.style.maxWidth = 'none';
+      }
       idx++;
     }
-
-    // Update number badges
-    idx = 0;
-    for (const [id, entry] of this.frames) {
-      const badge = entry.frame.querySelector('.num-badge');
-      if (badge) badge.textContent = (idx + 1);
-      idx++;
-    }
-
-    Sidebar.renderStats();
+    Sidebar.renderAll();
   },
 
   _renderZoomLabel() {
@@ -259,34 +205,26 @@ const WinManager = {
   },
 
   _setupZoomButtons() {
-    document.getElementById('zoom-in')?.addEventListener('click', async () => {
-      this._zoom = Math.min(5, this._zoom + 1);
-      await teamai.setZoom(this._zoom);
-      this._renderZoomLabel();
-      this._sizeAll();
-    });
-    document.getElementById('zoom-out')?.addEventListener('click', async () => {
-      this._zoom = Math.max(-3, this._zoom - 1);
-      await teamai.setZoom(this._zoom);
-      this._renderZoomLabel();
-      this._sizeAll();
-    });
-    document.getElementById('zoom-reset')?.addEventListener('click', async () => {
-      this._zoom = 0;
-      await teamai.setZoom(0);
-      this._renderZoomLabel();
-      this._sizeAll();
-    });
+    document.getElementById('zoom-in')?.addEventListener('click', () => this._zoomChange(1));
+    document.getElementById('zoom-out')?.addEventListener('click', () => this._zoomChange(-1));
+    document.getElementById('zoom-reset')?.addEventListener('click', () => this._zoomChange(0, true));
+  },
+
+  async _zoomChange(delta, reset = false) {
+    this._zoom = reset ? 0 : Math.max(-3, Math.min(5, this._zoom + delta));
+    await teamai.setZoom(this._zoom);
+    this._renderZoomLabel();
+    this._layout();
   },
 
   // Public API
-  addView(pid) { this._createWebView(pid); },
-  getFrames() { return this.frames; },
+  addView(pid) { this._createView(pid); },
   get count() { return this.frames.size; },
   get list() {
     return Array.from(this.frames.entries()).map(([id, e]) => ({
       id, providerId: e.providerId, url: e.webview?.src || '',
-      combo: e.combo?.options[e.combo.selectedIndex]?.text || e.providerId,
+      label: e.combo?.options[e.combo.selectedIndex]?.text || e.providerId,
     }));
   },
+  get providersList() { return this.providers; },
 };

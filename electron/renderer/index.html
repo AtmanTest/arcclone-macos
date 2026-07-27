@@ -11,8 +11,7 @@
     <!-- SIDEBAR -->
     <aside id="sidebar">
       <div id="logo">🧠 TeamAI</div>
-      <div id="stats"></div>
-      <div id="window-list"></div>
+      <button id="btn-new-tab" class="action-btn primary">+ Nouvel Onglet IA</button>
 
       <div id="zoom-controls">
         <button id="zoom-out">−</button>
@@ -21,13 +20,17 @@
         <button id="zoom-reset">⊙</button>
       </div>
 
-      <div class="section-title">PROVIDERS</div>
+      <div id="stats"></div>
+      <div id="window-list"></div>
+
+      <div class="section-title">🔌 MES IA</div>
       <div id="providers-list"></div>
 
       <div id="sidebar-bottom">
-        <button id="btn-report" class="action-btn">📋 Rapport complet</button>
-        <button id="btn-new-tab" class="action-btn primary">Nouvel Onglet IA +</button>
-        <div id="version-badge" title="Voir les commits">v0.0.0</div>
+        <button id="btn-login-assistant" class="action-btn">🔑 Assistant Connexion</button>
+        <button id="btn-report" class="action-btn">📋 Rapport</button>
+        <button id="btn-save-session" class="action-btn">💾 Sauvegarder la session</button>
+        <div id="version-badge">v0.0.0</div>
       </div>
     </aside>
 
@@ -35,28 +38,56 @@
     <div id="main">
       <!-- Prompt bar TOP -->
       <div id="prompt-bar">
-        <input type="text" id="prompt-input" placeholder="Pose ta question à TOUTES les IA (Enter = GO)" autofocus>
-        <button id="go-btn">C'est un ordre, GO !</button>
+        <textarea id="prompt-input" rows="4" placeholder="Pose ta question à TOUTES les IA..."></textarea>
+        <div id="prompt-actions">
+          <button id="btn-attach" title="Joindre un fichier">📎</button>
+          <button id="go-btn">C'est un ordre, GO !</button>
+        </div>
       </div>
 
-      <!-- Viewport scrollable with webviews -->
+      <!-- Viewport with webviews -->
       <div id="viewport">
         <div id="grid-container"></div>
       </div>
     </div>
   </div>
 
-  <!-- Report modal -->
+  <!-- Login Wizard Modal -->
+  <div id="login-modal">
+    <div id="login-content">
+      <div id="login-header">
+        <h2>🔑 Assistant Connexion</h2>
+        <p id="login-progress">Étape <span id="login-step-num">0</span>/<span id="login-total">0</span></p>
+      </div>
+      <div id="login-body">
+        <div id="login-provider-card">
+          <span id="login-icon">⚡</span>
+          <span id="login-label">GPT-5.6 Terra</span>
+        </div>
+        <p id="login-instruction">Connecte-toi à ton compte dans la fenêtre ci-dessous, puis clique "Suivant".</p>
+        <div id="login-webview-container">
+          <webview id="login-webview" allowpopups></webview>
+        </div>
+      </div>
+      <div id="login-footer">
+        <button id="login-prev" disabled>◀ Précédent</button>
+        <button id="login-skip">Passer</button>
+        <button id="login-done" class="primary">✅ Connecté — Suivant ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Modal -->
   <div id="report-modal">
     <div id="report-content">
       <div id="report-header">
-        <h2>📋 Rapport IA — Synthèse</h2>
+        <h2>📋 Rapport IA</h2>
         <button id="report-close-modal">✕</button>
       </div>
-      <div id="report-body">Collecte en cours...</div>
+      <div id="report-body">Collecte...</div>
       <div id="report-footer">
         <button class="secondary" id="report-export-md">📄 Export .md</button>
-        <button class="secondary" id="report-refresh">⟳ Actualiser</button>
+        <button class="secondary" id="report-refresh">⟳</button>
         <button id="report-close-btn">Fermer</button>
       </div>
     </div>
@@ -66,6 +97,7 @@
   <script src="sidebar.js"></script>
   <script src="promptDispatcher.js"></script>
   <script src="reportManager.js"></script>
+  <script src="loginAssistant.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
