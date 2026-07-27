@@ -1,73 +1,99 @@
 /**
- * TeamAI — Bookmarks (localStorage)
+ * TeamAI — Bookmarks (localStorage with folders)
  */
 const Bookmarks = {
-  KEY: 'teamai_bookmarks',
-  items: [],
-
-  init() {
-    this.load();
-    this.render();
-    document.getElementById('add-bookmark')?.addEventListener('click', () => this.add());
-  },
+  KEY: 'teamai_bookmarks_v2',
 
   load() {
-    try { this.items = JSON.parse(localStorage.getItem(this.KEY) || '[]'); }
-    catch { this.items = []; }
+    try { return JSON.parse(localStorage.getItem(this.KEY)) || { folders: { 'Favoris': [] } }; }
+    catch { return { folders: { 'Favoris': [] } }; }
   },
 
-  save() {
-    localStorage.setItem(this.KEY, JSON.stringify(this.items));
+  save(data) {
+    localStorage.setItem(this.KEY, JSON.stringify(data));
+    this.render();
   },
 
-  add(url, label) {
-    if (!url) {
-      // Try to find current URL from first view
-      const v = WindowManager.list[0];
-      if (v && v.url && v.url !== 'about:blank') { url = v.url; }
-      else { url = 'https://chatgpt.com'; label = 'ChatGPT'; }
+  add(providerId, label, url) {
+    if (!url || url === 'about:blank') return;
+    const data = this.load();
+    const folderName = Object.keys(data.folders)[0] || 'Favoris';
+    if (!data.folders[folderName]) data.folders[folderName] = [];
+    data.folders[folderName].push({
+      id: 'bm_' + Date.now(),
+      label, url, providerId, added: new Date().toISOString(),
+    });
+    this.save(data);
+  },
+
+  remove(folder, id) {
+    const data = this.load();
+    if (data.folders[folder]) {
+      data.folders[folder] = data.folders[folder].filter(b => b.id !== id);
+      this.save(data);
     }
-    if (!label) label = url.replace(/^https?:\/\//, '').split('/')[0];
-    this.items.push({ url, label, icon: '🔖' });
-    this.save();
-    this.render();
   },
 
-  remove(index) {
-    this.items.splice(index, 1);
-    this.save();
-    this.render();
+  addFolder(name) {
+    const data = this.load();
+    if (!data.folders[name]) data.folders[name] = [];
+    this.save(data);
+  },
+
+  open(folder, id) {
+    const data = this.load();
+    const bm = data.folders[folder]?.find(b => b.id === id);
+    if (bm) WinManager._createView(bm.providerId, bm.url);
   },
 
   render() {
-    const el = document.getElementById('bookmarks-list');
+    const el = document.getElementById('sidebar');
     if (!el) return;
-    el.innerHTML = this.items.map((bm, i) => `
-      <div class="bookmark-item" data-url="${bm.url}">
-        <span>${bm.icon||'🔖'}</span>
-        <span class="bm-label">${bm.label}</span>
-        <span class="bm-del" data-index="${i}">✕</span>
-      </div>
-    `).join('');
+    let old = document.getElementById('bookmarks-section');
+    if (old) old.remove();
 
-    el.querySelectorAll('.bookmark-item').forEach(item => {
+    const data = this.load();
+    const div = document.createElement('div');
+    div.id = 'bookmarks-section';
+
+    let html = `<div class="bookmark-section-title" onclick="document.getElementById('bookmarks-container').classList.toggle('hidden')">🔖 Favoris ▾</div>`;
+    html += `<div id="bookmarks-container">`;
+    html += `<div class="bookmark-button"><button class="sidebar-btn" id="bookmark-add-folder">+ Dossier</button></div>`;
+
+    for (const [folder, items] of Object.entries(data.folders)) {
+      html += `<div class="bookmark-folder"><div class="bookmark-section-title">📁 ${folder}</div>`;
+      for (const bm of items) {
+        html += `<div class="bookmark-item" data-folder="${folder}" data-id="${bm.id}">
+          <span>🔗</span>
+          <span class="bm-name">${bm.label || bm.url}</span>
+          <span class="bm-close" data-folder="${folder}" data-id="${bm.id}" title="Supprimer">✕</span>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+    div.innerHTML = html;
+
+    // Insert after providers-list
+    const providersList = document.getElementById('providers-list');
+    if (providersList) providersList.after(div);
+
+    // Wire events
+    div.querySelectorAll('.bookmark-item').forEach(item => {
       item.addEventListener('click', (e) => {
-        if (e.target.classList.contains('bm-del')) return;
-        const url = item.dataset.url;
-        WindowManager.add('default');
-        // Navigate the last added view via IPC
-        setTimeout(() => {
-          const ids = WindowManager.list;
-          if (ids.length > 0) teamai.navigateView(ids[ids.length-1].id, url);
-        }, 300);
+        if (e.target.classList.contains('bm-close')) return;
+        Bookmarks.open(item.dataset.folder, item.dataset.id);
       });
     });
-
-    el.querySelectorAll('.bm-del').forEach(btn => {
+    div.querySelectorAll('.bm-close').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        this.remove(parseInt(btn.dataset.index));
+        Bookmarks.remove(btn.dataset.folder, btn.dataset.id);
       });
+    });
+    document.getElementById('bookmark-add-folder')?.addEventListener('click', () => {
+      const name = prompt('Nom du dossier :');
+      if (name) Bookmarks.addFolder(name);
     });
   },
 };

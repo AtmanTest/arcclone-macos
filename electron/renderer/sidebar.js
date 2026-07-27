@@ -21,7 +21,7 @@ const Sidebar = {
       const el = document.getElementById('version-badge');
       if (el && v) {
         el.textContent = `v${v.version} — ${(v.commit || 'dev').slice(0,7)}`;
-        el.addEventListener('click', () => teamai.openUrl((v.url || '') + '/commits/main'));
+        el.addEventListener('click', () => Changelog.open());
       }
     } catch {}
   },
@@ -31,6 +31,7 @@ const Sidebar = {
     document.getElementById('stats').textContent = `🪟 ${total} fenêtres actives`;
     this._renderWindowList();
     this._updateProviderStatuses();
+    Bookmarks.render();
   },
 
   _renderWindowList() {

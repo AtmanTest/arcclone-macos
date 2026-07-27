@@ -1,22 +1,23 @@
 /**
- * TeamAI v5 — Window Manager (webview)
- * Grid with resize handles, multi-line prompt, provider cards.
+ * TeamAI v7 — Window Manager
+ * Partition partagée par provider (cookies persistants).
+ * Nav buttons plus grands, favoris, resize optimisé.
  */
 const WinManager = {
   frames: new Map(),
   providers: [],
   _zoom: 0,
   _idCounter: 0,
-  _resizing: null, // { id, startX, startY, startW, startH, startRect }
 
   async init() {
     this.providers = await teamai.getProviders() || [];
     this._zoom = await teamai.getZoom() || 0;
-
     teamai.onExecJsAll((text) => this._dispatchToAll(text));
-
     this._setupZoomButtons();
     this._restoreOrCreateDefault();
+
+    // Reset layout button
+    document.getElementById('btn-reset-layout')?.addEventListener('click', () => this._resetLayout());
   },
 
   async _restoreOrCreateDefault() {
@@ -36,11 +37,14 @@ const WinManager = {
   },
 
   _createView(providerId, initialUrl = null) {
+    const urlOverrides = { zglm: 'https://chatglm.cn/?lang=en' };
     const prov = this.providers.find(p => p.id === providerId)
-      || { id: providerId, label: providerId, url: 'about:blank', icon: '🌐' };
+      || { id: providerId, label: providerId, url: urlOverrides[providerId] || 'about:blank', icon: '🌐' };
+
     this._idCounter++;
     const id = `wv_${this._idCounter}`;
-    const partition = `persist:teamai_${providerId}_${this._idCounter}`;
+    // ⭐ MÊME PARTITION PAR PROVIDER = cookies persistés entre vues
+    const partition = `persist:teamai_${providerId}`;
     const container = document.getElementById('grid-container');
     if (!container) return id;
 
@@ -56,11 +60,12 @@ const WinManager = {
       <div class="toolbar">
         <span class="num-badge">${this._idCounter}</span>
         <select class="provider-combo">${comboOps}</select>
-        <button class="nav-btn" data-action="back">◀</button>
-        <button class="nav-btn" data-action="forward">▶</button>
-        <button class="nav-btn" data-action="reload">⟳</button>
-        <input class="url-bar" placeholder="URL..." spellcheck="false" value="${initialUrl || prov.url}">
-        <button class="close-btn">✕</button>
+        <button class="nav-btn" title="Précédent" data-action="back">◀</button>
+        <button class="nav-btn" title="Suivant" data-action="forward">▶</button>
+        <button class="nav-btn" title="Actualiser" data-action="reload">⟳</button>
+        <button class="nav-btn" title="Favoris" data-action="bookmark">★</button>
+        <input class="url-bar" placeholder="URL..." spellcheck="false" value="${initialUrl || prov.url || ''}">
+        <button class="close-btn" title="Fermer">✕</button>
       </div>
       <div class="webview-area"></div>
       <div class="resize-handle"></div>
@@ -68,7 +73,7 @@ const WinManager = {
     container.appendChild(frame);
 
     const webview = document.createElement('webview');
-    webview.src = initialUrl || prov.url;
+    webview.src = initialUrl || prov.url || 'about:blank';
     webview.setAttribute('partition', partition);
     webview.setAttribute('allowpopups', '');
     webview.style.width = '100%';
@@ -76,17 +81,14 @@ const WinManager = {
     webview.style.border = 'none';
     frame.querySelector('.webview-area').appendChild(webview);
 
-    // Wire up
     const combo = frame.querySelector('.provider-combo');
     const urlBar = frame.querySelector('.url-bar');
-    const entry = { frame, webview, combo, urlBar, providerId: prov.id };
+    const entry = { frame, webview, combo, urlBar, providerId: prov.id, favori: false };
     this.frames.set(id, entry);
-
     this._bindToolbar(id, entry);
     this._bindWebView(id, entry);
     this._bindResize(id, entry);
     this._layout();
-
     return id;
   },
 
@@ -98,9 +100,15 @@ const WinManager = {
     });
     frame.querySelectorAll('.nav-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        try { if (btn.dataset.action === 'back') webview.goBack();
+        if (btn.dataset.action === 'bookmark') {
+          Bookmarks.add(entry.providerId, entry.combo?.options[entry.combo.selectedIndex]?.text || 'IA', webview.src);
+          return;
+        }
+        try {
+          if (btn.dataset.action === 'back') webview.goBack();
           else if (btn.dataset.action === 'forward') webview.goForward();
-          else if (btn.dataset.action === 'reload') webview.reload(); } catch {}
+          else if (btn.dataset.action === 'reload') webview.reload();
+        } catch {}
       });
     });
     urlBar.addEventListener('keydown', (e) => {
@@ -134,11 +142,11 @@ const WinManager = {
       e.preventDefault(); e.stopPropagation();
       startX = e.clientX; startY = e.clientY;
       startW = entry.frame.offsetWidth; startH = entry.frame.offsetHeight;
+      entry.frame.classList.add('resized');
       const onMove = (ev) => {
         const dw = ev.clientX - startX; const dh = ev.clientY - startY;
-        entry.frame.style.width = Math.max(150, startW + dw) + 'px';
-        entry.frame.style.height = Math.max(120, startH + dh) + 'px';
-        entry.frame.style.flexGrow = '0';
+        entry.frame.style.width = Math.max(200, startW + dw) + 'px';
+        entry.frame.style.height = Math.max(150, startH + dh) + 'px';
       };
       const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
       document.addEventListener('mousemove', onMove);
@@ -147,12 +155,17 @@ const WinManager = {
   },
 
   _remove(id) {
-    const entry = this.frames.get(id);
-    if (!entry) return;
-    entry.frame.remove();
-    this.frames.delete(id);
+    const entry = this.frames.get(id); if (!entry) return;
+    entry.frame.remove(); this.frames.delete(id);
+    this._layout(); Sidebar.renderAll();
+  },
+
+  _resetLayout() {
+    for (const [, e] of this.frames) {
+      e.frame.classList.remove('resized');
+      e.frame.style.width = ''; e.frame.style.height = '';
+    }
     this._layout();
-    Sidebar.renderAll();
   },
 
   _dispatchToAll(text) {
@@ -176,24 +189,12 @@ const WinManager = {
   },
 
   _layout() {
-    const container = document.getElementById('grid-container');
-    if (!container) return;
     const viewport = document.getElementById('viewport');
     if (!viewport) return;
-    const vpW = viewport.clientWidth - 6;
-    const zoom = 1 + this._zoom * 0.15;
-    const total = this.frames.size;
-    if (total === 0) return;
-
     let idx = 0;
-    for (const [, e] of this.frames) {
+    for (const [id, e] of this.frames) {
       const badge = e.frame.querySelector('.num-badge');
       if (badge) badge.textContent = idx + 1;
-      if (!e.frame.style.width || e.frame.style.flexGrow !== '0') {
-        // auto-size based on grid
-        e.frame.style.flexGrow = '1';
-        e.frame.style.maxWidth = 'none';
-      }
       idx++;
     }
     Sidebar.renderAll();
@@ -217,7 +218,6 @@ const WinManager = {
     this._layout();
   },
 
-  // Public API
   addView(pid) { this._createView(pid); },
   get count() { return this.frames.size; },
   get list() {

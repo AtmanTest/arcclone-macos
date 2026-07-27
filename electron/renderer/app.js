@@ -10,17 +10,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     ro.observe(viewport);
   }
 
-  // File attachment support
+  // File attachment with type detection
   document.getElementById('btn-attach')?.addEventListener('click', async () => {
     const fileInput = document.createElement('input');
-    fileInput.type = 'file'; fileInput.multiple = true;
+    fileInput.type = 'file'; fileInput.multiple = false;
     fileInput.addEventListener('change', async () => {
-      const files = Array.from(fileInput.files);
-      if (files.length === 0) return;
-      for (const file of files) {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      const input = document.getElementById('prompt-input');
+      if (!input) return;
+      // Detect file type
+      const isText = file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.md')
+        || file.name.endsWith('.js') || file.name.endsWith('.py') || file.name.endsWith('.json')
+        || file.name.endsWith('.csv') || file.name.endsWith('.html') || file.name.endsWith('.css')
+        || file.name.endsWith('.xml') || file.name.endsWith('.yaml') || file.name.endsWith('.yml')
+        || file.name.endsWith('.log') || file.name.endsWith('.sh');
+      const isImage = file.type.startsWith('image/');
+      if (isText) {
         const text = await file.text();
-        const input = document.getElementById('prompt-input');
-        if (input) input.value += `\n\n[Fichier: ${file.name}]\n${text.substring(0, 10000)}`;
+        input.value += `\n\n[Fichier: ${file.name}]\n${text.substring(0, 10000)}`;
+      } else if (isImage) {
+        input.value += `\n\n📷 [Image: ${file.name}] — L'upload d'images n'est pas supporté en dispatch multi-IA. Ajoute l'image manuellement dans chaque chat.`;
+      } else {
+        input.value += `\n\n📎 [Fichier: ${file.name} (${(file.size / 1024).toFixed(1)} KB)] — Format non-texte, ajoute-le manuellement.`;
       }
     });
     fileInput.click();
