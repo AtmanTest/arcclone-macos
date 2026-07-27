@@ -1,6 +1,5 @@
 """
-layout_manager.py — Layout grille simple avec QGridLayout.
-Pas de création/destruction de QSplitter, pas de crash.
+layout_manager.py — QGridLayout stable, pas de crash sur remove.
 """
 
 from enum import Enum
@@ -12,29 +11,6 @@ class LayoutMode(Enum):
     GRID = "grid"
     COLUMNS = "columns"
     AUTO_FILL = "auto_fill"
-
-
-def _auto_grid(n):
-    """Retourne (rows, cols) selon le nombre de panneaux (Apple-style)."""
-    if n <= 1:
-        return (1, 1)
-    if n == 2:
-        return (1, 2)
-    if n == 3:
-        return (2, 2)  # 1 grand + 2 petits
-    if n == 4:
-        return (2, 2)
-    if n <= 6:
-        return (2, 3)
-    if n <= 8:
-        return (2, 4)
-    if n <= 9:
-        return (3, 3)
-    if n <= 12:
-        return (3, 4)
-    cols = int(n ** 0.5) + (1 if n > int(n ** 0.5) ** 2 else 0)
-    rows = (n + cols - 1) // cols
-    return (rows, cols)
 
 
 class LayoutManager(QWidget):
@@ -61,9 +37,11 @@ class LayoutManager(QWidget):
         self._rebuild()
 
     def remove_pane(self, pane):
-        if pane in self._panes:
-            self._panes.remove(pane)
-            self._rebuild()
+        if pane not in self._panes:
+            return
+        self._grid.removeWidget(pane)
+        self._panes.remove(pane)
+        self._rebuild()
 
     def set_mode(self, mode):
         self._mode = mode
@@ -76,7 +54,7 @@ class LayoutManager(QWidget):
         return len(self._panes)
 
     def _rebuild(self):
-        # Remove all items from grid (does NOT delete widgets)
+        # Remove all from grid without deleting widgets
         while self._grid.count():
             item = self._grid.takeAt(0)
             if item and item.widget():
@@ -86,62 +64,62 @@ class LayoutManager(QWidget):
             return
 
         n = len(self._panes)
+        rows, cols = self._grid_dims(n)
 
-        if self._mode == LayoutMode.COLUMNS:
-            rows, cols = 1, n
-        elif self._mode == LayoutMode.GRID:
-            rows, cols = _auto_grid(n)
-        else:
-            rows, cols = _auto_grid(n)
-
-        positions = self._compute_positions(rows, cols, n)
+        positions = self._positions(rows, cols, n)
         for idx, (r, c, rs, cs) in enumerate(positions):
-            pane = self._panes[idx]
-            self._grid.addWidget(pane, r, c, rs, cs)
-            pane.show()
-            pane.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            if idx < len(self._panes):
+                pane = self._panes[idx]
+                self._grid.addWidget(pane, r, c, rs, cs)
+                pane.show()
+                pane.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         self.layout_changed.emit()
 
-    def _compute_positions(self, rows, cols, n):
-        """Calcule les positions (row, col, rowspan, colspan) pour n panneaux."""
-        positions = []
-
+    def _grid_dims(self, n):
         if self._mode == LayoutMode.COLUMNS:
-            for i in range(n):
-                positions.append((0, i, 1, 1))
-            return positions
-
+            return (1, n)
         if self._mode == LayoutMode.GRID:
+            cols = max(2, int(n ** 0.5) + (1 if n > int(n ** 0.5) ** 2 else 0))
+            rows = (n + cols - 1) // cols
+            return (rows, cols)
+        # AUTO_FILL
+        if n <= 1: return (1, 1)
+        if n == 2: return (1, 2)
+        if n == 3: return (2, 2)
+        if n == 4: return (2, 2)
+        if n <= 6: return (2, 3)
+        if n <= 8: return (2, 4)
+        if n <= 9: return (3, 3)
+        if n <= 12: return (3, 4)
+        cols = int(n ** 0.5) + (1 if n > int(n ** 0.5) ** 2 else 0)
+        return ((n + cols - 1) // cols, cols)
+
+    def _positions(self, rows, cols, n):
+        """Calcule (r, c, rowspan, colspan) pour chaque pane."""
+        if self._mode == LayoutMode.GRID or self._mode == LayoutMode.COLUMNS:
             idx = 0
+            res = []
             for r in range(rows):
                 for c in range(cols):
                     if idx < n:
-                        positions.append((r, c, 1, 1))
+                        res.append((r, c, 1, 1))
                         idx += 1
-            return positions
-
-        # AUTO_FILL — Apple-style
+            return res
+        # AUTO_FILL
         if n == 1:
-            positions.append((0, 0, 1, 1))
-        elif n == 2:
-            positions.append((0, 0, 1, 1))
-            positions.append((0, 1, 1, 1))
-        elif n == 3:
-            positions.append((0, 0, 2, 1))  # Gauche : toute la hauteur
-            positions.append((0, 1, 1, 1))  # Droite haut
-            positions.append((1, 1, 1, 1))  # Droite bas
-        elif n == 4:
-            positions.append((0, 0, 1, 1))
-            positions.append((0, 1, 1, 1))
-            positions.append((1, 0, 1, 1))
-            positions.append((1, 1, 1, 1))
-        else:
-            idx = 0
-            for r in range(rows):
-                for c in range(cols):
-                    if idx < n:
-                        positions.append((r, c, 1, 1))
-                        idx += 1
-
-        return positions
+            return [(0, 0, 1, 1)]
+        if n == 2:
+            return [(0, 0, 1, 1), (0, 1, 1, 1)]
+        if n == 3:
+            return [(0, 0, 2, 1), (0, 1, 1, 1), (1, 1, 1, 1)]
+        if n == 4:
+            return [(0, 0, 1, 1), (0, 1, 1, 1), (1, 0, 1, 1), (1, 1, 1, 1)]
+        idx = 0
+        res = []
+        for r in range(rows):
+            for c in range(cols):
+                if idx < n:
+                    res.append((r, c, 1, 1))
+                    idx += 1
+        return res

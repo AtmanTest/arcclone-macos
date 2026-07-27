@@ -1,67 +1,57 @@
 """
 browser_pane.py — Panneau navigateur individuel avec QWebEngineProfile isolé.
-Chaque pane = un profil séparé → cookies/cache/session indépendants.
+Signal close_requested + numéro de fenêtre.
 """
 
 import os
-
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel
 from PySide6.QtCore import Qt, Signal, QUrl
 from PySide6.QtGui import QFont
 
-STORAGE_DIR = ".arcclone_profiles"
+STORAGE_DIR = ".teamai_profiles"
 
 
 class BrowserPane(QWidget):
     url_changed = Signal(str)
     title_changed = Signal(str)
     load_finished = Signal(bool)
-
     close_requested = Signal(object)
 
-    def __init__(self, provider_id: str = "default", profile_name: str = None, parent=None):
+    def __init__(self, provider_id="default", profile_name=None, pane_number=1, parent=None):
         super().__init__(parent)
         self.provider_id = provider_id
+        self.pane_number = pane_number
         self._profile_name = profile_name or f"pane_{id(self)}"
         self._url = "about:blank"
         self._loading = False
 
-        # Create isolated profile
-        self._profile = self._create_profile(self._profile_name)
+        self._profile = QWebEngineProfile(self._profile_name, self)
+        storage = os.path.join(os.path.expanduser("~"), STORAGE_DIR, self._profile_name)
+        self._profile.setHttpCacheType(QWebEngineProfile.DiskHttpCache)
+        self._profile.setHttpCacheMaximumSize(50 * 1024 * 1024)
+        self._profile.setPersistentStoragePath(storage)
+        self._profile.setPersistentCookiesPolicy(QWebEngineProfile.ForcePersistentCookies)
 
-        # Create page + view with this profile
         self._page = QWebEnginePage(self._profile, self)
         self._view = QWebEngineView(self)
         self._view.setPage(self._page)
 
-        # Signals
         self._page.urlChanged.connect(self._on_url_changed)
         self._page.titleChanged.connect(self._on_title_changed)
         self._page.loadFinished.connect(self._on_load_finished)
 
-        # UI
         self._build_ui()
         self._apply_style()
 
     def cleanup(self):
-        """Properly clean up WebEngine resources. Call before removing pane."""
         try:
             self._page.deleteLater()
             self._view.deleteLater()
             self._profile.deleteLater()
         except RuntimeError:
             pass
-
-    def _create_profile(self, name: str) -> QWebEngineProfile:
-        profile = QWebEngineProfile(name, self)
-        storage = os.path.join(os.path.expanduser("~"), STORAGE_DIR, name)
-        profile.setHttpCacheType(QWebEngineProfile.DiskHttpCache)
-        profile.setHttpCacheMaximumSize(50 * 1024 * 1024)
-        profile.setPersistentStoragePath(storage)
-        profile.setPersistentCookiesPolicy(QWebEngineProfile.ForcePersistentCookies)
-        return profile
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -70,141 +60,127 @@ class BrowserPane(QWidget):
 
         toolbar = QWidget()
         toolbar.setObjectName("paneToolbar")
-        t_layout = QHBoxLayout(toolbar)
-        t_layout.setContentsMargins(4, 2, 4, 2)
-        t_layout.setSpacing(3)
+        t = QHBoxLayout(toolbar)
+        t.setContentsMargins(3, 2, 3, 2)
+        t.setSpacing(2)
 
-        self._back_btn = QPushButton("◀")
-        self._back_btn.setFixedSize(22, 22)
-        self._back_btn.setObjectName("paneNavBtn")
-        self._back_btn.clicked.connect(lambda: self._view.back())
+        self._number = QLabel(str(self.pane_number))
+        self._number.setObjectName("paneNumber")
+        self._number.setFixedSize(16, 16)
 
-        self._fwd_btn = QPushButton("▶")
-        self._fwd_btn.setFixedSize(22, 22)
-        self._fwd_btn.setObjectName("paneNavBtn")
-        self._fwd_btn.clicked.connect(lambda: self._view.forward())
+        self._badge = QLabel()
+        self._badge.setFixedSize(16, 16)
+        self._badge.setObjectName("paneBadge")
 
-        self._reload_btn = QPushButton("⟳")
-        self._reload_btn.setFixedSize(22, 22)
-        self._reload_btn.setObjectName("paneNavBtn")
-        self._reload_btn.clicked.connect(lambda: self._view.reload())
+        self._back = QPushButton("◀")
+        self._back.setFixedSize(20, 20)
+        self._back.setObjectName("paneBtn")
+        self._back.clicked.connect(self._view.back)
+
+        self._fwd = QPushButton("▶")
+        self._fwd.setFixedSize(20, 20)
+        self._fwd.setObjectName("paneBtn")
+        self._fwd.clicked.connect(self._view.forward)
+
+        self._reload = QPushButton("⟳")
+        self._reload.setFixedSize(20, 20)
+        self._reload.setObjectName("paneBtn")
+        self._reload.clicked.connect(self._view.reload)
 
         self._url_input = QLineEdit()
         self._url_input.setObjectName("paneUrl")
-        self._url_input.setPlaceholderText("Entrez une URL...")
+        self._url_input.setPlaceholderText("URL ou recherche...")
         self._url_input.returnPressed.connect(self._navigate)
-        self._url_input.setFont(QFont("SF Mono", 10))
+        self._url_input.setFont(QFont("SF Mono", 9))
 
-        self._badge = QLabel()
-        self._badge.setFixedSize(18, 18)
-        self._badge.setObjectName("paneBadge")
-
-        self._close_btn = QPushButton("✕")
-        self._close_btn.setFixedSize(18, 18)
-        self._close_btn.setObjectName("paneCloseBtn")
-        self._close_btn.clicked.connect(lambda: self.close_requested.emit(self))
+        self._close = QPushButton("✕")
+        self._close.setFixedSize(18, 18)
+        self._close.setObjectName("paneClose")
+        self._close.clicked.connect(lambda: self.close_requested.emit(self))
 
         layout.addWidget(toolbar)
         layout.addWidget(self._view, 1)
-        t_layout.addWidget(self._badge)
-        t_layout.addWidget(self._back_btn)
-        t_layout.addWidget(self._fwd_btn)
-        t_layout.addWidget(self._reload_btn)
-        t_layout.addWidget(self._url_input, 1)
-        t_layout.addWidget(self._close_btn)
+        t.addWidget(self._number)
+        t.addWidget(self._badge)
+        t.addWidget(self._back)
+        t.addWidget(self._fwd)
+        t.addWidget(self._reload)
+        t.addWidget(self._url_input, 1)
+        t.addWidget(self._close)
 
     def _apply_style(self):
         self.setStyleSheet("""
-            #paneToolbar {
-                background: #1e1e2e;
-                border-bottom: 1px solid #2d2d44;
+            #paneToolbar { background: #1e1e2e; border-bottom: 1px solid #2d2d44; }
+            #paneNumber {
+                background: #2d2d44; color: #8888aa; font-size: 8px; font-weight: 700;
+                border-radius: 3px; qproperty-alignment: AlignCenter;
             }
-            #paneNavBtn {
-                background: transparent;
-                border: none;
-                color: #8888aa;
-                font-size: 11px;
-                border-radius: 4px;
-                padding: 0;
+            #paneBtn {
+                background: transparent; border: none; color: #8888aa;
+                font-size: 10px; border-radius: 3px; padding: 0;
             }
-            #paneNavBtn:hover {
-                background: #2d2d44;
-                color: #e0e0ff;
-            }
+            #paneBtn:hover { background: #2d2d44; color: #e0e0ff; }
             #paneUrl {
-                background: #252540;
-                border: 1px solid #2d2d44;
-                border-radius: 5px;
-                padding: 2px 8px;
-                color: #e0e0ff;
-                font-size: 10px;
-                height: 22px;
+                background: #252540; border: 1px solid #2d2d44; border-radius: 4px;
+                padding: 1px 6px; color: #e0e0ff; font-size: 9px; height: 20px;
             }
-            #paneUrl:focus {
-                border-color: #6c63ff;
-                background: #1a1a35;
+            #paneUrl:focus { border-color: #6c63ff; background: #1a1a35; }
+            #paneBadge { font-size: 12px; }
+            #paneClose {
+                background: transparent; border: none; color: #555577;
+                font-size: 9px; border-radius: 3px; padding: 0;
             }
-            #paneBadge {
-                font-size: 14px;
-            }
-            #paneCloseBtn {
-                background: transparent;
-                border: none;
-                color: #666688;
-                font-size: 10px;
-                border-radius: 3px;
-                padding: 0;
-            }
-            #paneCloseBtn:hover {
-                background: #ff5f5733;
-                color: #ff5f57;
-            }
+            #paneClose:hover { background: #ff5f5733; color: #ff5f57; }
         """)
 
     def _navigate(self):
-        url = self._url_input.text().strip()
-        if not url:
+        text = self._url_input.text().strip()
+        if not text:
             return
-        if not url.startswith(("http://", "https://", "about:")):
-            url = "https://" + url
-        self._url = url
-        self._view.setUrl(QUrl(url))
+        if "." in text and not text.startswith(("http://", "https://", "about:", "chrome-extension:")):
+            text = "https://" + text
+        elif "." not in text or " " in text:
+            text = "https://www.google.com/search?q=" + text.replace(" ", "+")
+        self._url = text
+        self._view.setUrl(QUrl(text))
 
-    def _on_url_changed(self, qurl: QUrl):
+    def _on_url_changed(self, qurl):
         url = qurl.toString()
         self._url = url
         self._url_input.setText(url)
         self.url_changed.emit(url)
 
-    def _on_title_changed(self, title: str):
+    def _on_title_changed(self, title):
         self.title_changed.emit(title)
 
-    def _on_load_finished(self, ok: bool):
+    def _on_load_finished(self, ok):
         self._loading = False
         self.load_finished.emit(ok)
 
-    def load(self, url: str):
+    def load(self, url):
+        if not url or url == "about:blank":
+            self._url = "about:blank"
+            self._url_input.clear()
+            self._view.setUrl(QUrl("about:blank"))
+            return
         if not url.startswith(("http://", "https://", "about:")):
             url = "https://" + url
         self._url = url
         self._url_input.setText(url)
         self._view.setUrl(QUrl(url))
 
-    def set_badge(self, icon: str):
+    def set_badge(self, icon):
         self._badge.setText(icon)
 
-    @property
-    def web_view(self) -> QWebEngineView:
-        return self._view
+    def set_number(self, n):
+        self.pane_number = n
+        self._number.setText(str(n))
 
     @property
-    def web_page(self) -> QWebEnginePage:
-        return self._page
-
+    def web_view(self): return self._view
     @property
-    def profile(self) -> QWebEngineProfile:
-        return self._profile
-
+    def web_page(self): return self._page
     @property
-    def current_url(self) -> str:
-        return self._url
+    def profile(self): return self._profile
+    @property
+    def current_url(self): return self._url
