@@ -257,11 +257,20 @@ class TeamAIWindow(QMainWindow):
 
     # ===== PANES =====
     def _add_default_panes(self):
-        # Reset existing panes
         self._clear_all_panes()
         for p in self._reg.get_default_preset():
-            self._add_pane_for_provider(p)
+            self._pane_counter += 1
+            name = f"priv_{p.id}_{self._pane_counter}" if self._private else f"{p.id}_{self._pane_counter}"
+            pane = BrowserPane(p.id, name, self._pane_counter)
+            pane.set_badge(p.icon)
+            pane.url_changed.connect(lambda u, x=pane: self._on_url(x, u))
+            pane.close_requested.connect(self._remove_pane)
+            pane.load(p.url)
+            self._panes.append(pane)
+            self._layout.add_pane(pane, defer=True)
+        self._layout.relayout()
         self._layout.set_mode(LayoutMode.AUTO_FILL)
+        self._renumber()
         self._update_stats()
 
     def _add_pane(self, url=None):
@@ -301,8 +310,9 @@ class TeamAIWindow(QMainWindow):
     def _clear_all_panes(self):
         for p in list(self._panes):
             self._panes.remove(p)
-            self._layout.remove_pane(p)
+            self._layout.remove_pane(p, defer=True)
             p.cleanup()
+        self._layout.relayout()
         self._update_stats()
 
     def _renumber(self):
@@ -393,11 +403,12 @@ class TeamAIWindow(QMainWindow):
         self._private = not self._private
         self._status.setText("\U0001f576\ufe0f Privé" if self._private else "● Standard")
         self._private_btn.setChecked(self._private)
-        # Recreate all panes with private profiles
+        # Clear all
         for p in list(self._panes):
             self._panes.remove(p)
-            self._layout.remove_pane(p)
+            self._layout.remove_pane(p, defer=True)
             p.cleanup()
+        self._layout.relayout()
         self._add_default_panes()
 
     # ===== SESSION =====
@@ -431,7 +442,8 @@ class TeamAIWindow(QMainWindow):
                 p.close_requested.connect(self._remove_pane)
                 p.load(pd.get("url", "about:blank"))
                 self._panes.append(p)
-                self._layout.add_pane(p)
+                self._layout.add_pane(p, defer=True)
+            self._layout.relayout()
             for m in LayoutMode:
                 if m.value == data.get("layout", "auto_fill"):
                     self._layout.set_mode(m)

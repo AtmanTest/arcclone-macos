@@ -30,18 +30,20 @@ class LayoutManager(QWidget):
         main.addLayout(self._grid)
         self.setStyleSheet("background: #151528;")
 
-    def add_pane(self, pane):
-        """Ajoute un pane sans toucher aux autres."""
+    def add_pane(self, pane, defer=False):
+        """Ajoute un pane. Si defer=True, ne relayout pas (batch)."""
         self._panes.append(pane)
-        self._relayout()
+        if not defer:
+            self._relayout()
 
-    def remove_pane(self, pane):
-        """Retire UNIQUEMENT ce pane du grid, ne touche pas aux autres."""
+    def remove_pane(self, pane, defer=False):
+        """Retire UNIQUEMENT ce pane du grid. Si defer=True, ne relayout pas."""
         if pane not in self._panes:
             return
         self._grid.removeWidget(pane)
         self._panes.remove(pane)
-        self._relayout()
+        if not defer:
+            self._relayout()
 
     def set_mode(self, mode):
         self._mode = mode
@@ -49,6 +51,10 @@ class LayoutManager(QWidget):
 
     def mode(self):
         return self._mode
+
+    def relayout(self):
+        """Force un relayout (après batch add/remove)."""
+        self._relayout()
 
     def _relayout(self):
         """Repositionne tous les panes dans le grid sans les supprimer."""
