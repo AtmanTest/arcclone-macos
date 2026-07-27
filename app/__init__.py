@@ -20,7 +20,11 @@ def main():
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
     app = QApplication(sys.argv)
-    app.setFont(QFont("SF Pro Display", 11))
+    app.setFont(QFont("SF Pro Text", 11))
+    # Fallback if SF Pro not available
+    font = app.font()
+    font.setFamilies(["SF Pro Text", "Helvetica Neue", "Helvetica", "sans-serif"])
+    app.setFont(font)
 
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor("#0b0d14"))

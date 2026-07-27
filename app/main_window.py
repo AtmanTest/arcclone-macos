@@ -125,7 +125,7 @@ class MainWindow(QMainWindow):
         # Logo
         logo = QLabel("🧭 ArcClone")
         logo.setObjectName("sidebarLogo")
-        logo.setFont(QFont("SF Pro Display", 14, QFont.Weight.DemiBold))
+        logo.setFont(QFont("SF Pro Text", 14, QFont.Weight.DemiBold))
         layout.addWidget(logo)
 
         # Space selector
@@ -348,6 +348,7 @@ class MainWindow(QMainWindow):
 
     def _remove_pane(self, pane: BrowserPane):
         if pane in self._panes:
+            pane.cleanup()
             self._panes.remove(pane)
             self._layout_manager.remove_pane(pane)
 

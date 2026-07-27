@@ -1,6 +1,6 @@
 """
 layout_manager.py — Gestion des layouts grille, colonnes, auto-fill Apple.
-Utilise QSplitter pour le redimensionnement par drag.
+QSplitter pour redimensionnement drag. Protège les panneaux contre la suppression Qt.
 """
 
 from enum import Enum
@@ -46,6 +46,7 @@ class LayoutManager(QWidget):
         if pane in self._panes:
             self._panes.remove(pane)
             pane.setParent(None)
+            pane.deleteLater()
             self._rebuild()
 
     def set_mode(self, mode: LayoutMode):
@@ -59,10 +60,13 @@ class LayoutManager(QWidget):
         return len(self._panes)
 
     def _rebuild(self):
-        # Clear old layout
-        old = self._container_layout.takeAt(0)
-        if old and old.widget():
-            old.widget().setParent(None)
+        # CRITICAL: detach all panes BEFORE clearing old layout.
+        # Otherwise Qt destroys them recursively when we remove the old splitter.
+        for pane in self._panes:
+            pane.setParent(self)
+
+        # Clear the old layout completely
+        self._clear_layout(self._container_layout)
 
         if not self._panes:
             return
@@ -75,6 +79,17 @@ class LayoutManager(QWidget):
             self._build_auto_fill()
 
         self.layout_changed.emit()
+
+    def _clear_layout(self, layout):
+        """Recursively remove all widgets/items from a layout without deleting child widgets."""
+        if layout is None:
+            return
+        while layout.count():
+            item = layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+            elif item.layout():
+                self._clear_layout(item.layout())
 
     def _build_columns(self):
         """Colonnes parallèles avec QSplitter horizontal."""
@@ -89,15 +104,14 @@ class LayoutManager(QWidget):
 
     def _build_grid(self):
         """Grille adaptative: 2x2 pour 4, s'adapte pour plus."""
-        splitter = QSplitter(Qt.Vertical)
-        splitter.setHandleWidth(3)
-        splitter.setChildrenCollapsible(False)
-
         n = len(self._panes)
         cols = max(2, int(n ** 0.5) + (1 if n > int(n ** 0.5) ** 2 else 0))
         rows = (n + cols - 1) // cols
 
-        # Group into rows
+        outer = QSplitter(Qt.Vertical)
+        outer.setHandleWidth(3)
+        outer.setChildrenCollapsible(False)
+
         for r in range(rows):
             row_splitter = QSplitter(Qt.Horizontal)
             row_splitter.setHandleWidth(2)
@@ -109,21 +123,20 @@ class LayoutManager(QWidget):
                     pane.setParent(row_splitter)
                     pane.show()
                     row_splitter.addWidget(pane)
-            splitter.addWidget(row_splitter)
+            outer.addWidget(row_splitter)
 
-        self._container_layout.addWidget(splitter)
+        self._container_layout.addWidget(outer)
 
     def _build_auto_fill(self):
         """Apple-style auto-fill: intelligent selon le nombre de panneaux."""
         n = len(self._panes)
 
         if n == 1:
-            # Plein écran
             self._panes[0].setParent(self._container)
+            self._panes[0].show()
             self._container_layout.addWidget(self._panes[0])
 
         elif n == 2:
-            # 2 colonnes
             splitter = QSplitter(Qt.Horizontal)
             splitter.setHandleWidth(3)
             for p in self._panes:
@@ -133,7 +146,6 @@ class LayoutManager(QWidget):
             self._container_layout.addWidget(splitter)
 
         elif n == 3:
-            # 1 colonne gauche (50%) + 2 colonnes droites empilées
             main_splitter = QSplitter(Qt.Horizontal)
             main_splitter.setHandleWidth(3)
 
@@ -154,7 +166,6 @@ class LayoutManager(QWidget):
             self._container_layout.addWidget(main_splitter)
 
         elif n == 4:
-            # Grille 2x2 classique
             outer = QSplitter(Qt.Vertical)
             outer.setHandleWidth(3)
             for row in range(2):
@@ -170,10 +181,8 @@ class LayoutManager(QWidget):
             self._container_layout.addWidget(outer)
 
         else:
-            # 5+ panneaux: grille adaptative compacte
             cols = 3 if n <= 6 else 4
             rows = (n + cols - 1) // cols
-
             outer = QSplitter(Qt.Vertical)
             outer.setHandleWidth(2)
             for r in range(rows):

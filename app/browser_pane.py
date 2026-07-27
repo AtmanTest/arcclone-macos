@@ -3,6 +3,8 @@ browser_pane.py — Panneau navigateur individuel avec QWebEngineProfile isolé.
 Chaque pane = un profil séparé → cookies/cache/session indépendants.
 """
 
+import os
+
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel
@@ -41,10 +43,17 @@ class BrowserPane(QWidget):
         self._build_ui()
         self._apply_style()
 
+    def cleanup(self):
+        """Properly clean up WebEngine resources. Call before removing pane."""
+        try:
+            self._page.deleteLater()
+            self._view.deleteLater()
+            self._profile.deleteLater()
+        except RuntimeError:
+            pass
+
     def _create_profile(self, name: str) -> QWebEngineProfile:
         profile = QWebEngineProfile(name, self)
-        # Persist storage per profile
-        import os
         storage = os.path.join(os.path.expanduser("~"), STORAGE_DIR, name)
         profile.setHttpCacheType(QWebEngineProfile.DiskHttpCache)
         profile.setHttpCacheMaximumSize(50 * 1024 * 1024)
@@ -57,7 +66,6 @@ class BrowserPane(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Toolbar
         toolbar = QWidget()
         toolbar.setObjectName("paneToolbar")
         t_layout = QHBoxLayout(toolbar)
