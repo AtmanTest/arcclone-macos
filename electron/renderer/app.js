@@ -1,3 +1,19 @@
+const ErrorBar = {
+  _timeout: null,
+  show(msg) {
+    const bar = document.getElementById('error-bar');
+    if (!bar) return;
+    bar.textContent = '⚠ ' + msg;
+    bar.classList.add('show');
+    clearTimeout(this._timeout);
+    this._timeout = setTimeout(() => bar.classList.remove('show'), 8000);
+  },
+  clear() {
+    const bar = document.getElementById('error-bar');
+    if (bar) bar.classList.remove('show');
+  },
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
   PromptDispatcher.init();
   await WinManager.init();

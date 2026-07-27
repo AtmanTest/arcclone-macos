@@ -1,12 +1,12 @@
 /**
- * TeamAI v5 — Sidebar
- * Provider cards, stats, new tab button at top.
+ * TeamAI v8 — Sidebar
+ * Provider cards, stats, bookmarks, login assistant.
  */
 const Sidebar = {
   async init() {
     this._renderProviders();
     this.renderAll();
-
+    this._renderVersion();
     document.getElementById('btn-new-tab')?.addEventListener('click', () => {
       const p = WinManager.providersList;
       if (p.length > 0) WinManager.addView(p[0].id);
@@ -14,16 +14,6 @@ const Sidebar = {
     document.getElementById('btn-login-assistant')?.addEventListener('click', () => LoginAssistant.start());
     document.getElementById('btn-report')?.addEventListener('click', () => ReportManager.open());
     document.getElementById('btn-save-session')?.addEventListener('click', () => this._saveSession());
-
-    // Version
-    try {
-      const v = await teamai.getVersion();
-      const el = document.getElementById('version-badge');
-      if (el && v) {
-        el.textContent = `v${v.version} — ${(v.commit || 'dev').slice(0,7)}`;
-        el.addEventListener('click', () => Changelog.open());
-      }
-    } catch {}
   },
 
   renderAll() {
@@ -32,6 +22,21 @@ const Sidebar = {
     this._renderWindowList();
     this._updateProviderStatuses();
     Bookmarks.render();
+  },
+
+  _renderVersion() {
+    teamai.getVersion().then(v => {
+      const el = document.getElementById('version-badge');
+      if (el && v) {
+        el.textContent = `✦ v${v.version} ✦`;
+        el.title = `${v.version} — ${(v.commit || '').slice(0,7)}`;
+        el.style.color = '#4ADE80';
+        el.style.fontWeight = '700';
+        el.style.fontSize = '11px';
+        el.style.letterSpacing = '0.5px';
+        el.addEventListener('click', () => Changelog.open());
+      }
+    }).catch(() => {});
   },
 
   _renderWindowList() {
@@ -53,13 +58,12 @@ const Sidebar = {
     const el = document.getElementById('providers-list');
     if (!el) return;
     const providers = WinManager.providersList;
-    // Check stored connection statuses
     const connected = JSON.parse(localStorage.getItem('teamai_connected') || '{}');
     el.innerHTML = providers.map(p => `
       <div class="prov-card" data-id="${p.id}">
-        <div class="icon">${p.icon}</div>
-        <div class="name">${p.label}</div>
-        <div class="status ${connected[p.id] ? 'connected' : ''}">${connected[p.id] ? '✅ Connecté' : '🔓 Non connecté'}</div>
+        <div class="icon">${p.icon || '🌐'}</div>
+        <div class="name">${p.label || p.id}</div>
+        <div class="status ${connected[p.id] ? 'connected' : ''}">${connected[p.id] ? '✓' : '···'}</div>
       </div>
     `).join('');
     el.querySelectorAll('.prov-card').forEach(card => {
@@ -70,25 +74,20 @@ const Sidebar = {
   _updateProviderStatuses() {
     const connected = JSON.parse(localStorage.getItem('teamai_connected') || '{}');
     document.querySelectorAll('.prov-card').forEach(card => {
-      const id = card.dataset.id;
-      const status = card.querySelector('.status');
-      if (status) {
-        if (connected[id]) { status.textContent = '✅ Connecté'; status.className = 'status connected'; }
-        else { status.textContent = '🔓 Non connecté'; status.className = 'status'; }
-      }
+      const s = card.querySelector('.status');
+      if (!s) return;
+      s.textContent = connected[card.dataset.id] ? '✓' : '···';
+      s.className = 'status' + (connected[card.dataset.id] ? ' connected' : '');
     });
   },
 
   updateWindowTitle(id, title) {
-    const item = document.querySelector(`.win-item[data-id="${id}"] .label`);
-    if (item) item.textContent = title || 'IA';
+    const entry = WinManager.frames.get(id);
+    if (entry) entry._lastTitle = title;
   },
 
   _saveSession() {
-    if (WinManager.count > 0) {
-      const views = WinManager.list;
-      localStorage.setItem('teamai_session', JSON.stringify({ views }));
-      alert('✅ Session sauvegardée — ' + views.length + ' fenêtres');
-    }
+    const list = WinManager.list;
+    localStorage.setItem('teamai_session', JSON.stringify({ views: list, saved: new Date().toISOString() }));
   },
 };

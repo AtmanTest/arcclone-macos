@@ -137,7 +137,14 @@ input, select, button, textarea { font-family: var(--font); }
 #go-btn:hover { background: #6D28D9; }
 
 /* ── Viewport ─────────────────────────────────────────────────────────── */
-#viewport { flex: 1; overflow: auto; background: #08080c; padding: 3px; }
+#viewport { flex: 1; overflow: auto; background: #08080c; padding: 3px; position: relative; }
+#error-bar {
+  display: none; position: absolute; top: 3px; left: 3px; right: 3px;
+  background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #FCA5A5; font-size: 10px; padding: 4px 8px; border-radius: 4px;
+  z-index: 500; line-height: 1.4;
+}
+#error-bar.show { display: block; }
 #grid-container { display: flex; flex-wrap: wrap; gap: 3px; align-content: flex-start; min-height: calc(100% - 6px); position: relative; }
 
 /* ── Window Frame ─────────────────────────────────────────────────────── */

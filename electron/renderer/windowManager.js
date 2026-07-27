@@ -115,6 +115,7 @@ const WinManager = {
         <button class="nav-btn" title="Précédent" data-action="back">◀</button>
         <button class="nav-btn" title="Suivant" data-action="forward">▶</button>
         <button class="nav-btn" title="Actualiser" data-action="reload">⟳</button>
+        <button class="nav-btn" title="Focus plein écran" data-action="focus">👁</button>
         <button class="nav-btn" title="Favoris" data-action="bookmark">★</button>
         <input class="url-bar" placeholder="URL..." spellcheck="false" value="${initialUrl || prov.url || ''}">
         <button class="close-btn" title="Fermer">✕</button>
@@ -160,6 +161,10 @@ const WinManager = {
           Bookmarks.add(entry.providerId, entry.combo?.options[entry.combo.selectedIndex]?.text || 'IA', webview.src);
           return;
         }
+        if (btn.dataset.action === 'focus') {
+          this._toggleFocus(id);
+          return;
+        }
         try {
           if (btn.dataset.action === 'back') webview.goBack();
           else if (btn.dataset.action === 'forward') webview.goForward();
@@ -188,6 +193,17 @@ const WinManager = {
         teamai.openAuthWindow(e.url, webview.getAttribute('partition') || '');
       }
     });
+    webview.addEventListener('did-fail-load', (e) => {
+      if (e.errorCode !== -3) { // -3 = aborted (user navigation)
+        ErrorBar.show(`❌ ${entry.combo?.options[entry.combo.selectedIndex]?.text || 'IA'}: ${e.errorDescription || 'Erreur de chargement'}`);
+      }
+    });
+    webview.addEventListener('crashed', () => {
+      ErrorBar.show(`💥 ${entry.combo?.options[entry.combo.selectedIndex]?.text || 'IA'}: WebView a crashé`);
+    });
+    webview.addEventListener('did-get-redirect-request', (e) => {
+      if (e.isMainFrame && e.newURL) urlBar.value = e.newURL;
+    });
   },
 
   _bindResize(id, entry) {
@@ -208,10 +224,55 @@ const WinManager = {
 
   _resetLayout() {
     for (const [, e] of this.frames) {
-      e.frame.classList.remove('resized');
-      e.frame.style.width = ''; e.frame.style.height = '';
+      e.frame.classList.remove('resized', 'focused');
+      e.frame.style.width = ''; e.frame.style.height = ''; e.frame.style.position = '';
+      e.frame.style.left = ''; e.frame.style.top = ''; e.frame.style.zIndex = '';
+      // Restore webview
+      const wv = e.frame.querySelector('webview');
+      if (wv) wv.style.opacity = '1';
     }
-    this._layout();
+    LayoutModel.setMode('grid');
+    this._applyLayout();
+  },
+
+  _toggleFocus(id) {
+    const entry = this.frames.get(id);
+    if (!entry) return;
+    const frame = entry.frame;
+    if (frame.classList.contains('focused')) {
+      // Unfocus — restore
+      frame.classList.remove('focused');
+      frame.style.width = frame._focusPrevW || ''; frame.style.height = frame._focusPrevH || '';
+      frame.style.position = frame._focusPrevPos || '';
+      frame.style.left = frame._focusPrevL || ''; frame.style.top = frame._focusPrevT || '';
+      frame.style.zIndex = '';
+      const wv = frame.querySelector('webview');
+      if (wv) wv.style.opacity = '1';
+      // Reset layout for all frames
+      this.frames.forEach((e) => {
+        const w = e.frame.querySelector('webview');
+        if (w) w.style.opacity = '1';
+      });
+    } else {
+      // Focus this frame — fill viewport, hide others
+      const vp = document.getElementById('viewport');
+      if (!vp) return;
+      // Save current
+      frame._focusPrevW = frame.style.width; frame._focusPrevH = frame.style.height;
+      frame._focusPrevL = frame.style.left; frame._focusPrevT = frame.style.top;
+      frame._focusPrevPos = frame.style.position;
+      // Hide all webviews, show only focused
+      this.frames.forEach((e, fid) => {
+        const w = e.frame.querySelector('webview');
+        if (w) w.style.opacity = fid === id ? '1' : '0';
+      });
+      frame.classList.add('focused');
+      frame.style.position = 'absolute';
+      frame.style.left = '0'; frame.style.top = '0';
+      frame.style.width = vp.clientWidth + 'px';
+      frame.style.height = vp.clientHeight + 'px';
+      frame.style.zIndex = '100';
+    }
   },
 
   _dispatchToAll(text) {
