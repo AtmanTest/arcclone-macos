@@ -1,58 +1,71 @@
 /**
  * TeamAI — Sidebar
- * Renders provider list, active windows stats, bookmarks, version.
+ * Window list, stats, zoom, providers, report button.
  */
 const Sidebar = {
-  async render() {
-    this._stats();
-    this._providers();
-    this._version();
-  },
+  async init() {
+    const providers = await teamai.getProviders() || [];
+    this._renderProviders(providers);
 
-  _stats() {
-    const el = document.getElementById('stats');
-    if (!el) return;
-    const n = WindowManager.views.size;
-    const ia = WindowManager.list.filter(v => v.providerId !== 'default').length;
-    el.textContent = `Fenêtres: ${n} | IA: ${ia}`;
+    document.getElementById('zoom-in')?.addEventListener('click', () => teamai.zoomIn());
+    document.getElementById('zoom-out')?.addEventListener('click', () => teamai.zoomOut());
+    document.getElementById('zoom-reset')?.addEventListener('click', () => teamai.zoomReset());
 
-    // Render active window list
-    let html = `<div style="font-size:10px;color:#64748B;margin-top:4px;">`;
-    WindowManager.list.forEach((v, i) => {
-      html += `<div style="display:flex;align-items:center;gap:4px;padding:2px 0;">
-        <span style="background:#1E1E2E;border-radius:3px;padding:0 4px;font-size:8px;color:#64748B;min-width:14px;text-align:center;">${i+1}</span>
-        <span>${v.icon||'🌐'}</span>
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;">${v.label}</span>
-        <span onclick="WindowManager.remove('${v.id}')" style="cursor:pointer;color:#555;font-size:8px;padding:0 2px;">✕</span>
-      </div>`;
+    document.getElementById('btn-new-tab')?.addEventListener('click', () => {
+      if (providers.length > 0) WinManager.addView(providers[0].id);
     });
-    html += `</div>`;
-    el.innerHTML += html;
+
+    document.getElementById('btn-report')?.addEventListener('click', () => ReportManager.open());
   },
 
-  _providers() {
+  renderStats(total) {
+    const stats = document.getElementById('stats');
+    if (!stats) return;
+    stats.textContent = `Fenêtres: ${total} | IA: ${total}`;
+    this._renderWindowList();
+  },
+
+  _renderWindowList() {
+    const el = document.getElementById('window-list');
+    if (!el) return;
+    el.innerHTML = '';
+    WinManager.frames.forEach((entry, id) => {
+      const div = document.createElement('div');
+      div.className = 'win-item';
+      div.dataset.id = id;
+      const idx = Array.from(WinManager.frames.keys()).indexOf(id) + 1;
+      const combo = entry.frame ? entry.frame.querySelector('.provider-combo') : null;
+      const lbl = combo ? combo.options[combo.selectedIndex]?.text || 'IA' : 'IA';
+      div.innerHTML = `
+        <span class="num">${idx}</span>
+        <span class="label">${lbl}</span>
+        <span class="close-btn">✕</span>
+      `;
+      div.querySelector('.close-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        WinManager.removeView(id);
+      });
+      div.addEventListener('click', () => {
+        const frame = entry.frame;
+        if (frame) frame.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      el.appendChild(div);
+    });
+  },
+
+  _renderProviders(providers) {
     const el = document.getElementById('providers-list');
     if (!el) return;
-    const providers = WindowManager.providers;
-    el.innerHTML = providers.map(p => `
-      <button class="prov-btn" data-id="${p.id}">
-        ${p.icon} ${p.label}
-      </button>
-    `).join('');
-
+    el.innerHTML = providers.map(p =>
+      `<button class="prov-btn" data-id="${p.id}">${p.icon} ${p.label}</button>`
+    ).join('');
     el.querySelectorAll('.prov-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        WindowManager.add(btn.dataset.id);
-      });
+      btn.addEventListener('click', () => WinManager.addView(btn.dataset.id));
     });
   },
 
-  async _version() {
-    const el = document.getElementById('version-badge');
-    if (!el) return;
-    try {
-      const v = await teamai.getVersion();
-      el.textContent = `v${v.version} — ${v.commit ? v.commit.slice(0,7) : 'dev'}`;
-    } catch { el.textContent = 'v0.1.0-dev'; }
+  updateWindowTitle(id, title) {
+    const item = document.querySelector(`.win-item[data-id="${id}"] .label`);
+    if (item) item.textContent = title;
   },
 };

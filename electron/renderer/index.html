@@ -8,47 +8,47 @@
 </head>
 <body>
   <div id="app">
-    <!-- Sidebar -->
+    <!-- SIDEBAR -->
     <aside id="sidebar">
-      <div id="sidebar-top">
-        <div id="logo">🧠 TeamAI</div>
-        <div id="stats"></div>
+      <div id="logo">🧠 TeamAI</div>
+      <div id="stats"></div>
+      <div id="window-list"></div>
+
+      <div id="zoom-controls">
+        <button id="zoom-out">−</button>
+        <span id="zoom-level">100%</span>
+        <button id="zoom-in">+</button>
+        <button id="zoom-reset">⊙</button>
       </div>
 
-      <div id="providers-section">
-        <div class="section-title">PROVIDERS</div>
-        <div id="providers-list"></div>
-      </div>
-
-      <div id="bookmarks-section">
-        <div class="section-title">FAVORIS</div>
-        <div id="bookmarks-list"></div>
-        <button id="add-bookmark" class="ghost-btn">+ Ajouter favori</button>
-      </div>
+      <div class="section-title">PROVIDERS</div>
+      <div id="providers-list"></div>
 
       <div id="sidebar-bottom">
-        <button id="reset-layout" class="ghost-btn">↺ Reset layout</button>
-        <button id="save-session" class="ghost-btn">💾 Sauvegarder session</button>
-        <div id="version-badge"></div>
+        <button id="btn-report" class="action-btn">📋 Rapport complet</button>
+        <button id="btn-new-tab" class="action-btn primary">Nouvel Onglet IA +</button>
       </div>
     </aside>
 
-    <!-- Prompt bar -->
-    <div id="main-area">
+    <!-- MAIN -->
+    <div id="main">
+      <!-- Viewport scrollable -->
+      <div id="viewport">
+        <div id="overlay-container"></div>
+      </div>
+
+      <!-- Prompt bar fixed bottom -->
       <div id="prompt-bar">
-        <div id="prompt-input-wrapper">
-          <input type="text" id="prompt-input" placeholder="Pose ta question à TOUTES les IA (Enter = GO)">
-        </div>
+        <input type="text" id="prompt-input" placeholder="Pose ta question à TOUTES les IA (Enter = GO)">
         <button id="go-btn">C'est un ordre, GO !</button>
       </div>
-      <div id="viewport"></div>
     </div>
   </div>
 
   <script src="windowManager.js"></script>
   <script src="sidebar.js"></script>
   <script src="promptDispatcher.js"></script>
-  <script src="bookmarks.js"></script>
+  <script src="reportManager.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,46 +1,48 @@
 /**
- * TeamAI — App Entry Point
+ * TeamAI — App Entry Point v2
  */
 document.addEventListener('DOMContentLoaded', async () => {
-  // Init modules
   PromptDispatcher.init();
-  Bookmarks.init();
+  await WinManager.init();
+  await Sidebar.init();
 
-  // Wait for WindowManager to sync
-  await WindowManager.init();
+  // Scroll sync: viewport scroll → IPC → reposition BrowserViews
+  const viewport = document.getElementById('viewport');
+  if (viewport) {
+    let scrollTimer;
+    viewport.addEventListener('scroll', () => {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        teamai.scrollViewport(viewport.scrollTop);
+      }, 50);
+    });
+  }
 
-  // Sidebar buttons
-  document.getElementById('reset-layout')?.addEventListener('click', () => {
-    // Reloads default view positions
-    teamai.addDefaultViews().then(() => WindowManager.restoreDefault());
-  });
-
-  document.getElementById('save-session')?.addEventListener('click', () => {
-    const data = {
-      views: WindowManager.list.map(v => ({ providerId: v.providerId, url: v.url })),
-      bookmarks: Bookmarks.items,
-    };
-    localStorage.setItem('teamai_session', JSON.stringify(data));
-    alert('Session sauvegardée ✅');
-  });
-
-  // Check for saved session
+  // Restore session if available
   const saved = localStorage.getItem('teamai_session');
   if (saved) {
     try {
       const data = JSON.parse(saved);
       if (data.views && data.views.length > 0 && confirm('Restaurer la session précédente ?')) {
-        await teamai.clearAllViews();
-        WindowManager.views.clear();
+        await teamai.clearAll();
         for (const v of data.views) {
           const id = await teamai.addView(v.providerId || 'default');
           if (id && v.url && v.url !== 'about:blank') {
-            setTimeout(() => teamai.navigateView(id, v.url), 500);
+            setTimeout(() => teamai.navigateView(id, v.url), 800);
           }
         }
-        const ids = await teamai.getViewIds();
-        await WindowManager._sync(ids);
       }
     } catch {}
   }
+
+  // Save session on close
+  window.addEventListener('beforeunload', () => {
+    teamai.getViews().then(views => {
+      if (views.length > 0) {
+        localStorage.setItem('teamai_session', JSON.stringify({
+          views: views.map(v => ({ providerId: v.providerId, url: v.url })),
+        }));
+      }
+    }).catch(() => {});
+  });
 });

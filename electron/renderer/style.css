@@ -1,219 +1,234 @@
-/* ── TeamAI Design System ───────────────────────────────────────────────── */
+/* ── TeamAI Design System v2 ───────────────────────────────────────────── */
 :root {
   --bg: #0D0D0F;
   --sidebar-bg: #131318;
   --border: #1E1E2E;
   --accent: #7C3AED;
   --accent-hover: #6D28D9;
-  --cyan: #06B6D4;
   --text: #E2E8F0;
   --muted: #64748B;
   --card-bg: #1A1A24;
-  --radius: 12px;
+  --toolbar-h: 36px;
   --sidebar-w: 240px;
+  --prompt-h: 46px;
+  --radius: 10px;
   --font: system-ui, -apple-system, 'Inter', sans-serif;
+  --zoom: 1;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; overflow: hidden; }
 
-html, body {
-  height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 13px;
-  overflow: hidden;
-  user-select: none;
-  -webkit-app-region: no-drag;
-}
+#app { display: flex; height: 100vh; width: 100vw; }
 
-/* ── App Layout ──────────────────────────────────────────────────────────── */
-#app {
-  display: flex;
-  height: 100vh;
-}
-
-/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+/* ── Sidebar ───────────────────────────────────────────────────────────── */
 #sidebar {
-  width: var(--sidebar-w);
-  min-width: var(--sidebar-w);
-  background: var(--sidebar-bg);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  padding: 12px 10px;
-  gap: 8px;
-  overflow-y: auto;
+  width: var(--sidebar-w); min-width: var(--sidebar-w);
+  background: var(--sidebar-bg); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; padding: 10px; gap: 4px;
+  overflow-y: auto; z-index: 100;
 }
-
 #sidebar::-webkit-scrollbar { width: 3px; }
-#sidebar::-webkit-scrollbar-track { background: transparent; }
 #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-#logo {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text);
-  padding-bottom: 4px;
-}
+#logo { font-size: 16px; font-weight: 700; padding-bottom: 2px; }
+#stats { font-size: 10px; color: var(--accent); padding: 2px 0; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
 
-#stats {
-  font-size: 10px;
-  color: var(--accent);
-  padding: 4px 0;
+#window-list { flex: 1; overflow-y: auto; font-size: 10px; min-height: 0; }
+.win-item {
+  display: flex; align-items: center; gap: 4px; padding: 3px 4px;
+  border-radius: 4px; cursor: pointer;
 }
-
-.section-title {
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--muted);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  padding: 6px 0 2px;
+.win-item:hover { background: var(--border); }
+.win-item .num {
+  background: var(--border); border-radius: 3px; padding: 0 4px;
+  font-size: 8px; color: var(--muted); min-width: 16px; text-align: center;
 }
+.win-item .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-item .close-btn { color: #555; cursor: pointer; font-size: 8px; padding: 2px; }
+.win-item .close-btn:hover { color: #EF4444; }
 
-/* Provider buttons */
-#providers-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
+#zoom-controls { display: flex; align-items: center; gap: 4px; padding: 4px 0; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+#zoom-controls button {
+  background: var(--border); border: none; border-radius: 4px;
+  color: var(--text); font-size: 12px; width: 22px; height: 22px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
+#zoom-controls button:hover { background: var(--accent); }
+#zoom-level { flex: 1; text-align: center; font-size: 10px; color: var(--muted); }
+#zoom-reset { font-size: 10px !important; }
 
+.section-title { font-size: 9px; font-weight: 600; color: var(--muted); letter-spacing: 0.5px; padding: 4px 0 2px; }
+
+#providers-list { display: flex; flex-direction: column; gap: 1px; max-height: 200px; overflow-y: auto; }
 .prov-btn {
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  color: var(--text);
-  font-size: 11px;
-  padding: 5px 8px;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.15s;
+  background: transparent; border: none; border-radius: 5px;
+  color: var(--text); font-size: 10px; padding: 3px 6px; text-align: left; cursor: pointer;
 }
 .prov-btn:hover { background: var(--border); }
 
-/* Bookmarks */
-#bookmarks-section {
-  border-top: 1px solid var(--border);
-  padding-top: 6px;
+#sidebar-bottom { border-top: 1px solid var(--border); padding-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+.action-btn {
+  background: var(--border); border: none; border-radius: 6px;
+  color: var(--text); font-size: 10px; padding: 5px 8px; cursor: pointer; text-align: center;
+}
+.action-btn:hover { background: var(--accent); }
+.action-btn.primary { background: var(--accent); color: white; font-weight: 600; }
+.action-btn.primary:hover { background: var(--accent-hover); }
+
+/* ── Main Area ─────────────────────────────────────────────────────────── */
+#main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* Viewport scrollable */
+#viewport {
+  flex: 1; overflow: auto; position: relative;
+  background: #09090b;
+}
+#viewport::-webkit-scrollbar { width: 6px; height: 6px; }
+#viewport::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+#viewport::-webkit-scrollbar-corner { background: transparent; }
+
+#overlay-container {
+  position: relative;
+  min-height: 100%;
 }
 
-#bookmarks-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  max-height: 200px;
-  overflow-y: auto;
+/* ── Window Frame (overlay toolbar + content area) ─────────────────────── */
+.window-frame {
+  position: absolute;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex; flex-direction: column;
 }
 
-.bookmark-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 6px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 10px;
-}
-.bookmark-item:hover { background: var(--border); }
-.bm-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bm-del { color: #555; font-size: 8px; cursor: pointer; padding: 0 2px; }
-.bm-del:hover { color: #EF4444; }
-
-/* Bottom buttons */
-#sidebar-bottom {
-  border-top: 1px solid var(--border);
-  padding-top: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.ghost-btn {
-  background: transparent;
-  border: none;
-  border-radius: 5px;
-  color: var(--text);
-  font-size: 10px;
-  padding: 4px 8px;
-  text-align: left;
-  cursor: pointer;
-}
-.ghost-btn:hover { background: var(--border); }
-#add-bookmark {
-  border: 1px dashed var(--border);
-  color: var(--muted);
-  font-size: 9px;
-  padding: 3px 6px;
-  text-align: center;
-}
-#add-bookmark:hover { border-color: var(--accent); color: var(--text); }
-
-#version-badge {
-  font-size: 8px;
-  color: #444;
-  text-align: center;
-  padding: 4px 0;
-}
-
-/* ── Main Area ───────────────────────────────────────────────────────────── */
-#main-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-/* Prompt bar */
-#prompt-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background: var(--sidebar-bg);
+.window-frame .toolbar {
+  height: var(--toolbar-h);
+  background: #151520;
   border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 3px;
+  padding: 0 6px;
+  flex-shrink: 0;
 }
 
-#prompt-input-wrapper {
-  flex: 1;
+.window-frame .toolbar .num-badge {
+  background: #2a2a3a; border-radius: 3px;
+  padding: 0 5px; font-size: 8px; font-weight: 700;
+  color: var(--muted); min-width: 18px; text-align: center;
+  line-height: 18px;
+}
+
+.window-frame .toolbar .provider-combo {
+  background: var(--card-bg);
+  border: 1px solid var(--border); border-radius: 4px;
+  color: var(--text); font-size: 9px;
+  padding: 1px 4px; height: 20px;
+  outline: none; min-width: 120px;
+  cursor: pointer;
+}
+.window-frame .toolbar .provider-combo:focus { border-color: var(--accent); }
+
+.window-frame .toolbar .nav-btn {
+  background: transparent; border: none;
+  color: #888; font-size: 9px; width: 18px; height: 18px;
+  border-radius: 3px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.window-frame .toolbar .nav-btn:hover { background: var(--border); color: var(--text); }
+
+.window-frame .toolbar .url-bar {
+  flex: 1; height: 20px;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 0 6px;
+  color: var(--text); font-size: 9px;
+  outline: none; min-width: 0;
+}
+.window-frame .toolbar .url-bar:focus { border-color: var(--accent); }
+
+.window-frame .toolbar .close-btn {
+  background: transparent; border: none;
+  color: #555; font-size: 9px; width: 18px; height: 18px;
+  border-radius: 3px; cursor: pointer;
+}
+.window-frame .toolbar .close-btn:hover { background: #EF444422; color: #EF4444; }
+
+.window-frame .content-area {
+  flex: 1; position: relative;
+  pointer-events: none; /* BrowserView is behind, but toolbars are above */
+}
+
+/* ── Report Modal ──────────────────────────────────────────────────────── */
+#report-modal {
+  display: none;
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000; align-items: center; justify-content: center;
+}
+#report-modal.open { display: flex; }
+
+#report-content {
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 80%; max-width: 900px; max-height: 80vh;
+  display: flex; flex-direction: column;
+}
+
+#report-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+}
+#report-header h2 { font-size: 14px; }
+#report-header button {
+  background: transparent; border: none; color: var(--muted); font-size: 16px; cursor: pointer;
+}
+
+#report-body {
+  flex: 1; overflow-y: auto; padding: 12px 16px;
+  font-size: 11px; line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+#report-footer {
+  padding: 8px 16px; border-top: 1px solid var(--border);
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+#report-footer button {
+  background: var(--accent); border: none; border-radius: 6px;
+  color: white; font-size: 10px; padding: 6px 16px; cursor: pointer;
+}
+#report-footer button:hover { background: var(--accent-hover); }
+#report-footer .secondary { background: var(--border); color: var(--text); }
+
+/* ── Prompt bar (fixed bottom) ─────────────────────────────────────────── */
+#prompt-bar {
+  height: var(--prompt-h);
+  background: var(--sidebar-bg);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  flex-shrink: 0;
 }
 
 #prompt-input {
-  width: 100%;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 6px 12px;
-  color: var(--text);
-  font-size: 12px;
-  font-family: var(--font);
-  outline: none;
-  height: 32px;
+  flex: 1; height: 32px;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0 12px;
+  color: var(--text); font-size: 12px; outline: none;
 }
 #prompt-input:focus { border-color: var(--accent); }
 #prompt-input::placeholder { color: #555; }
 
 #go-btn {
-  background: var(--accent);
-  border: none;
-  border-radius: 8px;
-  color: white;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 0 20px;
-  height: 30px;
-  cursor: pointer;
-  transition: background 0.15s;
+  background: var(--accent); border: none; border-radius: 8px;
+  color: white; font-size: 11px; font-weight: 700;
+  padding: 0 20px; height: 30px; cursor: pointer;
   white-space: nowrap;
 }
 #go-btn:hover { background: var(--accent-hover); }
 
-/* Viewport (browser views layer behind) */
-#viewport {
-  flex: 1;
-  position: relative;
-  background: var(--bg);
-}
+/* ── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }

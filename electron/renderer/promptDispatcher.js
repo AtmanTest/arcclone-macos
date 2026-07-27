@@ -1,6 +1,6 @@
 /**
  * TeamAI — Prompt Dispatcher
- * Sends prompt to all open views via IPC → executeJavaScript.
+ * Sends prompt + Enter to ALL BrowserViews via IPC.
  */
 const PromptDispatcher = {
   init() {

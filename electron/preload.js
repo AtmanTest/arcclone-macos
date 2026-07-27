@@ -1,24 +1,22 @@
-/**
- * TeamAI — Preload script
- * Exposes safe IPC API to renderer via contextBridge.
- */
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('teamai', {
   getProviders: () => ipcRenderer.invoke('get-providers'),
-  getVersion: () => ipcRenderer.invoke('get-version'),
-
-  addView: (providerId) => ipcRenderer.invoke('add-view', providerId),
-  removeView: (viewId) => ipcRenderer.invoke('remove-view', viewId),
-  clearAllViews: () => ipcRenderer.invoke('clear-all-views'),
+  addView: (pid) => ipcRenderer.invoke('add-view', pid),
+  removeView: (id) => ipcRenderer.invoke('remove-view', id),
+  clearAll: () => ipcRenderer.invoke('clear-all'),
   addDefaultViews: () => ipcRenderer.invoke('add-default-views'),
-  dispatchPrompt: (text) => ipcRenderer.invoke('dispatch-prompt', text),
-  getViewCount: () => ipcRenderer.invoke('get-view-count'),
-  getViewIds: () => ipcRenderer.invoke('get-view-ids'),
-  navigateView: (viewId, url) => ipcRenderer.invoke('navigate-view', viewId, url),
+  dispatchPrompt: (t) => ipcRenderer.invoke('dispatch-prompt', t),
+  viewAction: (id, a) => ipcRenderer.invoke('view-action', id, a),
+  navigateView: (id, u) => ipcRenderer.invoke('navigate-view', id, u),
+  scrollViewport: (st) => ipcRenderer.invoke('scroll-viewport', st),
+  collectResponses: () => ipcRenderer.invoke('collect-responses'),
+  getViews: () => ipcRenderer.invoke('get-views'),
+  zoomIn: () => ipcRenderer.invoke('zoom-in'),
+  zoomOut: () => ipcRenderer.invoke('zoom-out'),
+  zoomReset: () => ipcRenderer.invoke('zoom-reset'),
 
-  // Events from main
-  onViewsUpdated: (cb) => ipcRenderer.on('views-updated', (e, ids) => cb(ids)),
-  onViewTitleUpdated: (cb) => ipcRenderer.on('view-title-updated', (e, id, title) => cb(id, title)),
-  onViewUrlChanged: (cb) => ipcRenderer.on('view-url-changed', (e, id, url) => cb(id, url)),
+  onSyncBounds: (cb) => ipcRenderer.on('sync-bounds', (e, bounds, zoom, total) => cb(bounds, zoom, total)),
+  onViewTitle: (cb) => ipcRenderer.on('view-title', (e, id, t) => cb(id, t)),
+  onViewUrl: (cb) => ipcRenderer.on('view-url', (e, id, u) => cb(id, u)),
 });
