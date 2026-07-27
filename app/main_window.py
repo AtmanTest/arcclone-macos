@@ -41,9 +41,11 @@ class TeamAIWindow(QMainWindow):
         self.setMinimumSize(1200, 800)
         self.resize(1500, 950)
         self._setup_menu()
-        self._load_data()
+        self._load_history()
+        self._load_bookmarks()
         self._build_ui()
         self._apply_theme()
+        self._render_bookmarks()
 
     # ===== MENU =====
     def _setup_menu(self):
@@ -477,8 +479,7 @@ class TeamAIWindow(QMainWindow):
         except Exception:
             pass
 
-    def _load_data(self):
-        # History
+    def _load_history(self):
         p = os.path.join(os.path.expanduser("~"), STORAGE, "history.json")
         if os.path.exists(p):
             try:
@@ -486,7 +487,8 @@ class TeamAIWindow(QMainWindow):
                     self._history = json.load(f) or []
             except Exception:
                 self._history = []
-        # Bookmarks
+
+    def _load_bookmarks(self):
         p = os.path.join(os.path.expanduser("~"), STORAGE, "bookmarks.json")
         if os.path.exists(p):
             try:
@@ -494,7 +496,6 @@ class TeamAIWindow(QMainWindow):
                     self._bookmarks = json.load(f) or []
             except Exception:
                 self._bookmarks = []
-        self._render_bookmarks()
 
     def _apply_theme(self):
         self.setStyleSheet("""
