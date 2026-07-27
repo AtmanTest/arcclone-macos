@@ -9,7 +9,7 @@ from typing import Optional
 from PySide6.QtCore import QTimer
 from PySide6.QtWebEngineCore import QWebEnginePage
 
-from app.provider_registry import Provider, ProviderRegistry
+from .provider_registry import Provider, ProviderRegistry
 
 
 class PromptDispatcher:

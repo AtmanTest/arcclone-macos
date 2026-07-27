@@ -14,10 +14,10 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QSize, QTimer
 from PySide6.QtGui import QFont, QAction
 
-from app.browser_pane import BrowserPane
-from app.layout_manager import LayoutManager, LayoutMode
-from app.provider_registry import ProviderRegistry
-from app.prompt_dispatcher import PromptDispatcher
+from .browser_pane import BrowserPane
+from .layout_manager import LayoutManager, LayoutMode
+from .provider_registry import ProviderRegistry
+from .prompt_dispatcher import PromptDispatcher
 
 
 STORAGE_DIR = ".arcclone_workspace"
