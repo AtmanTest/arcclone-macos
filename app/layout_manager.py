@@ -1,5 +1,7 @@
 """
-layout_manager.py — QGridLayout stable, pas de crash sur remove.
+layout_manager.py — Layout stable sans rebuild destructif.
+Chaque pane est ajouté/supprimé individuellement du QGridLayout.
+Jamais de clear() qui détruit les vues web.
 """
 
 from enum import Enum
@@ -28,62 +30,55 @@ class LayoutManager(QWidget):
         main.addLayout(self._grid)
         self.setStyleSheet("background: #151528;")
 
-    def set_panes(self, panes):
-        self._panes = panes
-        self._rebuild()
-
     def add_pane(self, pane):
+        """Ajoute un pane sans toucher aux autres."""
         self._panes.append(pane)
-        self._rebuild()
+        self._relayout()
 
     def remove_pane(self, pane):
+        """Retire UNIQUEMENT ce pane du grid, ne touche pas aux autres."""
         if pane not in self._panes:
             return
         self._grid.removeWidget(pane)
         self._panes.remove(pane)
-        self._rebuild()
+        self._relayout()
 
     def set_mode(self, mode):
         self._mode = mode
-        self._rebuild()
+        self._relayout()
 
     def mode(self):
         return self._mode
 
-    def pane_count(self):
-        return len(self._panes)
-
-    def _rebuild(self):
-        # Remove all from grid without deleting widgets
-        while self._grid.count():
-            item = self._grid.takeAt(0)
-            if item and item.widget():
-                self._grid.removeWidget(item.widget())
-
-        if not self._panes:
+    def _relayout(self):
+        """Repositionne tous les panes dans le grid sans les supprimer."""
+        n = len(self._panes)
+        if n == 0:
             return
 
-        n = len(self._panes)
-        rows, cols = self._grid_dims(n)
-
+        rows, cols = self._dims(n)
         positions = self._positions(rows, cols, n)
+
         for idx, (r, c, rs, cs) in enumerate(positions):
             if idx < len(self._panes):
                 pane = self._panes[idx]
+                # Enlève du grid si déjà présent, puis re-ajoute à la bonne position
+                self._grid.removeWidget(pane)
                 self._grid.addWidget(pane, r, c, rs, cs)
                 pane.show()
                 pane.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
+        # Stretch pour remplir l'espace
+        for i in range(self._grid.rowCount()):
+            self._grid.setRowStretch(i, 1)
+        for j in range(self._grid.columnCount()):
+            self._grid.setColumnStretch(j, 1)
+
         self.layout_changed.emit()
 
-    def _grid_dims(self, n):
+    def _dims(self, n):
         if self._mode == LayoutMode.COLUMNS:
             return (1, n)
-        if self._mode == LayoutMode.GRID:
-            cols = max(2, int(n ** 0.5) + (1 if n > int(n ** 0.5) ** 2 else 0))
-            rows = (n + cols - 1) // cols
-            return (rows, cols)
-        # AUTO_FILL
         if n <= 1: return (1, 1)
         if n == 2: return (1, 2)
         if n == 3: return (2, 2)
@@ -96,27 +91,11 @@ class LayoutManager(QWidget):
         return ((n + cols - 1) // cols, cols)
 
     def _positions(self, rows, cols, n):
-        """Calcule (r, c, rowspan, colspan) pour chaque pane."""
-        if self._mode == LayoutMode.GRID or self._mode == LayoutMode.COLUMNS:
-            idx = 0
-            res = []
-            for r in range(rows):
-                for c in range(cols):
-                    if idx < n:
-                        res.append((r, c, 1, 1))
-                        idx += 1
-            return res
-        # AUTO_FILL
-        if n == 1:
-            return [(0, 0, 1, 1)]
-        if n == 2:
-            return [(0, 0, 1, 1), (0, 1, 1, 1)]
-        if n == 3:
+        """Calcule (r, c, rowspan, colspan)."""
+        if n == 3 and self._mode != LayoutMode.COLUMNS:
             return [(0, 0, 2, 1), (0, 1, 1, 1), (1, 1, 1, 1)]
-        if n == 4:
-            return [(0, 0, 1, 1), (0, 1, 1, 1), (1, 0, 1, 1), (1, 1, 1, 1)]
-        idx = 0
         res = []
+        idx = 0
         for r in range(rows):
             for c in range(cols):
                 if idx < n:

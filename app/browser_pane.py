@@ -75,17 +75,17 @@ class BrowserPane(QWidget):
         self._back = QPushButton("◀")
         self._back.setFixedSize(20, 20)
         self._back.setObjectName("paneBtn")
-        self._back.clicked.connect(self._view.back)
+        self._back.clicked.connect(lambda: self._safe_call(lambda: self._view.back()))
 
         self._fwd = QPushButton("▶")
         self._fwd.setFixedSize(20, 20)
         self._fwd.setObjectName("paneBtn")
-        self._fwd.clicked.connect(self._view.forward)
+        self._fwd.clicked.connect(lambda: self._safe_call(lambda: self._view.forward()))
 
         self._reload = QPushButton("⟳")
         self._reload.setFixedSize(20, 20)
         self._reload.setObjectName("paneBtn")
-        self._reload.clicked.connect(self._view.reload)
+        self._reload.clicked.connect(lambda: self._safe_call(lambda: self._view.reload()))
 
         self._url_input = QLineEdit()
         self._url_input.setObjectName("paneUrl")
@@ -142,12 +142,19 @@ class BrowserPane(QWidget):
         elif "." not in text or " " in text:
             text = "https://www.google.com/search?q=" + text.replace(" ", "+")
         self._url = text
-        self._view.setUrl(QUrl(text))
+        self._safe_call(lambda: self._view.setUrl(QUrl(text)))
+
+    def _safe_call(self, fn):
+        """Appelle fn() en rattrapant RuntimeError (C++ object deleted)."""
+        try:
+            fn()
+        except RuntimeError:
+            pass  # C++ object already deleted, ignore
 
     def _on_url_changed(self, qurl):
         url = qurl.toString()
         self._url = url
-        self._url_input.setText(url)
+        self._safe_call(lambda: self._url_input.setText(url))
         self.url_changed.emit(url)
 
     def _on_title_changed(self, title):
@@ -161,13 +168,13 @@ class BrowserPane(QWidget):
         if not url or url == "about:blank":
             self._url = "about:blank"
             self._url_input.clear()
-            self._view.setUrl(QUrl("about:blank"))
+            self._safe_call(lambda: self._view.setUrl(QUrl("about:blank")))
             return
         if not url.startswith(("http://", "https://", "about:")):
             url = "https://" + url
         self._url = url
         self._url_input.setText(url)
-        self._view.setUrl(QUrl(url))
+        self._safe_call(lambda: self._view.setUrl(QUrl(url)))
 
     def set_badge(self, icon):
         self._badge.setText(icon)

@@ -292,10 +292,9 @@ class TeamAIWindow(QMainWindow):
     def _remove_pane(self, pane):
         if pane not in self._panes:
             return
-        idx = self._panes.index(pane)
-        self._panes.pop(idx)
+        self._panes.remove(pane)
         self._layout.remove_pane(pane)
-        QTimer.singleShot(50, pane.cleanup)
+        pane.cleanup()
         self._renumber()
         self._update_stats()
 
@@ -392,15 +391,14 @@ class TeamAIWindow(QMainWindow):
     # ===== PRIVATE MODE =====
     def _toggle_private(self):
         self._private = not self._private
-        self._status.setText("🕶️ Privé" if self._private else "● Standard")
+        self._status.setText("\U0001f576\ufe0f Privé" if self._private else "● Standard")
         self._private_btn.setChecked(self._private)
         # Recreate all panes with private profiles
-        old = list(self._panes)
-        self._panes.clear()
-        for p in old:
+        for p in list(self._panes):
+            self._panes.remove(p)
             self._layout.remove_pane(p)
-            QTimer.singleShot(10, p.cleanup)
-        QTimer.singleShot(100, self._add_default_panes)
+            p.cleanup()
+        self._add_default_panes()
 
     # ===== SESSION =====
     def _save_session(self):
