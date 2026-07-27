@@ -55,14 +55,11 @@ class TeamAIWindow(QMainWindow):
             QMenu::item:selected { background: #6c63ff; }
         """)
         f = mb.addMenu("TeamAI")
-        for t, cb in [("💾 Sauvegarder session", self._save_session),
-                       ("📂 Charger session", self._load_session_dialog),
-                       None,
-                       ("Quitter", self.close)]:
-            if t is None:
-                f.addSeparator()
-            else:
-                a = QAction(t, self); a.triggered.connect(cb); f.addAction(a)
+        for item in [("💾 Sauvegarder session", self._save_session),
+                      ("📂 Charger session", self._load_session_dialog),
+                      None, ("Quitter", self.close)]:
+            if item is None: f.addSeparator()
+            else: t, cb = item; a = QAction(t, self); a.triggered.connect(cb); f.addAction(a)
 
         v = mb.addMenu("Vue")
         a = QAction("Mode privé", self, checkable=True, shortcut=QKeySequence("Ctrl+Shift+P"))
