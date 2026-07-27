@@ -1,0 +1,14 @@
+{
+  "name": "teamai",
+  "version": "0.2.0",
+  "description": "Multi-IA browser desktop — ChatGPT, Claude, Gemini, Kimi, Grok, etc.",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "api": "python3 app.py"
+  },
+  "devDependencies": {
+    "electron": "^30.5.1"
+  }
+}

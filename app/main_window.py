@@ -31,7 +31,6 @@ class TeamAIWindow(QMainWindow):
         self._panes: list[BrowserPane] = []
         self._layout = LayoutManager()
         self._counter = 0
-        self._private = False
         self._history: list[dict] = []
         self._bookmarks: list[dict] = []
 
@@ -62,9 +61,6 @@ class TeamAIWindow(QMainWindow):
             else: t, cb = item; a = QAction(t, self); a.triggered.connect(cb); f.addAction(a)
 
         v = mb.addMenu("Vue")
-        a = QAction("Mode privé", self, checkable=True, shortcut=QKeySequence("Ctrl+Shift+P"))
-        a.triggered.connect(self._toggle_private); v.addAction(a)
-        v.addSeparator()
         for t, cb in [("🗑️ Purger historique", self._clear_history),
                        ("🍪 Purger cookies", self._clear_cookies)]:
             a = QAction(t, self); a.triggered.connect(cb); v.addAction(a)
@@ -162,10 +158,6 @@ class TeamAIWindow(QMainWindow):
         self._go.setObjectName("goBtn"); self._go.setFixedHeight(30)
         self._go.clicked.connect(self._dispatch)
         l.addWidget(self._go)
-        self._pvt = QPushButton("👁️")
-        self._pvt.setObjectName("pvtBtn"); self._pvt.setFixedSize(30,30)
-        self._pvt.setCheckable(True); self._pvt.clicked.connect(self._toggle_private)
-        l.addWidget(self._pvt)
         bar.setStyleSheet("""
             #promptBar { background: #1e1e2e; border-bottom: 1px solid #2d2d44; }
             #promptInput {

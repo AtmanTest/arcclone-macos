@@ -1,14 +1,8 @@
-"""
-app.py — Point d'entrée TeamAI CLI.
-`python app.py` ou `teamai` après pip install.
-"""
-
-import sys
-import os
-
-sys.path.insert(0, os.path.dirname(__file__))
-
-from app import main
+#!/usr/bin/env python3
+"""TeamAI — Flask entry point (npm run api)."""
+from api.app import app
 
 if __name__ == "__main__":
-    main()
+    import os
+    port = int(os.environ.get("PORT", 5001))
+    app.run(host="0.0.0.0", port=port, debug=True)

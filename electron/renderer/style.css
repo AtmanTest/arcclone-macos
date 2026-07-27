@@ -1,0 +1,219 @@
+/* ── TeamAI Design System ───────────────────────────────────────────────── */
+:root {
+  --bg: #0D0D0F;
+  --sidebar-bg: #131318;
+  --border: #1E1E2E;
+  --accent: #7C3AED;
+  --accent-hover: #6D28D9;
+  --cyan: #06B6D4;
+  --text: #E2E8F0;
+  --muted: #64748B;
+  --card-bg: #1A1A24;
+  --radius: 12px;
+  --sidebar-w: 240px;
+  --font: system-ui, -apple-system, 'Inter', sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  overflow: hidden;
+  user-select: none;
+  -webkit-app-region: no-drag;
+}
+
+/* ── App Layout ──────────────────────────────────────────────────────────── */
+#app {
+  display: flex;
+  height: 100vh;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+#sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 12px 10px;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+#sidebar::-webkit-scrollbar { width: 3px; }
+#sidebar::-webkit-scrollbar-track { background: transparent; }
+#sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+#logo {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  padding-bottom: 4px;
+}
+
+#stats {
+  font-size: 10px;
+  color: var(--accent);
+  padding: 4px 0;
+}
+
+.section-title {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 6px 0 2px;
+}
+
+/* Provider buttons */
+#providers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.prov-btn {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 11px;
+  padding: 5px 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.prov-btn:hover { background: var(--border); }
+
+/* Bookmarks */
+#bookmarks-section {
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+
+#bookmarks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.bookmark-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+}
+.bookmark-item:hover { background: var(--border); }
+.bm-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bm-del { color: #555; font-size: 8px; cursor: pointer; padding: 0 2px; }
+.bm-del:hover { color: #EF4444; }
+
+/* Bottom buttons */
+#sidebar-bottom {
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ghost-btn {
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 10px;
+  padding: 4px 8px;
+  text-align: left;
+  cursor: pointer;
+}
+.ghost-btn:hover { background: var(--border); }
+#add-bookmark {
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: 9px;
+  padding: 3px 6px;
+  text-align: center;
+}
+#add-bookmark:hover { border-color: var(--accent); color: var(--text); }
+
+#version-badge {
+  font-size: 8px;
+  color: #444;
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* ── Main Area ───────────────────────────────────────────────────────────── */
+#main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Prompt bar */
+#prompt-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+#prompt-input-wrapper {
+  flex: 1;
+}
+
+#prompt-input {
+  width: 100%;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font);
+  outline: none;
+  height: 32px;
+}
+#prompt-input:focus { border-color: var(--accent); }
+#prompt-input::placeholder { color: #555; }
+
+#go-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 20px;
+  height: 30px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+#go-btn:hover { background: var(--accent-hover); }
+
+/* Viewport (browser views layer behind) */
+#viewport {
+  flex: 1;
+  position: relative;
+  background: var(--bg);
+}

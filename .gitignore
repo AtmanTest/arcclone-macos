@@ -1,6 +1,24 @@
-venv/
+# Python
 __pycache__/
 *.pyc
+venv/
+.venv/
+*.egg-info/
+
+# Electron
+node_modules/
+dist/
+out/
+
+# OS
 .DS_Store
-.arcclone_profiles/
-.arcclone_workspace/
+*.swp
+*.swo
+
+# IDE
+.idea/
+.vscode/
+
+# TeamAI data
+.teamai_data/
+.teamai_profiles/

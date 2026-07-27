@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TeamAI</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Sidebar -->
+    <aside id="sidebar">
+      <div id="sidebar-top">
+        <div id="logo">🧠 TeamAI</div>
+        <div id="stats"></div>
+      </div>
+
+      <div id="providers-section">
+        <div class="section-title">PROVIDERS</div>
+        <div id="providers-list"></div>
+      </div>
+
+      <div id="bookmarks-section">
+        <div class="section-title">FAVORIS</div>
+        <div id="bookmarks-list"></div>
+        <button id="add-bookmark" class="ghost-btn">+ Ajouter favori</button>
+      </div>
+
+      <div id="sidebar-bottom">
+        <button id="reset-layout" class="ghost-btn">↺ Reset layout</button>
+        <button id="save-session" class="ghost-btn">💾 Sauvegarder session</button>
+        <div id="version-badge"></div>
+      </div>
+    </aside>
+
+    <!-- Prompt bar -->
+    <div id="main-area">
+      <div id="prompt-bar">
+        <div id="prompt-input-wrapper">
+          <input type="text" id="prompt-input" placeholder="Pose ta question à TOUTES les IA (Enter = GO)">
+        </div>
+        <button id="go-btn">C'est un ordre, GO !</button>
+      </div>
+      <div id="viewport"></div>
+    </div>
+  </div>
+
+  <script src="windowManager.js"></script>
+  <script src="sidebar.js"></script>
+  <script src="promptDispatcher.js"></script>
+  <script src="bookmarks.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
