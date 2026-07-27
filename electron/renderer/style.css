@@ -138,7 +138,7 @@ input, select, button, textarea { font-family: var(--font); }
 
 /* ── Viewport ─────────────────────────────────────────────────────────── */
 #viewport { flex: 1; overflow: auto; background: #08080c; padding: 3px; }
-#grid-container { display: flex; flex-wrap: wrap; gap: 3px; align-content: flex-start; min-height: calc(100% - 6px); }
+#grid-container { display: flex; flex-wrap: wrap; gap: 3px; align-content: flex-start; min-height: calc(100% - 6px); position: relative; }
 
 /* ── Window Frame ─────────────────────────────────────────────────────── */
 .window-frame {

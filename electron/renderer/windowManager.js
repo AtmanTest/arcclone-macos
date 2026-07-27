@@ -14,10 +14,62 @@ const WinManager = {
     this._zoom = await teamai.getZoom() || 0;
     teamai.onExecJsAll((text) => this._dispatchToAll(text));
     this._setupZoomButtons();
-    this._restoreOrCreateDefault();
+    this._setupLayout();
 
-    // Reset layout button
+    // Listen for resize on viewport
+    const viewport = document.getElementById('viewport');
+    if (viewport) {
+      let t; const ro = new ResizeObserver(() => {
+        clearTimeout(t); t = setTimeout(() => {
+          LayoutModel.init(viewport.clientWidth, viewport.clientHeight);
+          this._syncFrames();
+        }, 100);
+      });
+      ro.observe(viewport);
+    }
+
+    this._restoreOrCreateDefault();
     document.getElementById('btn-reset-layout')?.addEventListener('click', () => this._resetLayout());
+  },
+
+  _setupLayout() {
+    const viewport = document.getElementById('viewport');
+    if (viewport) LayoutModel.init(viewport.clientWidth, viewport.clientHeight);
+    PersistenceManager.restore();
+    PresetLayouts.init();
+  },
+
+  _applyLayout() {
+    const viewport = document.getElementById('viewport');
+    if (viewport) LayoutModel.init(viewport.clientWidth, viewport.clientHeight);
+    this._syncFrames();
+  },
+
+  _syncFrames() {
+    const computed = LayoutModel.compute();
+    if (computed.length === 0) return;
+
+    // Sort computed by view order in LayoutModel
+    const order = LayoutModel.views.map(v => v.id);
+    const sorted = computed.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+
+    this.frames.forEach((entry, id) => {
+      const pos = sorted.find(s => s.id === id);
+      if (!pos) return;
+      entry.frame.style.width = pos.w + 'px';
+      entry.frame.style.height = pos.h + 'px';
+      // For split/focus modes, position absolutely
+      if (LayoutModel.mode !== 'grid' && LayoutModel.mode !== 'manual') {
+        entry.frame.style.position = 'absolute';
+        entry.frame.style.left = pos.x + 'px';
+        entry.frame.style.top = pos.y + 'px';
+      } else if (LayoutModel.mode !== 'manual') {
+        entry.frame.style.position = '';
+        entry.frame.style.left = '';
+        entry.frame.style.top = '';
+      }
+    });
+    this._layout();
   },
 
   async _restoreOrCreateDefault() {
@@ -88,7 +140,11 @@ const WinManager = {
     this._bindToolbar(id, entry);
     this._bindWebView(id, entry);
     this._bindResize(id, entry);
-    this._layout();
+
+    // Add to LayoutModel
+    LayoutModel.addView(id, prov.id, prov.label, prov.icon, initialUrl || prov.url);
+
+    this._syncFrames();
     return id;
   },
 
@@ -137,27 +193,17 @@ const WinManager = {
   _bindResize(id, entry) {
     const handle = entry.frame.querySelector('.resize-handle');
     if (!handle) return;
-    let startX, startY, startW, startH;
     handle.addEventListener('mousedown', (e) => {
       e.preventDefault(); e.stopPropagation();
-      startX = e.clientX; startY = e.clientY;
-      startW = entry.frame.offsetWidth; startH = entry.frame.offsetHeight;
-      entry.frame.classList.add('resized');
-      const onMove = (ev) => {
-        const dw = ev.clientX - startX; const dh = ev.clientY - startY;
-        entry.frame.style.width = Math.max(200, startW + dw) + 'px';
-        entry.frame.style.height = Math.max(150, startH + dh) + 'px';
-      };
-      const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
+      ResizeController.start(e, id, entry.frame, entry.frame.offsetWidth, entry.frame.offsetHeight);
     });
   },
 
   _remove(id) {
     const entry = this.frames.get(id); if (!entry) return;
     entry.frame.remove(); this.frames.delete(id);
-    this._layout(); Sidebar.renderAll();
+    LayoutModel.removeView(id);
+    this._syncFrames(); Sidebar.renderAll();
   },
 
   _resetLayout() {
