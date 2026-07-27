@@ -44,6 +44,52 @@ function openAuthWindow(url, partition) {
   authWin.on('closed', () => authWindows.delete(partition));
 }
 
+// ── Login Windows (provider connection wizard) ────────────────────────────
+const loginWindows = new Map(); // providerId → BrowserWindow
+
+function openLoginWindow(providerId, url, partition) {
+  // Close existing login window for this provider
+  if (loginWindows.has(providerId)) {
+    try { loginWindows.get(providerId).close(); } catch {}
+  }
+
+  const win = new BrowserWindow({
+    width: 1100, height: 800,
+    minWidth: 800, minHeight: 600,
+    parent: mainWindow,
+    title: `Connexion — ${providerId}`,
+    backgroundColor: '#FFFFFF',
+    webPreferences: {
+      partition,
+      sandbox: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  win.loadURL(url);
+  loginWindows.set(providerId, win);
+
+  // Passkey / credential support — Electron Chromium handles this natively
+  // when the WebContents has a real window with proper Chromium features.
+
+  win.on('closed', () => {
+    loginWindows.delete(providerId);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('login-window-closed', providerId);
+    }
+  });
+
+  return true;
+}
+
+function closeLoginWindow(providerId) {
+  if (loginWindows.has(providerId)) {
+    try { loginWindows.get(providerId).close(); } catch {}
+    loginWindows.delete(providerId);
+  }
+}
+
 // ── IPC ─────────────────────────────────────────────────────────────────────
 function setupIPC() {
   const h = (ch, fn) => ipcMain.handle(ch, fn);
@@ -53,6 +99,8 @@ function setupIPC() {
     mainWindow.webContents.send('exec-js-all', text);
   });
   h('open-auth-window', (e, url, partition) => openAuthWindow(url, partition));
+  h('open-login-window', (e, pid, url, partition) => openLoginWindow(pid, url, partition));
+  h('close-login-window', (e, pid) => closeLoginWindow(pid));
   h('get-version', () => {
     const v = loadJSON(CFG.VERSION);
     return { version: v.version || '0.4.0', commit: v.commit || 'dev', url: CFG.GITHUB_URL };

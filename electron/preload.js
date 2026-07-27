@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('teamai', {
   getProviders: () => ipcRenderer.invoke('get-providers'),
   dispatchPrompt: (t) => ipcRenderer.invoke('dispatch-prompt', t),
   openAuthWindow: (url, partition) => ipcRenderer.invoke('open-auth-window', url, partition),
+  openLoginWindow: (pid, url, partition) => ipcRenderer.invoke('open-login-window', pid, url, partition),
+  closeLoginWindow: (pid) => ipcRenderer.invoke('close-login-window', pid),
   getVersion: () => ipcRenderer.invoke('get-version'),
   openUrl: (url) => ipcRenderer.invoke('open-url', url),
   setZoom: (l) => ipcRenderer.invoke('set-zoom', l),
@@ -11,4 +13,5 @@ contextBridge.exposeInMainWorld('teamai', {
 
   // Events from main
   onExecJsAll: (cb) => ipcRenderer.on('exec-js-all', (e, text) => cb(text)),
+  onLoginWindowClosed: (cb) => ipcRenderer.on('login-window-closed', (e, pid) => cb(pid)),
 });
