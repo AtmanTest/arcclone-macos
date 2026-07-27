@@ -4,6 +4,7 @@ Injection dans TOUS les panneaux, Enter auto, retry si page pas prête.
 """
 
 from PySide6.QtCore import QTimer
+import json
 
 
 class PromptDispatcher:
@@ -11,17 +12,23 @@ class PromptDispatcher:
     def dispatch_all(self, prompt: str, panes: list, auto_submit=True):
         if not prompt.strip() or not panes:
             return
-        for pane in panes:
+        pane_list = list(panes)
+        for pane in pane_list:
             self._inject(pane, prompt, auto_submit, attempt=1)
 
     def _inject(self, pane, prompt, auto_submit, attempt=1):
         if attempt > 5:
-            return  # abandon après 5 tentatives
-        if not pane or not pane.web_page:
+            return
+        if not pane:
+            return
+        try:
+            page = pane.web_page
+        except RuntimeError:
+            return
+        if not page:
             return
 
-        safe = __import__('json').dumps(prompt)
-        page = pane.web_page
+        safe = json.dumps(prompt)
 
         js = f"""
         (function() {{
@@ -46,16 +53,17 @@ class PromptDispatcher:
             return 'not_found';
         }})();
         """
-        page.runJavaScript(js, lambda r: self._on_injected(page, r, prompt, auto_submit, attempt))
+        try:
+            page.runJavaScript(js, lambda r: self._on_injected(pane, page, r, prompt, auto_submit, attempt))
+        except RuntimeError:
+            pass
 
-    def _on_injected(self, page, result, prompt, auto_submit, attempt):
+    def _on_injected(self, pane, page, result, prompt, auto_submit, attempt):
         if result == 'found' and auto_submit:
-            QTimer.singleShot(800, lambda: self._submit(page, attempt=1))
+            QTimer.singleShot(800, lambda p=page: self._submit(p, attempt=1))
         elif result == 'not_found':
-            # Page pas encore prête → retry
-            QTimer.singleShot(1500, lambda: self._inject(
-                page.parent() if hasattr(page, 'parent') else None,
-                prompt, auto_submit, attempt + 1
+            QTimer.singleShot(1500, lambda p=pane: self._inject(
+                p, prompt, auto_submit, attempt + 1
             ))
 
     def _submit(self, page, attempt=1):
@@ -68,9 +76,9 @@ class PromptDispatcher:
                 'button[type="submit"]',
                 'button:has(svg)',
                 '[aria-label*="Send"]', '[aria-label*="send"]',
-                '[aria-label*="Envoyer"]', '[aria-label*="envoyer"]'
+                '[aria-label*="Envoyer"]', '[aria-label*="envoyer"]',
+                '.ProseMirror ~ div button'
             ];
-            // Enter key first
             const el = document.activeElement || document.querySelector('textarea') ||
                        document.querySelector('[contenteditable="true"]');
             if (el) {
@@ -80,7 +88,6 @@ class PromptDispatcher:
                 });
                 if (!el.dispatchEvent(ev)) { return 'sent'; }
             }
-            // Then try buttons
             for (const sel of btnSels) {
                 const btns = document.querySelectorAll(sel);
                 for (const btn of btns) {
@@ -90,8 +97,11 @@ class PromptDispatcher:
             return 'failed';
         })();
         """
-        page.runJavaScript(js, lambda r: self._on_submit_result(page, r, attempt))
+        try:
+            page.runJavaScript(js, lambda r: self._on_submit_result(page, r, attempt))
+        except RuntimeError:
+            pass
 
     def _on_submit_result(self, page, result, attempt):
         if result == 'failed' and attempt < 3:
-            QTimer.singleShot(1000, lambda: self._submit(page, attempt + 1))
+            QTimer.singleShot(1000, lambda p=page: self._submit(p, attempt + 1))

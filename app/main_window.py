@@ -91,7 +91,6 @@ class TeamAIWindow(QMainWindow):
         s = QWidget(); s.setFixedWidth(230); s.setObjectName("sidebar")
         l = QVBoxLayout(s); l.setContentsMargins(8,6,8,6); l.setSpacing(4)
 
-        QLabel("🧠 TeamAI").setObjectName("sidebarLogo"); 
         logo = QLabel("🧠 TeamAI"); logo.setObjectName("sidebarLogo"); l.addWidget(logo)
 
         self._stats = QLabel("Fenêtres: 0 | IA: 0"); self._stats.setObjectName("statsLabel"); l.addWidget(self._stats)
@@ -285,8 +284,7 @@ class TeamAIWindow(QMainWindow):
             lbl.setStyleSheet("color:#e0e0ff;font-size:10px;"); lbl.setCursor(Qt.PointingHandCursor)
             lbl.mousePressEvent = lambda e, u=bm["url"]: (self._add_one(url=u), self._layout.relayout(), self._renumber(), self._update_stats())
             db = QPushButton("✕"); db.setFixedSize(14,14)
-            db.setStyleSheet("background:transparent;border:none;color:#555577;font-size:7px;")
-            db.setStyleSheet("background:transparent;border:none;color:#555577;font-size:7px;QPushButton:hover{color:#ff5f57;}")
+            db.setStyleSheet("QPushButton{background:transparent;border:none;color:#555577;font-size:7px}QPushButton:hover{color:#ff5f57}")
             db.clicked.connect(lambda checked, b=bm: (self._bookmarks.remove(b), self._save_bookmarks(), self._render_bookmarks()))
             wl.addWidget(lbl,1); wl.addWidget(db); self._bm_layout.addWidget(w)
 
