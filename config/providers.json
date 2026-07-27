@@ -1,0 +1,46 @@
+[
+  {
+    "id": "chatgpt",
+    "label": "ChatGPT",
+    "url": "https://chatgpt.com",
+    "icon": "🤖",
+    "default_profile": "chatgpt-main",
+    "prompt_strategy": "contenteditable",
+    "input_selectors": ["textarea", "[contenteditable='true']", "#prompt-textarea"],
+    "submit_selectors": ["button[data-testid='send-button']", "button[type='submit']"],
+    "response_selectors": ["main", "article", ".markdown"]
+  },
+  {
+    "id": "perplexity",
+    "label": "Perplexity",
+    "url": "https://www.perplexity.ai",
+    "icon": "🔍",
+    "default_profile": "perplexity-main",
+    "prompt_strategy": "textarea",
+    "input_selectors": ["textarea", "[contenteditable='true']"],
+    "submit_selectors": ["button[type='submit']"],
+    "response_selectors": ["main"]
+  },
+  {
+    "id": "kimi",
+    "label": "Kimi",
+    "url": "https://kimi.com",
+    "icon": "🌙",
+    "default_profile": "kimi-main",
+    "prompt_strategy": "textarea",
+    "input_selectors": ["textarea", "[contenteditable='true']"],
+    "submit_selectors": ["button[type='submit']"],
+    "response_selectors": ["main"]
+  },
+  {
+    "id": "claude",
+    "label": "Claude",
+    "url": "https://claude.ai",
+    "icon": "🟣",
+    "default_profile": "claude-main",
+    "prompt_strategy": "contenteditable",
+    "input_selectors": ["textarea", "[contenteditable='true']", ".ProseMirror"],
+    "submit_selectors": ["button[type='submit']"],
+    "response_selectors": ["main", "article"]
+  }
+]
