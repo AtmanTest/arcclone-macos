@@ -1,6 +1,5 @@
 /**
- * TeamAI — Prompt Dispatcher
- * Sends prompt + Enter to ALL BrowserViews via IPC.
+ * TeamAI v4 — Prompt Dispatcher
  */
 const PromptDispatcher = {
   init() {

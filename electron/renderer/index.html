@@ -27,7 +27,7 @@
       <div id="sidebar-bottom">
         <button id="btn-report" class="action-btn">📋 Rapport complet</button>
         <button id="btn-new-tab" class="action-btn primary">Nouvel Onglet IA +</button>
-        <div id="version-badge">v0.0.0</div>
+        <div id="version-badge" title="Voir les commits">v0.0.0</div>
       </div>
     </aside>
 
@@ -35,13 +35,29 @@
     <div id="main">
       <!-- Prompt bar TOP -->
       <div id="prompt-bar">
-        <input type="text" id="prompt-input" placeholder="Pose ta question à TOUTES les IA (Enter = GO)">
+        <input type="text" id="prompt-input" placeholder="Pose ta question à TOUTES les IA (Enter = GO)" autofocus>
         <button id="go-btn">C'est un ordre, GO !</button>
       </div>
 
-      <!-- Viewport scrollable -->
+      <!-- Viewport scrollable with webviews -->
       <div id="viewport">
-        <div id="overlay-container"></div>
+        <div id="grid-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report modal -->
+  <div id="report-modal">
+    <div id="report-content">
+      <div id="report-header">
+        <h2>📋 Rapport IA — Synthèse</h2>
+        <button id="report-close-modal">✕</button>
+      </div>
+      <div id="report-body">Collecte en cours...</div>
+      <div id="report-footer">
+        <button class="secondary" id="report-export-md">📄 Export .md</button>
+        <button class="secondary" id="report-refresh">⟳ Actualiser</button>
+        <button id="report-close-btn">Fermer</button>
       </div>
     </div>
   </div>

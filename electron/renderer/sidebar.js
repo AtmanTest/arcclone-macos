@@ -1,25 +1,33 @@
 /**
- * TeamAI v3 — Sidebar
- * Stats, window list, providers, version badge → GitHub.
+ * TeamAI v4 — Sidebar
  */
 const Sidebar = {
-  _versionData: null,
-
   async init() {
     const providers = await teamai.getProviders() || [];
     this._renderProviders(providers);
-    this._renderVersion();
 
     document.getElementById('btn-new-tab')?.addEventListener('click', () => {
       if (providers.length > 0) WinManager.addView(providers[0].id);
     });
     document.getElementById('btn-report')?.addEventListener('click', () => ReportManager.open());
+
+    // Version
+    try {
+      const v = await teamai.getVersion();
+      const el = document.getElementById('version-badge');
+      if (el && v) {
+        el.textContent = `v${v.version} — ${(v.commit || 'dev').slice(0,7)}`;
+        el.addEventListener('click', () => {
+          teamai.openUrl((v.url || 'https://github.com/AtmanTest/arcclone-macos') + '/commits/main');
+        });
+      }
+    } catch {}
   },
 
-  renderStats(total) {
+  renderStats() {
+    const total = WinManager.count;
     const stats = document.getElementById('stats');
-    if (!stats) return;
-    stats.textContent = `Fenêtres: ${total} | IA: ${total}`;
+    if (stats) stats.textContent = `Fenêtres: ${total} | IA: ${total}`;
     this._renderWindowList();
   },
 
@@ -31,9 +39,9 @@ const Sidebar = {
       const div = document.createElement('div');
       div.className = 'win-item';
       div.dataset.id = id;
-      const idx = Array.from(WinManager.frames.keys()).indexOf(id) + 1;
-      const combo = entry.frame?.querySelector('.provider-combo');
+      const combo = entry.combo;
       const lbl = combo?.options[combo.selectedIndex]?.text || 'IA';
+      const idx = Array.from(WinManager.frames.keys()).indexOf(id) + 1;
       div.innerHTML = `
         <span class="num">${idx}</span>
         <span class="label">${lbl}</span>
@@ -41,15 +49,10 @@ const Sidebar = {
       `;
       div.querySelector('.close-btn').addEventListener('click', (e) => {
         e.stopPropagation();
-        WinManager.removeView(id);
+        WinManager._removeView(id);
       });
       div.addEventListener('click', () => {
-        const frame = entry.frame;
-        if (frame) {
-          const viewport = document.getElementById('viewport');
-          const frameTop = parseInt(frame.style.top) || 0;
-          if (viewport) viewport.scrollTo({ top: Math.max(0, frameTop), behavior: 'smooth' });
-        }
+        entry.frame.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
       el.appendChild(div);
     });
@@ -64,24 +67,6 @@ const Sidebar = {
     el.querySelectorAll('.prov-btn').forEach(btn => {
       btn.addEventListener('click', () => WinManager.addView(btn.dataset.id));
     });
-  },
-
-  async _renderVersion() {
-    const el = document.getElementById('version-badge');
-    if (!el) return;
-    try {
-      this._versionData = await teamai.getVersion();
-      if (this._versionData) {
-        el.textContent = `v${this._versionData.version} — ${(this._versionData.commit || 'dev').slice(0,7)}`;
-        el.title = `Cliquer pour voir les commits → ${this._versionData.url || 'GitHub'}`;
-        el.addEventListener('click', () => {
-          const baseUrl = this._versionData.url || 'https://github.com/AtmanTest/arcclone-macos';
-          teamai.openUrl(baseUrl + '/commits/main');
-        });
-      }
-    } catch {
-      el.textContent = 'v0.3.0-dev';
-    }
   },
 
   updateWindowTitle(id, title) {

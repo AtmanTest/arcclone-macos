@@ -1,154 +1,292 @@
 /**
- * TeamAI v3 — Window Manager (Renderer)
- * Crée les overlays toolbar + content area par BrowserView.
- * Gère scroll, zoom, version.
+ * TeamAI v4 — Window Manager (webview-based)
+ * Chaque fenêtre = toolbar HTML visible + <webview> en dessous.
+ * Google OAuth interceptions, navigation, prompt dispatch.
  */
 const WinManager = {
-  frames: new Map(),
+  frames: new Map(), // id → { frame, webview, combo, urlBar }
   providers: [],
   _zoom: 0,
+  _idCounter: 0,
 
   async init() {
     this.providers = await teamai.getProviders() || [];
     this._zoom = await teamai.getZoom() || 0;
 
-    teamai.onSyncBounds((bounds, zoom, total, totalH) => this._sync(bounds, zoom, total, totalH));
-    teamai.onViewTitle((id, title) => this._setTitle(id, title));
-    teamai.onViewUrl((id, url) => this._setUrl(id, url));
+    // Listen for global prompt dispatch
+    teamai.onExecJsAll((text) => this._dispatchToAll(text));
 
-    // Zoom buttons
-    document.getElementById('zoom-in')?.addEventListener('click', () => this._zoomChange(1));
-    document.getElementById('zoom-out')?.addEventListener('click', () => this._zoomChange(-1));
-    document.getElementById('zoom-reset')?.addEventListener('click', () => this._zoomChange(0, true));
+    this._renderZoomLabel();
+    this._setupZoomButtons();
+    this._restoreOrCreateDefault();
   },
 
-  async _zoomChange(delta, reset = false) {
-    this._zoom = reset ? 0 : Math.max(-3, Math.min(5, this._zoom + delta));
-    await teamai.setZoom(this._zoom);
-    document.getElementById('zoom-level').textContent = `${100 + this._zoom * 15}%`;
-  },
-
-  _sync(boundsList, zoom, total, totalH) {
-    const container = document.getElementById('overlay-container');
-    if (!container) return;
-
-    // Set container height for scroll
-    container.style.height = Math.max(totalH, window.innerHeight) + 'px';
-
-    const activeIds = new Set(boundsList.map(b => b.id));
-
-    // Remove stale frames
-    for (const [id] of this.frames) {
-      if (!activeIds.has(id)) {
-        this.frames.get(id).frame.remove();
-        this.frames.delete(id);
-      }
+  async _restoreOrCreateDefault() {
+    const saved = localStorage.getItem('teamai_session');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        if (data.views?.length > 0 && confirm('Restaurer la session précédente ?')) {
+          for (const v of data.views) {
+            this._createWebView(v.providerId || 'default', v.url);
+          }
+          return;
+        }
+      } catch {}
     }
-
-    // Create/update frames
-    for (const b of boundsList) {
-      let entry = this.frames.get(b.id);
-      if (!entry) {
-        const prov = this.providers.find(p => p.id === b.providerId);
-        const idx = boundsList.findIndex(bx => bx.id === b.id);
-        const frame = this._createFrame(b.id, idx + 1, prov);
-        container.appendChild(frame);
-        entry = { frame, combo: frame.querySelector('.provider-combo'), urlBar: frame.querySelector('.url-bar') };
-        this.frames.set(b.id, entry);
-        this._bindEvents(b.id, entry);
-      }
-
-      const toolbarH = 36;
-      entry.frame.style.left = b.x + 'px';
-      entry.frame.style.top = (b.y - toolbarH) + 'px';
-      entry.frame.style.width = b.width + 'px';
-      entry.frame.style.height = (toolbarH + b.height) + 'px';
-
-      // Update number badge
-      const idx = boundsList.findIndex(bx => bx.id === b.id);
-      const badge = entry.frame.querySelector('.num-badge');
-      if (badge) badge.textContent = (idx >= 0 ? idx + 1 : '?');
-
-      // Update URL bar
-      if (b.url && entry.urlBar && b.url !== 'about:blank') entry.urlBar.value = b.url;
+    // Default: open all providers
+    for (const pid of ['gpt5_terra','gpt5_sol','gemini','raisonnement','claude','zglm','kimi','grok','nemotron','venice']) {
+      this._createWebView(pid);
     }
-
-    Sidebar.renderStats(total);
-    this._updateZoomLabel();
   },
 
-  _createFrame(id, idx, prov) {
+  _createWebView(providerId, initialUrl = null) {
+    const prov = this.providers.find(p => p.id === providerId)
+      || { id: providerId, label: providerId, url: 'about:blank', icon: '🌐' };
+
+    this._idCounter++;
+    const id = `wv_${this._idCounter}`;
+    const partition = `persist:teamai_${providerId}_${this._idCounter}`;
+    const container = document.getElementById('grid-container');
+    if (!container) return id;
+
+    // Create frame
     const frame = document.createElement('div');
     frame.className = 'window-frame';
     frame.dataset.id = id;
+    frame.id = id;
 
+    // Toolbar HTML — visible ABOVE the webview
     const comboOps = this.providers.map(p =>
-      `<option value="${p.id}" ${p.id === (prov && prov.id) ? 'selected' : ''}>${p.icon} ${p.label}</option>`
+      `<option value="${p.id}" ${p.id === prov.id ? 'selected' : ''}>${p.icon} ${p.label}</option>`
     ).join('');
 
     frame.innerHTML = `
       <div class="toolbar">
-        <span class="num-badge">${idx}</span>
+        <span class="num-badge">${this._idCounter}</span>
         <select class="provider-combo">${comboOps}</select>
         <button class="nav-btn" data-action="back">◀</button>
         <button class="nav-btn" data-action="forward">▶</button>
         <button class="nav-btn" data-action="reload">⟳</button>
-        <input class="url-bar" placeholder="URL..." spellcheck="false" value="">
+        <input class="url-bar" placeholder="URL..." spellcheck="false" value="${initialUrl || prov.url || ''}">
         <button class="close-btn">✕</button>
       </div>
-      <div class="content-area"></div>
+      <div class="webview-area"></div>
     `;
-    return frame;
+
+    container.appendChild(frame);
+
+    // Create webview element
+    const webview = document.createElement('webview');
+    webview.src = initialUrl || prov.url || 'about:blank';
+    webview.setAttribute('partition', partition);
+    webview.setAttribute('allowpopups', '');
+    webview.style.width = '100%';
+    webview.style.height = '100%';
+    webview.style.border = 'none';
+
+    const webviewArea = frame.querySelector('.webview-area');
+    webviewArea.appendChild(webview);
+
+    // Wire up toolbar
+    const combo = frame.querySelector('.provider-combo');
+    const urlBar = frame.querySelector('.url-bar');
+    const entry = { frame, webview, combo, urlBar, providerId: prov.id };
+    this.frames.set(id, entry);
+
+    // Events
+    this._bindToolbar(id, entry);
+    this._bindWebView(id, entry);
+
+    // Size
+    this._sizeAll();
+
+    return id;
   },
 
-  _bindEvents(id, entry) {
-    const { frame, combo, urlBar } = entry;
+  _bindToolbar(id, entry) {
+    const { frame, combo, urlBar, webview } = entry;
 
     combo.addEventListener('change', () => {
       const prov = this.providers.find(p => p.id === combo.value);
-      if (prov) teamai.navigateView(id, prov.url);
+      if (prov) {
+        entry.providerId = prov.id;
+        webview.src = prov.url;
+        urlBar.value = prov.url;
+      }
     });
 
     frame.querySelectorAll('.nav-btn').forEach(btn => {
-      btn.addEventListener('click', () => teamai.viewAction(id, btn.dataset.action));
+      btn.addEventListener('click', () => {
+        try {
+          if (btn.dataset.action === 'back') webview.goBack();
+          else if (btn.dataset.action === 'forward') webview.goForward();
+          else if (btn.dataset.action === 'reload') webview.reload();
+        } catch {}
+      });
     });
 
     urlBar.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         let url = urlBar.value.trim();
         if (!url) return;
-        if (url.includes('.') && !url.startsWith('http')) url = 'https://' + url;
+        if (!url.startsWith('http') && url.includes('.')) url = 'https://' + url;
         else if (!url.includes('.')) url = 'https://www.google.com/search?q=' + encodeURIComponent(url);
-        teamai.navigateView(id, url);
+        webview.src = url;
       }
     });
 
     frame.querySelector('.close-btn').addEventListener('click', () => {
-      teamai.removeView(id);
-      this.frames.delete(id);
-      frame.remove();
+      this._removeView(id);
     });
   },
 
-  _setTitle(id, title) {
-    const item = document.querySelector(`.win-item[data-id="${id}"] .label`);
-    if (item) item.textContent = title;
+  _bindWebView(id, entry) {
+    const { webview, urlBar, combo } = entry;
+
+    // Update URL bar on navigation
+    webview.addEventListener('did-navigate', (e) => {
+      if (e.url && e.url !== 'about:blank') urlBar.value = e.url;
+    });
+    webview.addEventListener('did-navigate-in-page', (e) => {
+      if (e.url && e.url !== 'about:blank') urlBar.value = e.url;
+    });
+
+    // Update page title in sidebar
+    webview.addEventListener('page-title-updated', (e) => {
+      Sidebar.updateWindowTitle(id, e.title);
+    });
+
+    // Google OAuth: intercept popups → open in Electron window
+    webview.addEventListener('new-window', (e) => {
+      const needsAuth = e.url.includes('accounts.google.com') || e.url.includes('oauth')
+        || e.url.includes('login.google') || e.url.includes('googleapis.com');
+      if (needsAuth) {
+        e.preventDefault();
+        const partition = webview.getAttribute('partition') || '';
+        teamai.openAuthWindow(e.url, partition);
+      }
+      // else: allow default (opens in system browser)
+    });
   },
 
-  _setUrl(id, url) {
+  _removeView(id) {
     const entry = this.frames.get(id);
-    if (entry && entry.urlBar && url && url !== 'about:blank') entry.urlBar.value = url;
+    if (!entry) return;
+    entry.frame.remove();
+    this.frames.delete(id);
+    this._sizeAll();
+    Sidebar.renderStats();
   },
 
-  _updateZoomLabel() {
+  _dispatchToAll(text) {
+    const safe = JSON.stringify(text);
+    const js = `
+      (function() {
+        const sels = ['#prompt-textarea','[contenteditable="true"]','textarea','.ProseMirror','[role="textbox"]'];
+        for (const s of sels) {
+          const el = document.querySelector(s);
+          if (!el) continue;
+          el.focus();
+          if (el.isContentEditable || el.tagName === 'DIV') {
+            el.textContent = ''; document.execCommand('insertText', false, ${safe});
+          } else { el.value = ${safe}; }
+          el.dispatchEvent(new Event('input', {bubbles:true}));
+          el.dispatchEvent(new Event('change', {bubbles:true}));
+          setTimeout(() => {
+            const ev = new KeyboardEvent('keydown', {key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true});
+            el.dispatchEvent(ev);
+            const sendBtns = document.querySelectorAll('button[data-testid="send-button"],button[type="submit"],button:has(svg)');
+            for (const b of sendBtns) { if (b.offsetParent !== null) { b.click(); break; } }
+          }, 600);
+          return 'ok';
+        }
+        return 'not_found';
+      })();
+    `;
+    for (const [, entry] of this.frames) {
+      try { entry.webview.executeJavaScript(js).catch(() => {}); } catch {}
+    }
+  },
+
+  _sizeAll() {
+    const container = document.getElementById('grid-container');
+    if (!container) return;
+    const total = this.frames.size;
+    if (total === 0) return;
+
+    const viewport = document.getElementById('viewport');
+    if (!viewport) return;
+    const vpW = viewport.clientWidth - 8;
+    const vpH = viewport.clientHeight - 8;
+    const zoom = 1 + this._zoom * 0.15;
+
+    // Grid: 2 cols for <5, 3 cols for 5-9, 4 cols for 10+
+    const cols = total <= 4 ? 2 : total <= 9 ? 3 : 4;
+    const gap = 4;
+    const totalGapW = (cols - 1) * gap;
+    const cellW = Math.floor((vpW - totalGapW) / cols);
+    const rows = Math.ceil(total / cols);
+    const toolbarH = 34;
+    const totalGapH = (rows - 1) * gap;
+    const cellH = Math.floor((vpH - totalGapH) / rows);
+
+    // Each frame: width = cellW, height = toolbarH + cellH
+    const fw = Math.floor(cellW * zoom);
+    const fh = Math.floor((toolbarH + cellH) * zoom);
+
+    let idx = 0;
+    for (const [, entry] of this.frames) {
+      entry.frame.style.width = fw + 'px';
+      entry.frame.style.height = fh + 'px';
+      idx++;
+    }
+
+    // Update number badges
+    idx = 0;
+    for (const [id, entry] of this.frames) {
+      const badge = entry.frame.querySelector('.num-badge');
+      if (badge) badge.textContent = (idx + 1);
+      idx++;
+    }
+
+    Sidebar.renderStats();
+  },
+
+  _renderZoomLabel() {
     const el = document.getElementById('zoom-level');
     if (el) el.textContent = `${100 + this._zoom * 15}%`;
   },
 
-  async addView(pid) { return teamai.addView(pid); },
-  async removeView(id) {
-    await teamai.removeView(id);
-    const entry = this.frames.get(id);
-    if (entry) { entry.frame.remove(); this.frames.delete(id); }
+  _setupZoomButtons() {
+    document.getElementById('zoom-in')?.addEventListener('click', async () => {
+      this._zoom = Math.min(5, this._zoom + 1);
+      await teamai.setZoom(this._zoom);
+      this._renderZoomLabel();
+      this._sizeAll();
+    });
+    document.getElementById('zoom-out')?.addEventListener('click', async () => {
+      this._zoom = Math.max(-3, this._zoom - 1);
+      await teamai.setZoom(this._zoom);
+      this._renderZoomLabel();
+      this._sizeAll();
+    });
+    document.getElementById('zoom-reset')?.addEventListener('click', async () => {
+      this._zoom = 0;
+      await teamai.setZoom(0);
+      this._renderZoomLabel();
+      this._sizeAll();
+    });
+  },
+
+  // Public API
+  addView(pid) { this._createWebView(pid); },
+  getFrames() { return this.frames; },
+  get count() { return this.frames.size; },
+  get list() {
+    return Array.from(this.frames.entries()).map(([id, e]) => ({
+      id, providerId: e.providerId, url: e.webview?.src || '',
+      combo: e.combo?.options[e.combo.selectedIndex]?.text || e.providerId,
+    }));
   },
 };
