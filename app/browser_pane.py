@@ -19,6 +19,8 @@ class BrowserPane(QWidget):
     title_changed = Signal(str)
     load_finished = Signal(bool)
 
+    close_requested = Signal(object)
+
     def __init__(self, provider_id: str = "default", profile_name: str = None, parent=None):
         super().__init__(parent)
         self.provider_id = provider_id
@@ -97,6 +99,11 @@ class BrowserPane(QWidget):
         self._badge.setFixedSize(18, 18)
         self._badge.setObjectName("paneBadge")
 
+        self._close_btn = QPushButton("✕")
+        self._close_btn.setFixedSize(18, 18)
+        self._close_btn.setObjectName("paneCloseBtn")
+        self._close_btn.clicked.connect(lambda: self.close_requested.emit(self))
+
         layout.addWidget(toolbar)
         layout.addWidget(self._view, 1)
         t_layout.addWidget(self._badge)
@@ -104,6 +111,7 @@ class BrowserPane(QWidget):
         t_layout.addWidget(self._fwd_btn)
         t_layout.addWidget(self._reload_btn)
         t_layout.addWidget(self._url_input, 1)
+        t_layout.addWidget(self._close_btn)
 
     def _apply_style(self):
         self.setStyleSheet("""
@@ -138,6 +146,18 @@ class BrowserPane(QWidget):
             }
             #paneBadge {
                 font-size: 14px;
+            }
+            #paneCloseBtn {
+                background: transparent;
+                border: none;
+                color: #666688;
+                font-size: 10px;
+                border-radius: 3px;
+                padding: 0;
+            }
+            #paneCloseBtn:hover {
+                background: #ff5f5733;
+                color: #ff5f57;
             }
         """)
 

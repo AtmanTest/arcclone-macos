@@ -1,134 +1,103 @@
 """
 prompt_dispatcher.py — Injection de prompts dans les panneaux via runJavaScript().
-Stratégies: textarea, contenteditable, input, Enter key simulation.
+Stratégies: textarea, contenteditable, input. Auto-submit après injection.
+Envoie à TOUS les panneaux, pas seulement ceux du provider correspondant.
 """
 
-import asyncio
-from typing import Optional
-
 from PySide6.QtCore import QTimer
-from PySide6.QtWebEngineCore import QWebEnginePage
-
-from .provider_registry import Provider, ProviderRegistry
 
 
-class PromptDispatcher:
-    def __init__(self):
-        self._registry = ProviderRegistry()
-
-    def dispatch(self, prompt: str, pane, provider_id: str, mode: str = "auto"):
-        """
-        Injecte `prompt` dans le panneau selon la stratégie du provider.
-
-        mode: "auto" (soumission automatique), "manual" (copie seulement)
-        """
-        provider = self._registry.get(provider_id)
-        if not provider:
-            self._fallback_textarea(pane.web_page, prompt)
-            return
-
-        strategy = provider.prompt_strategy
-
-        if strategy == "contenteditable":
-            self._inject_contenteditable(pane.web_page, prompt, provider, mode)
-        elif strategy == "textarea":
-            self._inject_textarea(pane.web_page, prompt, provider, mode)
-        else:
-            self._inject_textarea(pane.web_page, prompt, provider, mode)
-
-    def _inject_textarea(self, page: QWebEnginePage, prompt: str, provider: Provider, mode: str):
-        """Injecte dans un textarea, puis soumet si mode auto."""
-        selector = provider.input_selectors[0] if provider.input_selectors else "textarea"
-        js = f"""
-        (function() {{
-            const el = document.querySelector('{selector}');
-            if (!el) return false;
-            el.value = {repr(prompt)};
-            el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-            el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-            return true;
-        }})();
-        """
-        page.runJavaScript(js, self._js_callback(page, prompt, provider, mode))
-
-    def _inject_contenteditable(self, page: QWebEnginePage, prompt: str, provider: Provider, mode: str):
-        """Injecte dans un contenteditable (ProseMirror, etc.), puis soumet si mode auto."""
-        selector = provider.input_selectors[0] if provider.input_selectors else "[contenteditable='true']"
-        js = f"""
-        (function() {{
-            const el = document.querySelector('{selector}');
-            if (!el) return false;
-            el.focus();
-            el.textContent = '';
-            document.execCommand('insertText', false, {repr(prompt)});
-            el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-            return true;
-        }})();
-        """
-        page.runJavaScript(js, self._js_callback(page, prompt, provider, mode))
-
-    def _js_callback(self, page: QWebEnginePage, prompt: str, provider: Provider, mode: str):
-        """Returns a callback that submits after a delay if mode is auto."""
-        if mode != "auto":
-            return None
-
-        def callback(result):
-            if result is True or result is None:
-                # Wait for DOM to settle, then submit
-                QTimer.singleShot(800, lambda: self._submit(page, provider))
-
-        return callback
-
-    def _submit(self, page: QWebEnginePage, provider: Provider):
-        """Tente de soumettre en cliquant sur le bouton submit ou en simulant Enter."""
-        # Try clicking submit button
-        for selector in provider.submit_selectors:
-            js = f"""
-            (function() {{
-                const btn = document.querySelector('{selector}');
-                if (btn) {{ btn.click(); return true; }}
-                return false;
-            }})();
-            """
-            page.runJavaScript(js, lambda ok: None)
-            return
-
-        # Fallback: simulate Enter in textarea
-        for selector in provider.input_selectors:
-            js = f"""
-            (function() {{
-                const el = document.querySelector('{selector}');
-                if (!el) return false;
-                const ev = new KeyboardEvent('keydown', {{ key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true }});
-                el.dispatchEvent(ev);
-                return true;
-            }})();
-            """
-            page.runJavaScript(js, lambda ok: None)
-            return
-
-    def _fallback_textarea(self, page: QWebEnginePage, prompt: str):
-        """Fallback générique si aucun provider trouvé."""
-        js = f"""
-        (function() {{
-            const el = document.querySelector('textarea') || document.querySelector('[contenteditable="true"]');
-            if (!el) return false;
-            el.focus();
-            if (el.tagName === 'TEXTAREA') {{
-                el.value = {repr(prompt)};
-            }} else {{
-                el.textContent = '';
-                document.execCommand('insertText', false, {repr(prompt)});
-            }}
-            return true;
-        }})();
-        """
-        page.runJavaScript(js)
-
-
-def repr(s: str) -> str:
-    """Safe JS string representation."""
+def _js_str(s):
+    """Safe JSON string for JS."""
+    import json
     return json.dumps(s)
 
 
-import json
+class PromptDispatcher:
+    """Distribue un prompt à tous les panneaux et tente la soumission automatique."""
+
+    def dispatch_all(self, prompt: str, panes: list, auto_submit: bool = True):
+        """Envoie le prompt à tous les panneaux actifs."""
+        if not prompt or not panes:
+            return
+
+        for pane in panes:
+            self._inject_and_submit(pane, prompt, auto_submit)
+
+    def _inject_and_submit(self, pane, prompt: str, auto_submit: bool):
+        """Injecte le prompt dans le pane, puis soumet si auto_submit."""
+        page = pane.web_page
+        if not page:
+            return
+
+        safe = _js_str(prompt)
+
+        # Try contenteditable first, then textarea
+        js = f"""
+        (function() {{
+            const selectors = [
+                '[contenteditable="true"]',
+                '#prompt-textarea',
+                'textarea',
+                '.ProseMirror',
+                '[role="textbox"]',
+                'input[type="text"]'
+            ];
+            for (const sel of selectors) {{
+                const el = document.querySelector(sel);
+                if (!el) continue;
+                el.focus();
+                if (el.isContentEditable || el.tagName === 'DIV' || el.classList.contains('ProseMirror')) {{
+                    el.textContent = '';
+                    document.execCommand('insertText', false, {safe});
+                }} else {{
+                    el.value = {safe};
+                }}
+                el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                el.dispatchEvent(new Event('keydown', {{ bubbles: true }}));
+                return el;
+            }}
+            return null;
+        }})();
+        """
+        page.runJavaScript(js, self._make_submit_callback(page, auto_submit))
+
+    def _make_submit_callback(self, page, auto_submit: bool):
+        if not auto_submit:
+            return None
+
+        def callback(result):
+            if result is not None:
+                # Attendre que le DOM se stabilise, puis soumettre
+                QTimer.singleShot(600, lambda: self._try_submit(page))
+
+        return callback
+
+    def _try_submit(self, page):
+        """Tente de soumettre par Enter ou clic sur bouton."""
+        js = """
+        (function() {
+            const el = document.activeElement || document.querySelector('textarea') ||
+                       document.querySelector('[contenteditable="true"]') ||
+                       document.querySelector('[role="textbox"]');
+            if (!el) return false;
+
+            // Try Enter key
+            const ev = new KeyboardEvent('keydown', {
+                key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
+                bubbles: true, cancelable: true
+            });
+            if (el.dispatchEvent(ev)) return true;
+
+            // Try submit button
+            const btns = document.querySelectorAll('button[type="submit"], button:has(svg), ' +
+                'button[data-testid="send-button"], button[aria-label*="Send"], ' +
+                'button[aria-label*="Envoyer"]');
+            for (const btn of btns) {
+                if (btn.offsetParent !== null) { btn.click(); return true; }
+            }
+            return false;
+        })();
+        """
+        page.runJavaScript(js)

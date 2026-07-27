@@ -1,21 +1,65 @@
 [
   {
-    "id": "chatgpt",
-    "label": "ChatGPT",
+    "id": "gpt5_terra",
+    "label": "GPT-5.6 Terra",
     "url": "https://chatgpt.com",
     "icon": "🤖",
-    "default_profile": "chatgpt-main",
+    "default_profile": "gpt5-terra",
     "prompt_strategy": "contenteditable",
     "input_selectors": ["textarea", "[contenteditable='true']", "#prompt-textarea"],
     "submit_selectors": ["button[data-testid='send-button']", "button[type='submit']"],
     "response_selectors": ["main", "article", ".markdown"]
   },
   {
-    "id": "perplexity",
-    "label": "Perplexity",
-    "url": "https://www.perplexity.ai",
-    "icon": "🔍",
-    "default_profile": "perplexity-main",
+    "id": "gpt5_sol",
+    "label": "GPT-5.6 Sol Max",
+    "url": "https://chatgpt.com",
+    "icon": "🌞",
+    "default_profile": "gpt5-sol",
+    "prompt_strategy": "contenteditable",
+    "input_selectors": ["textarea", "[contenteditable='true']", "#prompt-textarea"],
+    "submit_selectors": ["button[data-testid='send-button']", "button[type='submit']"],
+    "response_selectors": ["main", "article", ".markdown"]
+  },
+  {
+    "id": "gemini",
+    "label": "Gemini 3.1 Pro",
+    "url": "https://gemini.google.com",
+    "icon": "💎",
+    "default_profile": "gemini-main",
+    "prompt_strategy": "textarea",
+    "input_selectors": ["textarea", "[contenteditable='true']"],
+    "submit_selectors": ["button[type='submit']"],
+    "response_selectors": ["main"]
+  },
+  {
+    "id": "raisonnement",
+    "label": "Raisonnement",
+    "url": "https://chatgpt.com",
+    "icon": "🧠",
+    "default_profile": "raisonnement",
+    "prompt_strategy": "contenteditable",
+    "input_selectors": ["textarea", "[contenteditable='true']", "#prompt-textarea"],
+    "submit_selectors": ["button[data-testid='send-button']", "button[type='submit']"],
+    "response_selectors": ["main", "article", ".markdown"]
+  },
+  {
+    "id": "claude",
+    "label": "Claude Sonnet 5",
+    "url": "https://claude.ai",
+    "icon": "🟣",
+    "default_profile": "claude-main",
+    "prompt_strategy": "contenteditable",
+    "input_selectors": ["textarea", "[contenteditable='true']", ".ProseMirror"],
+    "submit_selectors": ["button[type='submit']"],
+    "response_selectors": ["main", "article"]
+  },
+  {
+    "id": "zglm",
+    "label": "Z GLM 5.2",
+    "url": "https://chatglm.cn",
+    "icon": "🔵",
+    "default_profile": "zglm-main",
     "prompt_strategy": "textarea",
     "input_selectors": ["textarea", "[contenteditable='true']"],
     "submit_selectors": ["button[type='submit']"],
@@ -23,7 +67,7 @@
   },
   {
     "id": "kimi",
-    "label": "Kimi",
+    "label": "Kimi K2.6",
     "url": "https://kimi.com",
     "icon": "🌙",
     "default_profile": "kimi-main",
@@ -33,14 +77,25 @@
     "response_selectors": ["main"]
   },
   {
-    "id": "claude",
-    "label": "Claude",
-    "url": "https://claude.ai",
-    "icon": "🟣",
-    "default_profile": "claude-main",
-    "prompt_strategy": "contenteditable",
-    "input_selectors": ["textarea", "[contenteditable='true']", ".ProseMirror"],
+    "id": "grok",
+    "label": "Grok 4.5",
+    "url": "https://x.com/i/grok",
+    "icon": "✖️",
+    "default_profile": "grok-main",
+    "prompt_strategy": "textarea",
+    "input_selectors": ["textarea", "[contenteditable='true']"],
     "submit_selectors": ["button[type='submit']"],
-    "response_selectors": ["main", "article"]
+    "response_selectors": ["main"]
+  },
+  {
+    "id": "nemotron",
+    "label": "Nemotron 3 Ultra",
+    "url": "https://huggingface.co/chat",
+    "icon": "🛡️",
+    "default_profile": "nemotron-main",
+    "prompt_strategy": "textarea",
+    "input_selectors": ["textarea", "[contenteditable='true']"],
+    "submit_selectors": ["button[type='submit']"],
+    "response_selectors": ["main"]
   }
 ]

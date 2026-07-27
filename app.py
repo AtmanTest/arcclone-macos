@@ -1,6 +1,6 @@
 """
-app.py — Point d'entrée ArcClone CLI.
-`python app.py` ou `arcclone` après pip install.
+app.py — Point d'entrée TeamAI CLI.
+`python app.py` ou `teamai` après pip install.
 """
 
 import sys

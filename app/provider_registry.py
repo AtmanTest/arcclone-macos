@@ -55,6 +55,6 @@ class ProviderRegistry:
         return list(self._providers.keys())
 
     def get_default_preset(self) -> list[Provider]:
-        """Returns default 4-AI preset."""
-        ids = ["chatgpt", "perplexity", "kimi", "claude"]
+        """Returns default 9-AI preset."""
+        ids = ["gpt5_terra", "gpt5_sol", "gemini", "raisonnement", "claude", "zglm", "kimi", "grok", "nemotron"]
         return [self._providers[i] for i in ids if i in self._providers]

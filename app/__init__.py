@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont, QPalette, QColor
 
-from .main_window import MainWindow
+from .main_window import TeamAIWindow
 
 
 def main():
@@ -42,7 +42,7 @@ def main():
     palette.setColor(QPalette.HighlightedText, QColor("#ffffff"))
     app.setPalette(palette)
 
-    window = MainWindow()
+    window = TeamAIWindow()
     window.show()
 
     sys.exit(app.exec())

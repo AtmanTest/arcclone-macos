@@ -1,11 +1,10 @@
 """
-layout_manager.py — Gestion des layouts grille, colonnes, auto-fill Apple.
-QSplitter pour redimensionnement drag. Protège les panneaux contre la suppression Qt.
+layout_manager.py — Layout grille simple avec QGridLayout.
+Pas de création/destruction de QSplitter, pas de crash.
 """
 
 from enum import Enum
-
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QSplitter, QSizePolicy
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QGridLayout, QSizePolicy
 from PySide6.QtCore import Qt, Signal
 
 
@@ -15,6 +14,29 @@ class LayoutMode(Enum):
     AUTO_FILL = "auto_fill"
 
 
+def _auto_grid(n):
+    """Retourne (rows, cols) selon le nombre de panneaux (Apple-style)."""
+    if n <= 1:
+        return (1, 1)
+    if n == 2:
+        return (1, 2)
+    if n == 3:
+        return (2, 2)  # 1 grand + 2 petits
+    if n == 4:
+        return (2, 2)
+    if n <= 6:
+        return (2, 3)
+    if n <= 8:
+        return (2, 4)
+    if n <= 9:
+        return (3, 3)
+    if n <= 12:
+        return (3, 4)
+    cols = int(n ** 0.5) + (1 if n > int(n ** 0.5) ** 2 else 0)
+    rows = (n + cols - 1) // cols
+    return (rows, cols)
+
+
 class LayoutManager(QWidget):
     layout_changed = Signal()
 
@@ -22,178 +44,104 @@ class LayoutManager(QWidget):
         super().__init__(parent)
         self._panes: list[QWidget] = []
         self._mode = LayoutMode.AUTO_FILL
-        self._container = QWidget()
-        self._container_layout = QVBoxLayout(self._container)
-        self._container_layout.setContentsMargins(0, 0, 0, 0)
-        self._container_layout.setSpacing(0)
-
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-        main_layout.addWidget(self._container)
-
+        self._grid = QGridLayout()
+        self._grid.setContentsMargins(0, 0, 0, 0)
+        self._grid.setSpacing(2)
+        main = QVBoxLayout(self)
+        main.setContentsMargins(0, 0, 0, 0)
+        main.addLayout(self._grid)
         self.setStyleSheet("background: #151528;")
 
-    def set_panes(self, panes: list[QWidget]):
+    def set_panes(self, panes):
         self._panes = panes
         self._rebuild()
 
-    def add_pane(self, pane: QWidget):
+    def add_pane(self, pane):
         self._panes.append(pane)
         self._rebuild()
 
-    def remove_pane(self, pane: QWidget):
+    def remove_pane(self, pane):
         if pane in self._panes:
             self._panes.remove(pane)
-            pane.setParent(None)
-            pane.deleteLater()
             self._rebuild()
 
-    def set_mode(self, mode: LayoutMode):
+    def set_mode(self, mode):
         self._mode = mode
         self._rebuild()
 
-    def mode(self) -> LayoutMode:
+    def mode(self):
         return self._mode
 
-    def pane_count(self) -> int:
+    def pane_count(self):
         return len(self._panes)
 
     def _rebuild(self):
-        # CRITICAL: detach all panes BEFORE clearing old layout.
-        # Otherwise Qt destroys them recursively when we remove the old splitter.
-        for pane in self._panes:
-            pane.setParent(self)
-
-        # Clear the old layout completely
-        self._clear_layout(self._container_layout)
+        # Remove all items from grid (does NOT delete widgets)
+        while self._grid.count():
+            item = self._grid.takeAt(0)
+            if item and item.widget():
+                self._grid.removeWidget(item.widget())
 
         if not self._panes:
             return
 
+        n = len(self._panes)
+
         if self._mode == LayoutMode.COLUMNS:
-            self._build_columns()
+            rows, cols = 1, n
         elif self._mode == LayoutMode.GRID:
-            self._build_grid()
+            rows, cols = _auto_grid(n)
         else:
-            self._build_auto_fill()
+            rows, cols = _auto_grid(n)
+
+        positions = self._compute_positions(rows, cols, n)
+        for idx, (r, c, rs, cs) in enumerate(positions):
+            pane = self._panes[idx]
+            self._grid.addWidget(pane, r, c, rs, cs)
+            pane.show()
+            pane.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         self.layout_changed.emit()
 
-    def _clear_layout(self, layout):
-        """Recursively remove all widgets/items from a layout without deleting child widgets."""
-        if layout is None:
-            return
-        while layout.count():
-            item = layout.takeAt(0)
-            if item.widget():
-                item.widget().setParent(None)
-            elif item.layout():
-                self._clear_layout(item.layout())
+    def _compute_positions(self, rows, cols, n):
+        """Calcule les positions (row, col, rowspan, colspan) pour n panneaux."""
+        positions = []
 
-    def _build_columns(self):
-        """Colonnes parallèles avec QSplitter horizontal."""
-        splitter = QSplitter(Qt.Horizontal)
-        splitter.setHandleWidth(3)
-        splitter.setChildrenCollapsible(True)
-        for pane in self._panes:
-            pane.setParent(splitter)
-            pane.show()
-            splitter.addWidget(pane)
-        self._container_layout.addWidget(splitter)
+        if self._mode == LayoutMode.COLUMNS:
+            for i in range(n):
+                positions.append((0, i, 1, 1))
+            return positions
 
-    def _build_grid(self):
-        """Grille adaptative: 2x2 pour 4, s'adapte pour plus."""
-        n = len(self._panes)
-        cols = max(2, int(n ** 0.5) + (1 if n > int(n ** 0.5) ** 2 else 0))
-        rows = (n + cols - 1) // cols
-
-        outer = QSplitter(Qt.Vertical)
-        outer.setHandleWidth(3)
-        outer.setChildrenCollapsible(False)
-
-        for r in range(rows):
-            row_splitter = QSplitter(Qt.Horizontal)
-            row_splitter.setHandleWidth(2)
-            row_splitter.setChildrenCollapsible(False)
-            for c in range(cols):
-                idx = r * cols + c
-                if idx < n:
-                    pane = self._panes[idx]
-                    pane.setParent(row_splitter)
-                    pane.show()
-                    row_splitter.addWidget(pane)
-            outer.addWidget(row_splitter)
-
-        self._container_layout.addWidget(outer)
-
-    def _build_auto_fill(self):
-        """Apple-style auto-fill: intelligent selon le nombre de panneaux."""
-        n = len(self._panes)
-
-        if n == 1:
-            self._panes[0].setParent(self._container)
-            self._panes[0].show()
-            self._container_layout.addWidget(self._panes[0])
-
-        elif n == 2:
-            splitter = QSplitter(Qt.Horizontal)
-            splitter.setHandleWidth(3)
-            for p in self._panes:
-                p.setParent(splitter)
-                p.show()
-                splitter.addWidget(p)
-            self._container_layout.addWidget(splitter)
-
-        elif n == 3:
-            main_splitter = QSplitter(Qt.Horizontal)
-            main_splitter.setHandleWidth(3)
-
-            left = self._panes[0]
-            left.setParent(main_splitter)
-            left.show()
-            main_splitter.addWidget(left)
-
-            right_splitter = QSplitter(Qt.Vertical)
-            right_splitter.setHandleWidth(2)
-            for i in range(1, 3):
-                p = self._panes[i]
-                p.setParent(right_splitter)
-                p.show()
-                right_splitter.addWidget(p)
-            main_splitter.addWidget(right_splitter)
-            main_splitter.setSizes([500, 500])
-            self._container_layout.addWidget(main_splitter)
-
-        elif n == 4:
-            outer = QSplitter(Qt.Vertical)
-            outer.setHandleWidth(3)
-            for row in range(2):
-                row_splitter = QSplitter(Qt.Horizontal)
-                row_splitter.setHandleWidth(2)
-                for col in range(2):
-                    idx = row * 2 + col
-                    p = self._panes[idx]
-                    p.setParent(row_splitter)
-                    p.show()
-                    row_splitter.addWidget(p)
-                outer.addWidget(row_splitter)
-            self._container_layout.addWidget(outer)
-
-        else:
-            cols = 3 if n <= 6 else 4
-            rows = (n + cols - 1) // cols
-            outer = QSplitter(Qt.Vertical)
-            outer.setHandleWidth(2)
+        if self._mode == LayoutMode.GRID:
+            idx = 0
             for r in range(rows):
-                row_splitter = QSplitter(Qt.Horizontal)
-                row_splitter.setHandleWidth(2)
                 for c in range(cols):
-                    idx = r * cols + c
                     if idx < n:
-                        p = self._panes[idx]
-                        p.setParent(row_splitter)
-                        p.show()
-                        row_splitter.addWidget(p)
-                outer.addWidget(row_splitter)
-            self._container_layout.addWidget(outer)
+                        positions.append((r, c, 1, 1))
+                        idx += 1
+            return positions
+
+        # AUTO_FILL — Apple-style
+        if n == 1:
+            positions.append((0, 0, 1, 1))
+        elif n == 2:
+            positions.append((0, 0, 1, 1))
+            positions.append((0, 1, 1, 1))
+        elif n == 3:
+            positions.append((0, 0, 2, 1))  # Gauche : toute la hauteur
+            positions.append((0, 1, 1, 1))  # Droite haut
+            positions.append((1, 1, 1, 1))  # Droite bas
+        elif n == 4:
+            positions.append((0, 0, 1, 1))
+            positions.append((0, 1, 1, 1))
+            positions.append((1, 0, 1, 1))
+            positions.append((1, 1, 1, 1))
+        else:
+            idx = 0
+            for r in range(rows):
+                for c in range(cols):
+                    if idx < n:
+                        positions.append((r, c, 1, 1))
+                        idx += 1
+
+        return positions
