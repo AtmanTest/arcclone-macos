@@ -1,103 +1,97 @@
 """
-prompt_dispatcher.py — Injection de prompts dans les panneaux via runJavaScript().
-Stratégies: textarea, contenteditable, input. Auto-submit après injection.
-Envoie à TOUS les panneaux, pas seulement ceux du provider correspondant.
+prompt_dispatcher.py — Injection JS robuste avec retry.
+Injection dans TOUS les panneaux, Enter auto, retry si page pas prête.
 """
 
 from PySide6.QtCore import QTimer
 
 
-def _js_str(s):
-    """Safe JSON string for JS."""
-    import json
-    return json.dumps(s)
-
-
 class PromptDispatcher:
-    """Distribue un prompt à tous les panneaux et tente la soumission automatique."""
 
-    def dispatch_all(self, prompt: str, panes: list, auto_submit: bool = True):
-        """Envoie le prompt à tous les panneaux actifs."""
-        if not prompt or not panes:
+    def dispatch_all(self, prompt: str, panes: list, auto_submit=True):
+        if not prompt.strip() or not panes:
             return
-
         for pane in panes:
-            self._inject_and_submit(pane, prompt, auto_submit)
+            self._inject(pane, prompt, auto_submit, attempt=1)
 
-    def _inject_and_submit(self, pane, prompt: str, auto_submit: bool):
-        """Injecte le prompt dans le pane, puis soumet si auto_submit."""
-        page = pane.web_page
-        if not page:
+    def _inject(self, pane, prompt, auto_submit, attempt=1):
+        if attempt > 5:
+            return  # abandon après 5 tentatives
+        if not pane or not pane.web_page:
             return
 
-        safe = _js_str(prompt)
+        safe = __import__('json').dumps(prompt)
+        page = pane.web_page
 
-        # Try contenteditable first, then textarea
         js = f"""
         (function() {{
-            const selectors = [
-                '[contenteditable="true"]',
-                '#prompt-textarea',
-                'textarea',
-                '.ProseMirror',
-                '[role="textbox"]',
-                'input[type="text"]'
+            const sels = [
+                '#prompt-textarea', '[contenteditable="true"]', 'textarea',
+                '.ProseMirror', '[role="textbox"]', 'input[type="text"]'
             ];
-            for (const sel of selectors) {{
+            for (const sel of sels) {{
                 const el = document.querySelector(sel);
                 if (!el) continue;
                 el.focus();
-                if (el.isContentEditable || el.tagName === 'DIV' || el.classList.contains('ProseMirror')) {{
+                if (el.isContentEditable || el.tagName === 'DIV') {{
                     el.textContent = '';
                     document.execCommand('insertText', false, {safe});
                 }} else {{
                     el.value = {safe};
                 }}
-                el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                el.dispatchEvent(new Event('keydown', {{ bubbles: true }}));
-                return el;
+                el.dispatchEvent(new Event('input', {{bubbles:true}}));
+                el.dispatchEvent(new Event('change', {{bubbles:true}}));
+                return 'found';
             }}
-            return null;
+            return 'not_found';
         }})();
         """
-        page.runJavaScript(js, self._make_submit_callback(page, auto_submit))
+        page.runJavaScript(js, lambda r: self._on_injected(page, r, prompt, auto_submit, attempt))
 
-    def _make_submit_callback(self, page, auto_submit: bool):
-        if not auto_submit:
-            return None
+    def _on_injected(self, page, result, prompt, auto_submit, attempt):
+        if result == 'found' and auto_submit:
+            QTimer.singleShot(800, lambda: self._submit(page, attempt=1))
+        elif result == 'not_found':
+            # Page pas encore prête → retry
+            QTimer.singleShot(1500, lambda: self._inject(
+                page.parent() if hasattr(page, 'parent') else None,
+                prompt, auto_submit, attempt + 1
+            ))
 
-        def callback(result):
-            if result is not None:
-                # Attendre que le DOM se stabilise, puis soumettre
-                QTimer.singleShot(600, lambda: self._try_submit(page))
-
-        return callback
-
-    def _try_submit(self, page):
-        """Tente de soumettre par Enter ou clic sur bouton."""
+    def _submit(self, page, attempt=1):
+        if attempt > 3:
+            return
         js = """
         (function() {
+            const btnSels = [
+                'button[data-testid="send-button"]',
+                'button[type="submit"]',
+                'button:has(svg)',
+                '[aria-label*="Send"]', '[aria-label*="send"]',
+                '[aria-label*="Envoyer"]', '[aria-label*="envoyer"]'
+            ];
+            // Enter key first
             const el = document.activeElement || document.querySelector('textarea') ||
-                       document.querySelector('[contenteditable="true"]') ||
-                       document.querySelector('[role="textbox"]');
-            if (!el) return false;
-
-            // Try Enter key
-            const ev = new KeyboardEvent('keydown', {
-                key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-                bubbles: true, cancelable: true
-            });
-            if (el.dispatchEvent(ev)) return true;
-
-            // Try submit button
-            const btns = document.querySelectorAll('button[type="submit"], button:has(svg), ' +
-                'button[data-testid="send-button"], button[aria-label*="Send"], ' +
-                'button[aria-label*="Envoyer"]');
-            for (const btn of btns) {
-                if (btn.offsetParent !== null) { btn.click(); return true; }
+                       document.querySelector('[contenteditable="true"]');
+            if (el) {
+                const ev = new KeyboardEvent('keydown', {
+                    key:'Enter', code:'Enter', keyCode:13, which:13,
+                    bubbles:true, cancelable:true
+                });
+                if (!el.dispatchEvent(ev)) { return 'sent'; }
             }
-            return false;
+            // Then try buttons
+            for (const sel of btnSels) {
+                const btns = document.querySelectorAll(sel);
+                for (const btn of btns) {
+                    if (btn.offsetParent !== null) { btn.click(); return 'clicked'; }
+                }
+            }
+            return 'failed';
         })();
         """
-        page.runJavaScript(js)
+        page.runJavaScript(js, lambda r: self._on_submit_result(page, r, attempt))
+
+    def _on_submit_result(self, page, result, attempt):
+        if result == 'failed' and attempt < 3:
+            QTimer.singleShot(1000, lambda: self._submit(page, attempt + 1))
