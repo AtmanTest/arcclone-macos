@@ -202,17 +202,20 @@ class TeamAIWindow(QMainWindow):
         self._renumber(); self._update_stats()
 
     def _add_one(self, pv=None, url=None):
-        """Crée et ajoute un seul pane sans relayout."""
         self._counter += 1
         pid = pv.id if pv else "default"
         name = f"priv_{pid}_{self._counter}" if self._private else f"{pid}_{self._counter}"
-        p = BrowserPane(pid, name, self._counter)
+        providers = self._providers_list()
+        p = BrowserPane(pid, name, self._counter, providers=providers)
         if pv: p.set_badge(pv.icon)
         p.url_changed.connect(partial(self._on_url, p))
         p.close_requested.connect(self._remove_pane)
         p.load(url or (pv.url if pv else "about:blank"))
         self._panes.append(p)
         self._layout.add_pane(p, defer=True)
+
+    def _providers_list(self):
+        return [{"id": x.id, "label": x.label, "url": x.url, "icon": x.icon} for x in self._reg.all()]
 
     def _add_pane(self):
         """Ajoute un pane vierge."""
@@ -318,7 +321,7 @@ class TeamAIWindow(QMainWindow):
             for pd in d.get("panes",[]):
                 self._counter += 1
                 pid = pd.get("provider","default"); pv = self._reg.get(pid)
-                p = BrowserPane(pid, f"pane_{self._counter}", self._counter)
+                p = BrowserPane(pid, f"pane_{self._counter}", self._counter, providers=self._providers_list())
                 if pv: p.set_badge(pv.icon)
                 p.url_changed.connect(partial(self._on_url, p))
                 p.close_requested.connect(self._remove_pane)

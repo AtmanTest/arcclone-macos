@@ -6,7 +6,7 @@ Signal close_requested + numéro de fenêtre.
 import os
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, QComboBox
 from PySide6.QtCore import Qt, Signal, QUrl
 from PySide6.QtGui import QFont
 
@@ -19,10 +19,11 @@ class BrowserPane(QWidget):
     load_finished = Signal(bool)
     close_requested = Signal(object)
 
-    def __init__(self, provider_id="default", profile_name=None, pane_number=1, parent=None):
+    def __init__(self, provider_id="default", profile_name=None, pane_number=1, providers=None, parent=None):
         super().__init__(parent)
         self.provider_id = provider_id
         self.pane_number = pane_number
+        self._providers = providers or []
         self._profile_name = profile_name or f"pane_{id(self)}"
         self._url = "about:blank"
         self._loading = False
@@ -72,6 +73,18 @@ class BrowserPane(QWidget):
         self._badge.setFixedSize(16, 16)
         self._badge.setObjectName("paneBadge")
 
+        self._provider_combo = QComboBox()
+        self._provider_combo.setObjectName("providerCombo")
+        self._provider_combo.setFixedWidth(140)
+        for p in self._providers:
+            self._provider_combo.addItem(f"{p.get('icon','')} {p.get('label','')}", p.get("id"))
+        # Select current provider
+        for i in range(self._provider_combo.count()):
+            if self._provider_combo.itemData(i) == self.provider_id:
+                self._provider_combo.setCurrentIndex(i)
+                break
+        self._provider_combo.currentIndexChanged.connect(self._on_provider_changed)
+
         self._back = QPushButton("◀")
         self._back.setFixedSize(20, 20)
         self._back.setObjectName("paneBtn")
@@ -102,6 +115,7 @@ class BrowserPane(QWidget):
         layout.addWidget(self._view, 1)
         t.addWidget(self._number)
         t.addWidget(self._badge)
+        t.addWidget(self._provider_combo)
         t.addWidget(self._back)
         t.addWidget(self._fwd)
         t.addWidget(self._reload)
@@ -126,12 +140,31 @@ class BrowserPane(QWidget):
             }
             #paneUrl:focus { border-color: #6c63ff; background: #1a1a35; }
             #paneBadge { font-size: 12px; }
+            #providerCombo {
+                background: #252540; border: 1px solid #2d2d44; border-radius: 4px;
+                color: #e0e0ff; font-size: 9px; padding: 1px 2px; min-height: 18px;
+            }
+            #providerCombo:focus { border-color: #6c63ff; }
+            #providerCombo::drop-down { border: none; width: 16px; }
+            #providerCombo::down-arrow { image: none; border: none; }
+            #providerCombo QAbstractItemView {
+                background: #1e1e2e; color: #e0e0ff; border: 1px solid #2d2d44;
+                selection-background-color: #6c63ff; font-size: 9px;
+            }
             #paneClose {
                 background: transparent; border: none; color: #555577;
                 font-size: 9px; border-radius: 3px; padding: 0;
             }
             #paneClose:hover { background: #ff5f5733; color: #ff5f57; }
         """)
+
+    def _on_provider_changed(self, idx):
+        if idx < 0 or idx >= len(self._providers):
+            return
+        p = self._providers[idx]
+        self.provider_id = p.get("id", "default")
+        self._badge.setText(p.get("icon", ""))
+        self.load(p.get("url", "about:blank"))
 
     def _navigate(self):
         text = self._url_input.text().strip()
