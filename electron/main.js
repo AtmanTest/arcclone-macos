@@ -1,53 +1,75 @@
 /**
- * TeamAI — Main Process
- * BrowserWindow + N BrowserViews with overlay toolbar sync via IPC.
- * Each BrowserView = isolated session partition.
+ * TeamAI v3 — Main Process
+ * BrowserWindow + N BrowserViews.
+ * Google OAuth → popup BrowserWindow (même partition).
+ * Zoom, scroll, history, rapport collect.
  */
 const { app, BrowserWindow, BrowserView, ipcMain, session, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
 let mainWindow = null;
-const views = new Map();
+const views = new Map(); // id → { view, providerId, label, icon, url, title, history[] }
+const authWindows = new Map();
 let viewCounter = 0;
-let zoomLevel = 0; // 0 = 100%, -1 = 90%, +1 = 110%, etc.
+let zoomLevel = 0; // 0=100%, chaque pas = 15% de taille en plus/moins
 
 // ── Config ──────────────────────────────────────────────────────────────────
 const CFG = {
   PROVIDERS: path.join(__dirname, '..', 'config', 'providers.json'),
   VERSION: path.join(__dirname, '..', 'config', 'version.json'),
   SIDEBAR_W: 240,
-  TOOLBAR_H: 38,
+  TOOLBAR_H: 36,
+  PROMPT_H: 44,
+  GITHUB_URL: 'https://github.com/AtmanTest/arcclone-macos',
 };
 
 function loadJSON(p) { try { return JSON.parse(fs.readFileSync(p, 'utf-8')); } catch { return {}; } }
 function loadProviders() { const d = loadJSON(CFG.PROVIDERS); return Array.isArray(d) ? d : []; }
 
-const DEFAULT_PRESET = ['gpt5_terra','gpt5_sol','gemini','raisonnement','claude','zglm','kimi','grok','nemotron'];
+const DEFAULT_PRESET = ['gpt5_terra','gpt5_sol','gemini','raisonnement','claude','zglm','kimi','grok','nemotron','venice'];
 
-// ── View Management ─────────────────────────────────────────────────────────
+// ── View Bounds (avec zoom) ─────────────────────────────────────────────────
 function getViewBounds(idx, total, scrollTop = 0) {
-  const sidebarW = CFG.SIDEBAR_W;
   const [winW, winH] = mainWindow ? mainWindow.getSize() : [1400, 900];
-  const availW = winW - sidebarW;
-  const promptH = 46;
-  const availH = winH - promptH;
+  const availW = winW - CFG.SIDEBAR_W;
+  const availH = winH - CFG.PROMPT_H;
+  const zoomFactor = 1 + zoomLevel * 0.15;
 
   if (total <= 1) {
-    return { x: sidebarW, y: -scrollTop, width: availW, height: availH - CFG.TOOLBAR_H };
+    const w = Math.floor(availW * zoomFactor);
+    const h = Math.floor((availH - CFG.TOOLBAR_H) * zoomFactor);
+    return { x: CFG.SIDEBAR_W, y: -scrollTop, width: w, height: h };
   }
 
-  // 2 columns, dynamic rows
-  const cols = 2;
+  // Grille adaptative: jusqu'à 4 = 2×2, 5-9 = 3×3, 10+ = 4×N
+  const cols = total <= 4 ? 2 : total <= 9 ? 3 : 4;
   const rows = Math.ceil(total / cols);
+
   const cellW = Math.floor(availW / cols);
-  const cellH = Math.floor((availH - CFG.TOOLBAR_H) / Math.min(rows, 2));
+  const cellH = Math.floor((availH - CFG.TOOLBAR_H) / Math.min(rows, Math.max(1, Math.floor(1 / zoomFactor))));
 
   const col = idx % cols;
   const row = Math.floor(idx / cols);
-  const x = sidebarW + col * cellW;
+  const x = CFG.SIDEBAR_W + col * cellW;
   const y = row * (cellH + CFG.TOOLBAR_H) - scrollTop;
-  return { x, y, width: cellW - 4, height: cellH - 4 };
+
+  return {
+    x: x + 2, y: y + 2,
+    width: Math.floor((cellW - 4) * zoomFactor),
+    height: Math.floor(Math.max(80, (cellH - 4) * zoomFactor)),
+  };
+}
+
+function getTotalContentHeight(total) {
+  const [winW, winH] = mainWindow ? mainWindow.getSize() : [1400, 900];
+  const availW = winW - CFG.SIDEBAR_W;
+  const availH = winH - CFG.PROMPT_H;
+  const cols = total <= 4 ? 2 : total <= 9 ? 3 : 4;
+  const rows = Math.ceil(total / cols);
+  const cellW = Math.floor(availW / cols);
+  const cellH = Math.floor((availH - CFG.TOOLBAR_H) / Math.min(rows, 2));
+  return rows * (cellH + CFG.TOOLBAR_H) + 40;
 }
 
 function layoutAllViews(scrollTop = 0) {
@@ -57,11 +79,44 @@ function layoutAllViews(scrollTop = 0) {
     try { v.view.setBounds(b); } catch {}
     return { id, ...b, providerId: v.providerId, label: v.label, icon: v.icon, url: v.url || '' };
   });
+  const totalH = getTotalContentHeight(entries.length);
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('sync-bounds', bounds, zoomLevel, entries.length);
+    mainWindow.webContents.send('sync-bounds', bounds, zoomLevel, entries.length, totalH);
   }
 }
 
+// ── Google OAuth ────────────────────────────────────────────────────────────
+function openAuthWindow(parentWebContents, url, partition) {
+  // Ferme les anciennes fenêtres d'auth pour cette partition
+  if (authWindows.has(partition)) {
+    try { authWindows.get(partition).close(); } catch {}
+  }
+
+  const authWin = new BrowserWindow({
+    width: 900, height: 700,
+    parent: mainWindow,
+    modal: false,
+    title: 'Connexion Google — TeamAI',
+    webPreferences: { partition, sandbox: false, nodeIntegration: false, contextIsolation: true },
+  });
+
+  authWin.loadURL(url);
+  authWindows.set(partition, authWin);
+
+  // Détecter la fin de l'auth
+  authWin.webContents.on('did-navigate', (e, navUrl) => {
+    if (navUrl.includes('google.com/_/oauth') || navUrl.includes('consent')) {
+      // Still in auth flow, keep open
+    } else if (!navUrl.includes('accounts.google.com') && navUrl !== url) {
+      // Auth done (redirected away from Google) → fermer
+      setTimeout(() => { try { authWin.close(); } catch {} }, 1500);
+    }
+  });
+
+  authWin.on('closed', () => authWindows.delete(partition));
+}
+
+// ── View Management ─────────────────────────────────────────────────────────
 function addView(providerId) {
   if (!mainWindow) return null;
   const providers = loadProviders();
@@ -71,28 +126,35 @@ function addView(providerId) {
   viewCounter++;
   const id = `v_${viewCounter}`;
   const partition = `persist:teamai_${providerId}_${viewCounter}`;
-  const ses = session.fromPartition(partition);
 
   const view = new BrowserView({
-    webPreferences: {
-      partition,
-      sandbox: false,
-      nodeIntegration: false,
-      contextIsolation: true,
+    webPreferences: { partition, sandbox: false, nodeIntegration: false, contextIsolation: true,
+      nativeWindowOpen: true,
     }
   });
 
-  // Google OAuth popup handler
+  // Google OAuth: intercepter et ouvrir dans popup Electron
   view.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.includes('accounts.google.com') || url.includes('oauth') || url.includes('login')) {
-      shell.openExternal(url);
+    const needsAuth = url.includes('accounts.google.com') || url.includes('oauth')
+      || url.includes('login.google') || url.includes('googleapis.com');
+    if (needsAuth) {
+      openAuthWindow(view.webContents, url, partition);
       return { action: 'deny' };
     }
     return { action: 'allow' };
   });
+
   view.webContents.on('will-navigate', (e, url) => {
     if (url.includes('accounts.google.com') || url.includes('oauth')) {
-      e.preventDefault(); shell.openExternal(url);
+      e.preventDefault();
+      openAuthWindow(view.webContents, url, partition);
+    }
+  });
+
+  // History tracking
+  view.webContents.on('did-navigate', (e, url) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('view-url', id, url);
     }
   });
 
@@ -100,15 +162,14 @@ function addView(providerId) {
     if (mainWindow && !mainWindow.isDestroyed())
       mainWindow.webContents.send('view-title', id, title);
   });
-  view.webContents.on('did-navigate', (e, url) => {
-    if (mainWindow && !mainWindow.isDestroyed())
-      mainWindow.webContents.send('view-url', id, url);
-  });
 
   view.setAutoResize({ width: false, height: false });
   mainWindow.addBrowserView(view);
 
-  const entry = { view, providerId, partition, bounds: {}, label: prov.label, icon: prov.icon, url: prov.url, title: '' };
+  const entry = {
+    view, providerId: prov.id, label: prov.label, icon: prov.icon,
+    url: prov.url, title: '', history: [prov.url],
+  };
   views.set(id, entry);
   layoutAllViews();
   view.webContents.loadURL(prov.url);
@@ -145,7 +206,10 @@ function viewAction(id, action) {
 function navigateView(id, url) {
   const e = views.get(id);
   if (!e) return;
-  try { e.view.webContents.loadURL(url); } catch {}
+  try {
+    e.view.webContents.loadURL(url);
+    if (url && url !== 'about:blank') e.history.push(url);
+  } catch {}
 }
 
 function dispatchPrompt(text) {
@@ -165,7 +229,7 @@ function dispatchPrompt(text) {
         setTimeout(() => {
           const ev = new KeyboardEvent('keydown', {key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true});
           el.dispatchEvent(ev);
-          const sendBtns = document.querySelectorAll('button[data-testid="send-button"],button[type="submit"]');
+          const sendBtns = document.querySelectorAll('button[data-testid="send-button"],button[type="submit"],button:has(svg)');
           for (const b of sendBtns) { if (b.offsetParent !== null) { b.click(); break; } }
         }, 600);
         return 'ok';
@@ -178,34 +242,23 @@ function dispatchPrompt(text) {
   }
 }
 
-function collectResponses() {
+async function collectResponses() {
   const results = [];
   let pending = 0;
   return new Promise((resolve) => {
     for (const [id, v] of views) {
       pending++;
-      const js = `
-        (function() {
-          const sels = ['.markdown','[data-message-author-role="assistant"]','.prose','.message-content','main'];
-          const body = document.body;
-          let text = body ? body.innerText.substring(0, 5000) : '';
-          for (const s of sels) {
-            const el = document.querySelector(s);
-            if (el && el.innerText.length > 100) { text = el.innerText.substring(0, 5000); break; }
-          }
-          return text;
-        })();
-      `;
+      const js = `(function(){const sels=['.markdown','[data-message-author-role="assistant"]','.prose','.message-content','main','article'];const body=document.body;let text=body?body.innerText.substring(0,5000):'';for(const s of sels){const el=document.querySelector(s);if(el&&el.innerText.length>100){text=el.innerText.substring(0,5000);break}}return text;})();`;
       try {
         v.view.webContents.executeJavaScript(js).then(t => {
-          results.push({ id, label: v.label, icon: v.icon, url: v.url, response: t || '(vide)' });
+          results.push({ id, label: v.label, icon: v.icon, url: v.url, title: v.title, response: t || '(vide)' });
           if (--pending <= 0) resolve(results);
         }).catch(() => {
-          results.push({ id, label: v.label, icon: v.icon, url: v.url, response: '(erreur collecte)' });
+          results.push({ id, label: v.label, icon: v.icon, url: v.url, title: v.title, response: '(erreur collecte)' });
           if (--pending <= 0) resolve(results);
         });
       } catch {
-        results.push({ id, label: v.label, icon: v.icon, url: v.url, response: '(erreur)' });
+        results.push({ id, label: v.label, icon: v.icon, url: v.url, title: v.title, response: '(erreur)' });
         if (--pending <= 0) resolve(results);
       }
     }
@@ -215,31 +268,28 @@ function collectResponses() {
 
 // ── IPC ─────────────────────────────────────────────────────────────────────
 function setupIPC() {
-  ipcMain.handle('get-providers', () => loadProviders());
-
-  ipcMain.handle('add-view', (e, pid) => addView(pid));
-  ipcMain.handle('remove-view', (e, id) => removeView(id));
-  ipcMain.handle('clear-all', () => clearAll());
-  ipcMain.handle('add-default-views', () => { clearAll(); DEFAULT_PRESET.forEach(p => addView(p)); return Array.from(views.keys()); });
-  ipcMain.handle('dispatch-prompt', (e, t) => dispatchPrompt(t));
-  ipcMain.handle('view-action', (e, id, action) => viewAction(id, action));
-  ipcMain.handle('navigate-view', (e, id, url) => navigateView(id, url));
-  ipcMain.handle('scroll-viewport', (e, scrollTop) => layoutAllViews(scrollTop));
-  ipcMain.handle('collect-responses', async () => collectResponses());
-  ipcMain.handle('get-views', () => Array.from(views.entries()).map(([id, v]) => ({ id, providerId: v.providerId, label: v.label, icon: v.icon, url: v.url, title: v.title })));
-
-  ipcMain.handle('zoom-in', () => {
-    zoomLevel = Math.min(zoomLevel + 1, 5);
+  const handle = (channel, fn) => ipcMain.handle(channel, fn);
+  handle('get-providers', () => loadProviders());
+  handle('add-view', (e, pid) => addView(pid));
+  handle('remove-view', (e, id) => removeView(id));
+  handle('clear-all', () => clearAll());
+  handle('add-default-views', () => { clearAll(); DEFAULT_PRESET.forEach(p => addView(p)); return Array.from(views.keys()); });
+  handle('dispatch-prompt', (e, t) => dispatchPrompt(t));
+  handle('view-action', (e, id, a) => viewAction(id, a));
+  handle('navigate-view', (e, id, u) => navigateView(id, u));
+  handle('scroll-viewport', (e, st) => layoutAllViews(st));
+  handle('collect-responses', async () => collectResponses());
+  handle('get-views', () => Array.from(views.entries()).map(([id, v]) => ({ id, providerId: v.providerId, label: v.label, icon: v.icon, url: v.url, title: v.title, history: v.history.slice(-50) })));
+  handle('get-version', () => {
+    const v = loadJSON(CFG.VERSION);
+    return { version: v.version || '0.3.0', commit: v.commit || 'dev', url: CFG.GITHUB_URL };
+  });
+  handle('set-zoom', (e, level) => {
+    zoomLevel = Math.max(-3, Math.min(5, level));
     layoutAllViews();
   });
-  ipcMain.handle('zoom-out', () => {
-    zoomLevel = Math.max(zoomLevel - 1, -3);
-    layoutAllViews();
-  });
-  ipcMain.handle('zoom-reset', () => {
-    zoomLevel = 0;
-    layoutAllViews();
-  });
+  handle('get-zoom', () => zoomLevel);
+  handle('open-url', (e, url) => { if (url) shell.openExternal(url); });
 }
 
 // ── App ─────────────────────────────────────────────────────────────────────

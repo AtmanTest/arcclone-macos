@@ -1,12 +1,12 @@
 /**
- * TeamAI — App Entry Point v2
+ * TeamAI v3 — App Entry Point
  */
 document.addEventListener('DOMContentLoaded', async () => {
   PromptDispatcher.init();
   await WinManager.init();
   await Sidebar.init();
 
-  // Scroll sync: viewport scroll → IPC → reposition BrowserViews
+  // Scroll sync: viewport → IPC → reposition BrowserViews
   const viewport = document.getElementById('viewport');
   if (viewport) {
     let scrollTimer;
@@ -14,16 +14,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       clearTimeout(scrollTimer);
       scrollTimer = setTimeout(() => {
         teamai.scrollViewport(viewport.scrollTop);
-      }, 50);
+      }, 30);
     });
   }
 
-  // Restore session if available
+  // Restore session
   const saved = localStorage.getItem('teamai_session');
   if (saved) {
     try {
       const data = JSON.parse(saved);
-      if (data.views && data.views.length > 0 && confirm('Restaurer la session précédente ?')) {
+      if (data.views?.length > 0 && confirm('Restaurer la session précédente ?')) {
         await teamai.clearAll();
         for (const v of data.views) {
           const id = await teamai.addView(v.providerId || 'default');
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch {}
   }
 
-  // Save session on close
+  // Auto-save session on close
   window.addEventListener('beforeunload', () => {
     teamai.getViews().then(views => {
       if (views.length > 0) {

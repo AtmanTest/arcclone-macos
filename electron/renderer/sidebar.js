@@ -1,20 +1,18 @@
 /**
- * TeamAI — Sidebar
- * Window list, stats, zoom, providers, report button.
+ * TeamAI v3 — Sidebar
+ * Stats, window list, providers, version badge → GitHub.
  */
 const Sidebar = {
+  _versionData: null,
+
   async init() {
     const providers = await teamai.getProviders() || [];
     this._renderProviders(providers);
-
-    document.getElementById('zoom-in')?.addEventListener('click', () => teamai.zoomIn());
-    document.getElementById('zoom-out')?.addEventListener('click', () => teamai.zoomOut());
-    document.getElementById('zoom-reset')?.addEventListener('click', () => teamai.zoomReset());
+    this._renderVersion();
 
     document.getElementById('btn-new-tab')?.addEventListener('click', () => {
       if (providers.length > 0) WinManager.addView(providers[0].id);
     });
-
     document.getElementById('btn-report')?.addEventListener('click', () => ReportManager.open());
   },
 
@@ -34,8 +32,8 @@ const Sidebar = {
       div.className = 'win-item';
       div.dataset.id = id;
       const idx = Array.from(WinManager.frames.keys()).indexOf(id) + 1;
-      const combo = entry.frame ? entry.frame.querySelector('.provider-combo') : null;
-      const lbl = combo ? combo.options[combo.selectedIndex]?.text || 'IA' : 'IA';
+      const combo = entry.frame?.querySelector('.provider-combo');
+      const lbl = combo?.options[combo.selectedIndex]?.text || 'IA';
       div.innerHTML = `
         <span class="num">${idx}</span>
         <span class="label">${lbl}</span>
@@ -47,7 +45,11 @@ const Sidebar = {
       });
       div.addEventListener('click', () => {
         const frame = entry.frame;
-        if (frame) frame.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (frame) {
+          const viewport = document.getElementById('viewport');
+          const frameTop = parseInt(frame.style.top) || 0;
+          if (viewport) viewport.scrollTo({ top: Math.max(0, frameTop), behavior: 'smooth' });
+        }
       });
       el.appendChild(div);
     });
@@ -64,8 +66,26 @@ const Sidebar = {
     });
   },
 
+  async _renderVersion() {
+    const el = document.getElementById('version-badge');
+    if (!el) return;
+    try {
+      this._versionData = await teamai.getVersion();
+      if (this._versionData) {
+        el.textContent = `v${this._versionData.version} — ${(this._versionData.commit || 'dev').slice(0,7)}`;
+        el.title = `Cliquer pour voir les commits → ${this._versionData.url || 'GitHub'}`;
+        el.addEventListener('click', () => {
+          const baseUrl = this._versionData.url || 'https://github.com/AtmanTest/arcclone-macos';
+          teamai.openUrl(baseUrl + '/commits/main');
+        });
+      }
+    } catch {
+      el.textContent = 'v0.3.0-dev';
+    }
+  },
+
   updateWindowTitle(id, title) {
     const item = document.querySelector(`.win-item[data-id="${id}"] .label`);
-    if (item) item.textContent = title;
+    if (item) item.textContent = title || 'IA';
   },
 };

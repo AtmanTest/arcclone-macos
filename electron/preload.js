@@ -12,11 +12,12 @@ contextBridge.exposeInMainWorld('teamai', {
   scrollViewport: (st) => ipcRenderer.invoke('scroll-viewport', st),
   collectResponses: () => ipcRenderer.invoke('collect-responses'),
   getViews: () => ipcRenderer.invoke('get-views'),
-  zoomIn: () => ipcRenderer.invoke('zoom-in'),
-  zoomOut: () => ipcRenderer.invoke('zoom-out'),
-  zoomReset: () => ipcRenderer.invoke('zoom-reset'),
+  getVersion: () => ipcRenderer.invoke('get-version'),
+  setZoom: (l) => ipcRenderer.invoke('set-zoom', l),
+  getZoom: () => ipcRenderer.invoke('get-zoom'),
 
-  onSyncBounds: (cb) => ipcRenderer.on('sync-bounds', (e, bounds, zoom, total) => cb(bounds, zoom, total)),
+  onSyncBounds: (cb) => ipcRenderer.on('sync-bounds', (e, bounds, zoom, total, totalH) => cb(bounds, zoom, total, totalH)),
   onViewTitle: (cb) => ipcRenderer.on('view-title', (e, id, t) => cb(id, t)),
   onViewUrl: (cb) => ipcRenderer.on('view-url', (e, id, u) => cb(id, u)),
+  openUrl: (url) => ipcRenderer.invoke('open-url', url),
 });

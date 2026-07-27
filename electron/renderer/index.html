@@ -27,20 +27,21 @@
       <div id="sidebar-bottom">
         <button id="btn-report" class="action-btn">📋 Rapport complet</button>
         <button id="btn-new-tab" class="action-btn primary">Nouvel Onglet IA +</button>
+        <div id="version-badge">v0.0.0</div>
       </div>
     </aside>
 
     <!-- MAIN -->
     <div id="main">
-      <!-- Viewport scrollable -->
-      <div id="viewport">
-        <div id="overlay-container"></div>
-      </div>
-
-      <!-- Prompt bar fixed bottom -->
+      <!-- Prompt bar TOP -->
       <div id="prompt-bar">
         <input type="text" id="prompt-input" placeholder="Pose ta question à TOUTES les IA (Enter = GO)">
         <button id="go-btn">C'est un ordre, GO !</button>
+      </div>
+
+      <!-- Viewport scrollable -->
+      <div id="viewport">
+        <div id="overlay-container"></div>
       </div>
     </div>
   </div>

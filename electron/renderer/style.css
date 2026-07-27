@@ -1,4 +1,4 @@
-/* ── TeamAI Design System v2 ───────────────────────────────────────────── */
+/* ── TeamAI Design System v3 ───────────────────────────────────────────── */
 :root {
   --bg: #0D0D0F;
   --sidebar-bg: #131318;
@@ -10,10 +10,9 @@
   --card-bg: #1A1A24;
   --toolbar-h: 36px;
   --sidebar-w: 240px;
-  --prompt-h: 46px;
+  --prompt-h: 44px;
   --radius: 10px;
   --font: system-ui, -apple-system, 'Inter', sans-serif;
-  --zoom: 1;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -44,7 +43,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   background: var(--border); border-radius: 3px; padding: 0 4px;
   font-size: 8px; color: var(--muted); min-width: 16px; text-align: center;
 }
-.win-item .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.win-item .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
 .win-item .close-btn { color: #555; cursor: pointer; font-size: 8px; padding: 2px; }
 .win-item .close-btn:hover { color: #EF4444; }
 
@@ -60,7 +59,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 
 .section-title { font-size: 9px; font-weight: 600; color: var(--muted); letter-spacing: 0.5px; padding: 4px 0 2px; }
 
-#providers-list { display: flex; flex-direction: column; gap: 1px; max-height: 200px; overflow-y: auto; }
+#providers-list { display: flex; flex-direction: column; gap: 1px; max-height: 180px; overflow-y: auto; }
 .prov-btn {
   background: transparent; border: none; border-radius: 5px;
   color: var(--text); font-size: 10px; padding: 3px 6px; text-align: left; cursor: pointer;
@@ -70,30 +69,57 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 #sidebar-bottom { border-top: 1px solid var(--border); padding-top: 6px; display: flex; flex-direction: column; gap: 3px; }
 .action-btn {
   background: var(--border); border: none; border-radius: 6px;
-  color: var(--text); font-size: 10px; padding: 5px 8px; cursor: pointer; text-align: center;
+  color: var(--text); font-size: 10px; padding: 5px 8px; cursor: pointer; text-align: center; transition: 0.15s;
 }
 .action-btn:hover { background: var(--accent); }
 .action-btn.primary { background: var(--accent); color: white; font-weight: 600; }
 .action-btn.primary:hover { background: var(--accent-hover); }
 
-/* ── Main Area ─────────────────────────────────────────────────────────── */
-#main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+#version-badge {
+  font-size: 8px; color: #444; text-align: center; padding: 4px 0;
+  cursor: pointer; transition: color 0.15s;
+}
+#version-badge:hover { color: var(--accent); text-decoration: underline; }
+
+/* ── Main Area ────────────────────────────────────────────────────────── */
+#main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+
+/* Prompt bar TOP */
+#prompt-bar {
+  height: var(--prompt-h); min-height: var(--prompt-h);
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  flex-shrink: 0;
+}
+#prompt-input {
+  flex: 1; height: 32px;
+  background: #0a0a12; border: 1px solid var(--border);
+  border-radius: 8px; padding: 0 12px;
+  color: var(--text); font-size: 12px; outline: none;
+}
+#prompt-input:focus { border-color: var(--accent); }
+#prompt-input::placeholder { color: #444; }
+#go-btn {
+  background: var(--accent); border: none; border-radius: 8px;
+  color: white; font-size: 11px; font-weight: 700;
+  padding: 0 20px; height: 30px; cursor: pointer; white-space: nowrap;
+}
+#go-btn:hover { background: var(--accent-hover); }
 
 /* Viewport scrollable */
 #viewport {
   flex: 1; overflow: auto; position: relative;
-  background: #09090b;
+  background: #08080c;
 }
 #viewport::-webkit-scrollbar { width: 6px; height: 6px; }
 #viewport::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 #viewport::-webkit-scrollbar-corner { background: transparent; }
 
-#overlay-container {
-  position: relative;
-  min-height: 100%;
-}
+#overlay-container { position: relative; }
 
-/* ── Window Frame (overlay toolbar + content area) ─────────────────────── */
+/* ── Window Frame (overlay) ──────────────────────────────────────────── */
 .window-frame {
   position: absolute;
   background: var(--card-bg);
@@ -104,7 +130,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 }
 
 .window-frame .toolbar {
-  height: var(--toolbar-h);
+  height: var(--toolbar-h); min-height: var(--toolbar-h);
   background: #151520;
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; gap: 3px;
@@ -124,7 +150,7 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   border: 1px solid var(--border); border-radius: 4px;
   color: var(--text); font-size: 9px;
   padding: 1px 4px; height: 20px;
-  outline: none; min-width: 120px;
+  outline: none; min-width: 110px; max-width: 150px;
   cursor: pointer;
 }
 .window-frame .toolbar .provider-combo:focus { border-color: var(--accent); }
@@ -139,9 +165,9 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 
 .window-frame .toolbar .url-bar {
   flex: 1; height: 20px;
-  background: var(--card-bg); border: 1px solid var(--border);
+  background: #0a0a12; border: 1px solid var(--border);
   border-radius: 4px; padding: 0 6px;
-  color: var(--text); font-size: 9px;
+  color: var(--text); font-size: 8px;
   outline: none; min-width: 0;
 }
 .window-frame .toolbar .url-bar:focus { border-color: var(--accent); }
@@ -153,43 +179,33 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 }
 .window-frame .toolbar .close-btn:hover { background: #EF444422; color: #EF4444; }
 
-.window-frame .content-area {
-  flex: 1; position: relative;
-  pointer-events: none; /* BrowserView is behind, but toolbars are above */
-}
+.window-frame .content-area { flex: 1; position: relative; pointer-events: none; }
 
-/* ── Report Modal ──────────────────────────────────────────────────────── */
+/* ── Report Modal ─────────────────────────────────────────────────────── */
 #report-modal {
   display: none;
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-  background: rgba(0,0,0,0.7);
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
   z-index: 1000; align-items: center; justify-content: center;
 }
 #report-modal.open { display: flex; }
-
 #report-content {
   background: var(--sidebar-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  width: 80%; max-width: 900px; max-height: 80vh;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  width: 85%; max-width: 950px; max-height: 85vh;
   display: flex; flex-direction: column;
 }
-
 #report-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 16px; border-bottom: 1px solid var(--border);
 }
 #report-header h2 { font-size: 14px; }
-#report-header button {
-  background: transparent; border: none; color: var(--muted); font-size: 16px; cursor: pointer;
-}
-
+#report-header button { background: transparent; border: none; color: var(--muted); font-size: 16px; cursor: pointer; }
 #report-body {
   flex: 1; overflow-y: auto; padding: 12px 16px;
-  font-size: 11px; line-height: 1.5;
-  white-space: pre-wrap;
+  font-size: 11px; line-height: 1.6; white-space: pre-wrap;
+  font-family: 'SF Mono', 'Menlo', monospace;
 }
-
 #report-footer {
   padding: 8px 16px; border-top: 1px solid var(--border);
   display: flex; gap: 8px; justify-content: flex-end;
@@ -200,35 +216,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 }
 #report-footer button:hover { background: var(--accent-hover); }
 #report-footer .secondary { background: var(--border); color: var(--text); }
+#report-footer .secondary:hover { background: #2a2a3a; }
 
-/* ── Prompt bar (fixed bottom) ─────────────────────────────────────────── */
-#prompt-bar {
-  height: var(--prompt-h);
-  background: var(--sidebar-bg);
-  border-top: 1px solid var(--border);
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 10px;
-  flex-shrink: 0;
-}
-
-#prompt-input {
-  flex: 1; height: 32px;
-  background: var(--card-bg); border: 1px solid var(--border);
-  border-radius: 8px; padding: 0 12px;
-  color: var(--text); font-size: 12px; outline: none;
-}
-#prompt-input:focus { border-color: var(--accent); }
-#prompt-input::placeholder { color: #555; }
-
-#go-btn {
-  background: var(--accent); border: none; border-radius: 8px;
-  color: white; font-size: 11px; font-weight: 700;
-  padding: 0 20px; height: 30px; cursor: pointer;
-  white-space: nowrap;
-}
-#go-btn:hover { background: var(--accent-hover); }
-
-/* ── Scrollbar ─────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
