@@ -330,9 +330,12 @@ const WinManager = {
       wv.executeJavaScript(`
         (function() {
           try {
+            // 1. Trouver l'input
             var ed = document.querySelector('[contenteditable="true"]') || document.querySelector('textarea, input[type="text"], input[type="search"]');
             if (!ed) return;
             ed.focus();
+
+            // 2. Injecter le texte
             if (ed.isContentEditable) {
               ed.textContent = '';
               ed.innerHTML = '';
@@ -341,17 +344,76 @@ const WinManager = {
             } else {
               ed.value = ${JSON.stringify(text)};
             }
+
+            // 3. Events natifs
             ed.dispatchEvent(new Event('input', { bubbles: true }));
+            ed.dispatchEvent(new Event('change', { bubbles: true }));
             ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
             ed.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+
+            // 4. Submit après délai (laisse le UI activer le bouton)
             setTimeout(function() {
               try {
+                // Stratégie A: form.requestSubmit()
                 var form = ed.closest('form');
                 if (form) { try { form.requestSubmit(); return; } catch(e) {} }
-                var btn = document.querySelector('button[type="submit"], button:has(svg), [aria-label*="send" i], [aria-label*="envoyer" i], [aria-label*="submit" i], [aria-label*="Ask" i]');
-                if (btn && btn.offsetParent !== null && !btn.disabled) { btn.click(); }
+
+                // Stratégie B: chercher le bouton submit par priorité
+                var candidates = [];
+
+                // B1: type="submit"
+                var btns = document.querySelectorAll('button[type="submit"]');
+                for (var i = 0; i < btns.length; i++) {
+                  if (btns[i].offsetParent !== null && !btns[i].disabled) candidates.push(btns[i]);
+                }
+
+                // B2: data-testid spécifiques
+                var testIds = ['send-button', 'submit-button', 'send-message'];
+                for (var t = 0; t < testIds.length; t++) {
+                  var el = document.querySelector('[data-testid="' + testIds[t] + '"]');
+                  if (el && el.offsetParent !== null && !el.disabled && el.tagName === 'BUTTON') candidates.push(el);
+                }
+
+                // B3: aria-label
+                var ariaLabels = ['send', 'envoyer', 'submit', 'ask'];
+                for (var a = 0; a < ariaLabels.length; a++) {
+                  var els = document.querySelectorAll('[aria-label*="' + ariaLabels[a] + '" i]');
+                  for (var j = 0; j < els.length; j++) {
+                    if (els[j].offsetParent !== null && !els[j].disabled && els[j].tagName === 'BUTTON') candidates.push(els[j]);
+                  }
+                }
+
+                // B4: boutons avec SVG (mais PAS "attach" ou "file")
+                var allSvgBtns = document.querySelectorAll('button:has(svg)');
+                for (var k = 0; k < allSvgBtns.length; k++) {
+                  var b = allSvgBtns[k];
+                  if (b.offsetParent === null || b.disabled) continue;
+                  var label = (b.getAttribute('aria-label') || b.textContent || '').toLowerCase();
+                  if (label.indexOf('attach') !== -1 || label.indexOf('file') !== -1 || label.indexOf('join') !== -1) continue;
+                  if (b.querySelector('svg')) candidates.push(b);
+                }
+
+                // B5: dernier bouton visible dans le conteneur de l'input
+                var container = ed.closest('div[class*="input"], div[class*="chat"], div[class*="prompt"], form') || ed.parentElement;
+                if (container) {
+                  var lastBtns = container.querySelectorAll('button');
+                  for (var m = lastBtns.length - 1; m >= 0; m--) {
+                    if (lastBtns[m].offsetParent !== null && !lastBtns[m].disabled) {
+                      candidates.push(lastBtns[m]);
+                      break;
+                    }
+                  }
+                }
+
+                // Cliquer le premier candidat valide
+                for (var c = 0; c < candidates.length; c++) {
+                  if (candidates[c] && candidates[c].offsetParent !== null && !candidates[c].disabled) {
+                    candidates[c].click();
+                    return;
+                  }
+                }
               } catch(e) {}
-            }, 200);
+            }, 400);
           } catch(e) {}
         })();
       `).catch(function() {});

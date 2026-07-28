@@ -46,7 +46,7 @@ const PresetLayouts = {
     style.textContent = `
       #mode-selector {
         display: flex; align-items: center; gap: 8px;
-        padding: 6px 8px 4px; background: #252525;
+        padding: 6px 8px 4px; background: #333333;
         margin-top: 8px; border-radius: 12px;
       }
       #mode-selector .mode-title {

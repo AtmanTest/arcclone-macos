@@ -83,14 +83,15 @@ t('BUG-047: Enter key → dispatch', () => a(
   pd.includes("e.key === 'Enter'"),
   'Enter handler manquant'
 ));
-t('BUG-048: _dispatchToAll boucle sur frames + submit', () => a(
+t('BUG-048: _dispatchToAll submit prioritaire', () => a(
   wm.includes('this.frames.forEach((entry) =>')
-  && wm.includes('wv.executeJavaScript(')
   && wm.includes('form.requestSubmit()')
-  && wm.includes('which: 13')
+  && wm.includes("indexOf('attach')")
   && wm.includes('button:has(svg)')
-  && wm.includes('function()'),
-  '_dispatchToAll incomplete'
+  && wm.includes('data-testid=')
+  && wm.includes('candidates[c].click()')
+  && wm.includes('400'),
+  '_dispatchToAll incomplet'
 ));
 t('BUG-049: prompt-input dans HTML', () => a(
   html.includes('id="prompt-input"'),
