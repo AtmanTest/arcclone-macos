@@ -342,17 +342,21 @@ const WinManager = {
             }
             ed.dispatchEvent(new Event('input', { bubbles: true }));
             var form = ed.closest('form');
-            setTimeout(function() {
+            var tries = 0;
+            var maxTries = 8;
+            (function poll() {
               try {
                 if (form) { try { form.requestSubmit(); return; } catch(e) {} }
                 var el = document.querySelector('[data-testid="send-button"], [aria-label*="send" i], [aria-label*="envoyer" i]');
-                if (el) { el.click(); return; }
+                if (el && !el.disabled && el.offsetParent !== null) { el.click(); return; }
                 var all = document.querySelectorAll('button');
                 for (var i = 0; i < all.length; i++) {
                   if (all[i].offsetParent !== null && !all[i].disabled) { all[i].click(); return; }
                 }
               } catch(e) {}
-            }, 500);
+              tries++;
+              if (tries < maxTries) { setTimeout(poll, 300); }
+            })();
             return 'SET';
           } catch(e) { return 'ERR:' + e.message; }
         })();
