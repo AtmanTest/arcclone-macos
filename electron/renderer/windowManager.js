@@ -1,107 +1,47 @@
 /**
- * TeamAI v7 — Window Manager
- * Partition partagée par provider (cookies persistants).
- * Nav buttons plus grands, favoris, resize optimisé.
+ * TeamAI v16 — Window Manager
+ * Crée, gère et dispose les fenêtres webview. Layout, toolbar, focus, cards.
  */
 const WinManager = {
   frames: new Map(),
   providers: [],
-  _zoom: 0,
   _idCounter: 0,
+  _initDone: false,
 
-  async init() {
-    this.providers = await teamai.getProviders() || [];
-    this._zoom = await teamai.getZoom() || 0;
-    teamai.onExecJsAll((text) => this._dispatchToAll(text));
-    this._setupZoomButtons();
-    this._setupLayout();
+  get count() { return this.frames.size; },
+  get list() { return LayoutModel.views.map(v => ({ providerId: v.providerId, url: v.url })); },
 
-    // Listen for resize on viewport
-    const viewport = document.getElementById('viewport');
-    if (viewport) {
-      let t; const ro = new ResizeObserver(() => {
-        clearTimeout(t); t = setTimeout(() => {
-          LayoutModel.init(viewport.clientWidth, viewport.clientHeight);
-          this._syncFrames();
-        }, 100);
-      });
-      ro.observe(viewport);
-    }
+  async init(providersList) {
+    this.providers = providersList || [];
+    document.getElementById('grid-container').innerHTML = '';
+    this.frames.clear();
+    LayoutModel.views = [];
+    this._idCounter = 0;
 
-    this._restoreOrCreateDefault();
-    document.getElementById('btn-reset-layout')?.addEventListener('click', () => this._resetLayout());
-  },
-
-  _setupLayout() {
-    const viewport = document.getElementById('viewport');
-    if (viewport) LayoutModel.init(viewport.clientWidth, viewport.clientHeight);
-    PersistenceManager.restore();
-    PresetLayouts.init();
-  },
-
-  _applyLayout() {
-    const viewport = document.getElementById('viewport');
-    if (viewport) LayoutModel.init(viewport.clientWidth, viewport.clientHeight);
-    this._syncFrames();
-  },
-
-  _syncFrames() {
-    const computed = LayoutModel.compute();
-    if (computed.length === 0) return;
-
-    // Sort computed by view order in LayoutModel
-    const order = LayoutModel.views.map(v => v.id);
-    const sorted = computed.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
-
-    this.frames.forEach((entry, id) => {
-      const pos = sorted.find(s => s.id === id);
-      if (!pos) return;
-      entry.frame.style.width = pos.w + 'px';
-      entry.frame.style.height = pos.h + 'px';
-      // For split/focus modes, position absolutely
-      if (LayoutModel.mode !== 'grid' && LayoutModel.mode !== 'manual') {
-        entry.frame.style.position = 'absolute';
-        entry.frame.style.left = pos.x + 'px';
-        entry.frame.style.top = pos.y + 'px';
-      } else if (LayoutModel.mode !== 'manual') {
-        entry.frame.style.position = '';
-        entry.frame.style.left = '';
-        entry.frame.style.top = '';
-      }
-      // Cards mode: dim non-active + show overlay
-      const overlay = entry.frame.querySelector('.card-overlay');
-      if (LayoutModel.mode === 'cards') {
-        const idx = Array.from(this.frames.keys()).indexOf(id);
-        const isActive = idx === LayoutModel._activeCard;
-        entry.frame.style.opacity = isActive ? '1' : '0.6';
-        entry.frame.style.border = isActive ? '2px solid rgba(255,255,255,0.8)' : '1px solid var(--border)';
-        if (overlay) overlay.style.display = isActive ? 'none' : 'block';
-      } else {
-        entry.frame.style.opacity = '1';
-        entry.frame.style.border = '1px solid var(--border)';
-        if (overlay) overlay.style.display = 'none';
-      }
-    });
-    this._layout();
-  },
-
-  async _restoreOrCreateDefault() {
+    // Restore session or create defaults
     const saved = localStorage.getItem('teamai_session');
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        if (data.views?.length > 0 && confirm('Restaurer la session précédente ?')) {
+        if (data.views?.length > 0) {
           for (const v of data.views) this._createView(v.providerId || 'default', v.url);
-          return;
         }
-      } catch {}
+      } catch { /* ignore */ }
     }
-    for (const pid of ['gpt5_terra','gpt5_sol','gemini','raisonnement','claude','zglm','kimi','grok','nemotron','venice']) {
-      this._createView(pid);
+    if (this.frames.size === 0) {
+      for (const p of this.providers) this._createView(p.id);
     }
+
+    this._applyLayout();
+    this._initDone = true;
   },
 
-  _createView(providerId, initialUrl = null) {
+  addView(providerId, url) {
+    this._createView(providerId, url);
+    this._applyLayout();
+  },
+
+  _createView(providerId, initialUrl) {
     const urlOverrides = { zglm: 'https://chatglm.cn/?lang=en' };
     const prov = this.providers.find(p => p.id === providerId)
       || { id: providerId, label: providerId, url: urlOverrides[providerId] || 'about:blank', icon: '🌐' };
@@ -115,11 +55,7 @@ const WinManager = {
 
     this._idCounter++;
     const id = `wv_${this._idCounter}`;
-    // ⭐ MÊME PARTITION PAR PROVIDER = cookies persistés entre vues
-    const partition = `persist:teamai_${providerId}`;
     const container = document.getElementById('grid-container');
-    if (!container) return id;
-
     const frame = document.createElement('div');
     frame.className = 'window-frame';
     frame.dataset.id = id;
@@ -149,8 +85,14 @@ const WinManager = {
       </div>
       <div class="resize-handle"></div>
     `;
-    container.appendChild(frame);
 
+    container.appendChild(frame);
+    const entry = { id, frame, combo: frame.querySelector('.provider-combo'), urlBar: frame.querySelector('.url-bar') };
+    this.frames.set(id, entry);
+    LayoutModel.addView(id, prov.id, prov.label, prov.icon, initialUrl || prov.url || 'about:blank');
+
+    // Webview
+    const partition = `persist:teamai_${prov.id}`;
     const webview = document.createElement('webview');
     webview.src = initialUrl || prov.url || 'about:blank';
     webview.setAttribute('partition', partition);
@@ -160,61 +102,6 @@ const WinManager = {
     webview.style.height = '100%';
     webview.style.border = 'none';
     frame.querySelector('.webview-area').appendChild(webview);
-
-    const combo = frame.querySelector('.provider-combo');
-    const urlBar = frame.querySelector('.url-bar');
-    const entry = { frame, webview, combo, urlBar, providerId: prov.id, favori: false };
-    this.frames.set(id, entry);
-    this._bindToolbar(id, entry);
-    this._bindWebView(id, entry);
-    this._bindResize(id, entry);
-    this._bindCardClick(id, entry);
-
-    // Add to LayoutModel
-    LayoutModel.addView(id, prov.id, prov.label, prov.icon, initialUrl || prov.url);
-
-    this._syncFrames();
-    return id;
-  },
-
-  _bindToolbar(id, entry) {
-    const { frame, combo, urlBar, webview } = entry;
-    combo.addEventListener('change', () => {
-      const prov = this.providers.find(p => p.id === combo.value);
-      if (prov) { entry.providerId = prov.id; webview.src = prov.url; urlBar.value = prov.url; }
-    });
-    frame.querySelectorAll('.nav-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (btn.dataset.action === 'bookmark') {
-          Bookmarks.add(entry.providerId, entry.combo?.options[entry.combo.selectedIndex]?.text || 'IA', webview.src);
-          return;
-        }
-        if (btn.dataset.action === 'focus') {
-          this._toggleFocus(id);
-          return;
-        }
-        try {
-          if (btn.dataset.action === 'back') webview.goBack();
-          else if (btn.dataset.action === 'forward') webview.goForward();
-          else if (btn.dataset.action === 'reload') webview.reload();
-        } catch {}
-      });
-    });
-    urlBar.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        let url = urlBar.value.trim(); if (!url) return;
-        webview.src = !url.startsWith('http') && url.includes('.') ? 'https://' + url
-          : !url.includes('.') ? 'https://www.google.com/search?q=' + encodeURIComponent(url) : url;
-      }
-    });
-    frame.querySelector('.close-btn').addEventListener('click', () => this._remove(id));
-  },
-
-  _bindWebView(id, entry) {
-    const { webview, urlBar } = entry;
-    webview.addEventListener('did-navigate', (e) => { if (e.url && e.url !== 'about:blank') urlBar.value = e.url; });
-    webview.addEventListener('did-navigate-in-page', (e) => { if (e.url && e.url !== 'about:blank') urlBar.value = e.url; });
-    webview.addEventListener('page-title-updated', (e) => Sidebar.updateWindowTitle(id, e.title));
     webview.addEventListener('new-window', (e) => {
       if (e.url.includes('accounts.google.com') || e.url.includes('oauth')) {
         e.preventDefault();
@@ -222,15 +109,89 @@ const WinManager = {
       }
     });
     webview.addEventListener('did-fail-load', (e) => {
-      if (e.errorCode !== -3) { // -3 = aborted (user navigation)
-        ErrorBar.show(`❌ ${entry.combo?.options[entry.combo.selectedIndex]?.text || 'IA'}: ${e.errorDescription || 'Erreur de chargement'}`);
+      if (e.errorCode !== -3) {
+        ErrorBar.show(`❌ ${prov.label}: ${e.errorDescription || 'Erreur de chargement'}`);
       }
     });
     webview.addEventListener('crashed', () => {
-      ErrorBar.show(`💥 ${entry.combo?.options[entry.combo.selectedIndex]?.text || 'IA'}: WebView a crashé`);
+      ErrorBar.show(`💥 ${prov.label}: WebView a crashé`);
     });
     webview.addEventListener('did-get-redirect-request', (e) => {
-      if (e.isMainFrame && e.newURL) urlBar.value = e.newURL;
+      if (e.isMainFrame && e.newURL) entry.urlBar.value = e.newURL;
+    });
+
+    this._bindToolbar(id, entry);
+    this._bindCardClick(id, entry);
+    this._bindResize(id, entry);
+    return id;
+  },
+
+  _bindToolbar(id, entry) {
+    const frame = entry.frame;
+    // Combo → switch provider in same frame
+    entry.combo?.addEventListener('change', () => {
+      const newProvId = entry.combo.value;
+      const wv = frame.querySelector('webview');
+      const prov = this.providers.find(p => p.id === newProvId);
+      const newUrl = prov?.url || 'about:blank';
+      if (wv) {
+        wv.src = newUrl;
+        wv.setAttribute('partition', `persist:teamai_${newProvId}`);
+      }
+      const view = LayoutModel.views.find(v => v.id === id);
+      if (view) { view.providerId = newProvId; view.label = prov?.label || newProvId; view.url = newUrl; }
+      entry.urlBar.value = newUrl;
+    });
+    // Nav buttons
+    frame.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const wv = frame.querySelector('webview');
+        if (!wv) return;
+        if (btn.dataset.action === 'back') { try { wv.goBack(); } catch {} }
+        else if (btn.dataset.action === 'forward') { try { wv.goForward(); } catch {} }
+        else if (btn.dataset.action === 'reload') { try { wv.reload(); } catch {} }
+        else if (btn.dataset.action === 'bookmark') {
+          Bookmarks.add(id, entry.combo?.options[entry.combo.selectedIndex]?.text || 'IA', wv.getURL())
+            .then(() => Bookmarks.render());
+        } else if (btn.dataset.action === 'focus') {
+          if (frame.classList.contains('focused')) {
+            frame.classList.remove('focused');
+            frame.style.position = ''; frame.style.width = ''; frame.style.height = '';
+            frame.style.top = ''; frame.style.left = ''; frame.style.zIndex = '';
+            this._applyLayout();
+          } else {
+            // Full viewport focus
+            const vp = document.getElementById('viewport');
+            frame.classList.add('focused');
+            frame.style.position = 'fixed';
+            frame.style.top = '0'; frame.style.left = '0';
+            frame.style.width = '100vw'; frame.style.height = '100vh';
+            frame.style.zIndex = '100';
+          }
+        }
+      });
+    });
+    // URL bar: Enter → navigate + Google search fallback
+    entry.urlBar.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        let val = entry.urlBar.value.trim();
+        if (!val) return;
+        const wv = frame.querySelector('webview');
+        if (!wv) return;
+        if (val.match(/^https?:\/\//) || val.match(/^[a-z0-9][-a-z0-9]*\.[a-z]{2,}/i)) {
+          if (!val.startsWith('http')) val = 'https://' + val;
+        } else {
+          val = 'https://www.google.com/search?q=' + encodeURIComponent(val);
+        }
+        wv.src = val;
+      }
+    });
+    // Close button
+    frame.querySelector('.close-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._remove(id);
     });
   },
 
@@ -244,32 +205,41 @@ const WinManager = {
   },
 
   _bindCardClick(id, entry) {
-    const overlay = entry.frame.querySelector('.card-overlay');
-    if (!overlay) return;
-    overlay.addEventListener('click', (e) => {
+    const handler = (e) => {
       e.stopPropagation();
-      if (LayoutModel.mode !== 'cards') return;
       const idx = Array.from(this.frames.keys()).indexOf(id);
-      if (idx >= 0) {
+      if (idx < 0) return;
+      if (LayoutModel.mode === 'cards') {
         LayoutModel.setActiveCard(idx);
-        this._applyLayout();
+        this._syncFrames();
+      } else if (LayoutModel.mode === 'focus') {
+        const views = LayoutModel.views;
+        if (idx > 0 && views.length > 1) {
+          [views[0], views[idx]] = [views[idx], views[0]];
+          LayoutModel.applyViewOrder(views);
+          this._syncFrames();
+        }
       }
-    });
+    };
+    const overlay = entry.frame.querySelector('.card-overlay');
+    if (overlay) overlay.addEventListener('click', handler);
+    const header = entry.frame.querySelector('.card-header');
+    if (header) header.addEventListener('click', handler);
   },
 
   _remove(id) {
     const entry = this.frames.get(id); if (!entry) return;
     entry.frame.remove(); this.frames.delete(id);
     LayoutModel.removeView(id);
-    this._syncFrames(); Sidebar.renderAll();
+    this._applyLayout();
+    PersistenceManager.save();
   },
 
   _resetLayout() {
     for (const [, e] of this.frames) {
       e.frame.classList.remove('resized', 'focused');
       e.frame.style.width = ''; e.frame.style.height = ''; e.frame.style.position = '';
-      e.frame.style.left = ''; e.frame.style.top = ''; e.frame.style.zIndex = '';
-      // Restore webview
+      e.frame.style.top = ''; e.frame.style.left = ''; e.frame.style.zIndex = '';
       const wv = e.frame.querySelector('webview');
       if (wv) wv.style.opacity = '1';
     }
@@ -282,98 +252,124 @@ const WinManager = {
     if (!entry) return;
     const frame = entry.frame;
     if (frame.classList.contains('focused')) {
-      // Unfocus — restore
       frame.classList.remove('focused');
-      frame.style.width = frame._focusPrevW || ''; frame.style.height = frame._focusPrevH || '';
-      frame.style.position = frame._focusPrevPos || '';
-      frame.style.left = frame._focusPrevL || ''; frame.style.top = frame._focusPrevT || '';
-      frame.style.zIndex = '';
-      const wv = frame.querySelector('webview');
-      if (wv) wv.style.opacity = '1';
-      // Reset layout for all frames
-      this.frames.forEach((e) => {
-        const w = e.frame.querySelector('webview');
-        if (w) w.style.opacity = '1';
-      });
+      frame.style.position = ''; frame.style.width = ''; frame.style.height = '';
+      frame.style.top = ''; frame.style.left = ''; frame.style.zIndex = '';
+      this._applyLayout();
     } else {
-      // Focus this frame — fill viewport, hide others
       const vp = document.getElementById('viewport');
-      if (!vp) return;
-      // Save current
-      frame._focusPrevW = frame.style.width; frame._focusPrevH = frame.style.height;
-      frame._focusPrevL = frame.style.left; frame._focusPrevT = frame.style.top;
-      frame._focusPrevPos = frame.style.position;
-      // Hide all webviews, show only focused
-      this.frames.forEach((e, fid) => {
-        const w = e.frame.querySelector('webview');
-        if (w) w.style.opacity = fid === id ? '1' : '0';
-      });
       frame.classList.add('focused');
-      frame.style.position = 'absolute';
-      frame.style.left = '0'; frame.style.top = '0';
-      frame.style.width = vp.clientWidth + 'px';
-      frame.style.height = vp.clientHeight + 'px';
+      frame.style.position = 'fixed';
+      frame.style.top = '0'; frame.style.left = '0';
+      frame.style.width = '100vw'; frame.style.height = '100vh';
       frame.style.zIndex = '100';
     }
   },
 
-  _dispatchToAll(text) {
-    const safe = JSON.stringify(text);
-    const js = `(function(){
-      const sels=['#prompt-textarea','[contenteditable="true"]','textarea','.ProseMirror','[role="textbox"]'];
-      for(const s of sels){const el=document.querySelector(s);if(!el)continue;
-        el.focus();
-        if(el.isContentEditable||el.tagName==='DIV'){el.textContent='';document.execCommand('insertText',false,${safe});}
-        else{el.value=${safe};}
-        el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));
-        setTimeout(()=>{
-          const ev=new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true});
-          el.dispatchEvent(ev);
-          const btns=document.querySelectorAll('button[data-testid="send-button"],button[type="submit"],button:has(svg)');
-          for(const b of btns){if(b.offsetParent!==null){b.click();break;}}
-        },600);return 'ok';
-      }return 'not_found';
-    })();`;
-    for (const [, e] of this.frames) { try { e.webview.executeJavaScript(js).catch(() => {}); } catch {} }
-  },
-
-  _layout() {
+  _applyLayout() {
     const viewport = document.getElementById('viewport');
-    if (!viewport) return;
-    let idx = 0;
-    for (const [id, e] of this.frames) {
-      const badge = e.frame.querySelector('.num-badge');
-      if (badge) badge.textContent = idx + 1;
-      idx++;
+    if (viewport) LayoutModel.init(viewport.clientWidth, viewport.clientHeight);
+    this._syncFrames();
+    this._bindCardsScroll();
+  },
+
+  _bindCardsScroll() {
+    const container = document.getElementById('grid-container');
+    if (!container) return;
+    if (LayoutModel.mode === 'cards') {
+      if (!container._cardsScrollBound) {
+        container.addEventListener('wheel', (e) => {
+          if (LayoutModel.mode !== 'cards') return;
+          const n = LayoutModel.views.length;
+          if (n <= 1) return;
+          let next = LayoutModel._activeCard + (e.deltaY > 0 ? 1 : -1);
+          if (next < 0) next = n - 1;
+          if (next >= n) next = 0;
+          if (next !== LayoutModel._activeCard) {
+            LayoutModel.setActiveCard(next);
+            this._syncFrames();
+          }
+          e.preventDefault();
+        }, { passive: false });
+        container._cardsScrollBound = true;
+      }
     }
-    Sidebar.renderAll();
   },
 
-  _renderZoomLabel() {
-    const el = document.getElementById('zoom-level');
-    if (el) el.textContent = `${100 + this._zoom * 15}%`;
-  },
+  _syncFrames() {
+    const computed = LayoutModel.compute();
+    if (computed.length === 0) return;
+    const order = LayoutModel.views.map(v => v.id);
+    const sorted = computed.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
 
-  _setupZoomButtons() {
-    document.getElementById('zoom-in')?.addEventListener('click', () => this._zoomChange(1));
-    document.getElementById('zoom-out')?.addEventListener('click', () => this._zoomChange(-1));
-    document.getElementById('zoom-reset')?.addEventListener('click', () => this._zoomChange(0, true));
-  },
-
-  async _zoomChange(delta, reset = false) {
-    this._zoom = reset ? 0 : Math.max(-3, Math.min(5, this._zoom + delta));
-    await teamai.setZoom(this._zoom);
-    this._renderZoomLabel();
+    this.frames.forEach((entry, id) => {
+      const pos = sorted.find(s => s.id === id);
+      if (!pos) return;
+      entry.frame.style.width = pos.w + 'px';
+      entry.frame.style.height = pos.h + 'px';
+      if (LayoutModel.mode !== 'grid' && LayoutModel.mode !== 'manual') {
+        entry.frame.style.position = 'absolute';
+        entry.frame.style.left = pos.x + 'px';
+        entry.frame.style.top = pos.y + 'px';
+      } else {
+        entry.frame.style.position = '';
+        entry.frame.style.left = '';
+        entry.frame.style.top = '';
+      }
+      // Cards/Focus overlay + dimming
+      const overlay = entry.frame.querySelector('.card-overlay');
+      if (LayoutModel.mode === 'cards' || LayoutModel.mode === 'focus') {
+        const idx = Array.from(this.frames.keys()).indexOf(id);
+        const isActive = idx === LayoutModel._activeCard || idx === 0;
+        entry.frame.style.opacity = isActive ? '1' : '0.6';
+        entry.frame.style.border = isActive ? '2px solid rgba(255,255,255,0.8)' : '1px solid var(--border)';
+        if (overlay) overlay.style.display = isActive ? 'none' : 'block';
+      } else {
+        entry.frame.style.opacity = '1';
+        entry.frame.style.border = '1px solid var(--border)';
+        if (overlay) overlay.style.display = 'none';
+      }
+    });
     this._layout();
   },
 
-  addView(pid) { this._createView(pid); },
-  get count() { return this.frames.size; },
-  get list() {
-    return Array.from(this.frames.entries()).map(([id, e]) => ({
-      id, providerId: e.providerId, url: e.webview?.src || '',
-      label: e.combo?.options[e.combo.selectedIndex]?.text || e.providerId,
-    }));
+  _layout() {
+    const grid = document.getElementById('grid-container');
+    if (!grid) return;
+    if (LayoutModel.mode === 'grid') {
+      grid.style.display = 'flex'; grid.style.flexWrap = 'wrap';
+      grid.style.alignContent = 'flex-start'; grid.style.gap = '3px';
+    } else {
+      grid.style.display = 'block'; grid.style.position = 'relative';
+    }
   },
-  get providersList() { return this.providers; },
+
+  _dispatchToAll(text) {
+    this.frames.forEach((entry) => {
+      const wv = entry.frame.querySelector('webview');
+      if (!wv) return;
+      wv.executeJavaScript(`
+        (function() {
+          const ed = document.querySelector('[contenteditable="true"]') || document.querySelector('textarea, input[type="text"]');
+          if (ed) {
+            ed.focus();
+            if (ed.isContentEditable) {
+              ed.textContent = '';
+              ed.innerHTML = '';
+              const p = document.createElement('p'); p.textContent = ${JSON.stringify(text)};
+              ed.appendChild(p);
+            } else {
+              ed.value = ${JSON.stringify(text)};
+            }
+            ed.dispatchEvent(new Event('input', { bubbles: true }));
+            ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+            setTimeout(() => {
+              const btn = document.querySelector('button[type="submit"], button:has(svg), [aria-label*="send" i], [aria-label*="envoyer" i]');
+              if (btn) btn.click();
+            }, 100);
+          }
+        })();
+      `).catch(() => {});
+    });
+  },
 };

@@ -3,7 +3,7 @@
  * No DOM queries for geometry. All layout state here.
  */
 const LayoutModel = {
-  mode: 'grid',       // grid | split-v | split-h | focus | manual | cards
+  mode: 'grid',       // grid | split-h | focus | manual | cards
   _activeCard: 0,
   views: [],          // [{id, providerId, label, icon, url, x, y, w, h, minW, minH}]
   viewportW: 0,       // available width (minus sidebar)
@@ -27,6 +27,10 @@ const LayoutModel = {
     this.views = this.views.filter(v => v.id !== id);
   },
 
+  applyViewOrder(newViews) {
+    this.views = newViews;
+  },
+
   // ── Layout Computation ─────────────────────────────────────────────────
   compute() {
     const n = this.views.length;
@@ -34,7 +38,6 @@ const LayoutModel = {
 
     switch (this.mode) {
       case 'grid': return this._computeGrid();
-      case 'split-v': return this._computeSplitV();
       case 'split-h': return this._computeSplitH();
       case 'focus': return this._computeFocus();
       case 'cards': return this._computeCards();
@@ -59,12 +62,6 @@ const LayoutModel = {
       w: cw,
       h: ch,
     }));
-  },
-
-  _computeSplitV() {
-    const n = this.views.length;
-    const cw = Math.floor((this.viewportW - (n - 1) * 3) / n);
-    return this.views.map((v, i) => ({ ...v, x: i * (cw + 3), y: 0, w: cw, h: this.viewportH }));
   },
 
   _computeSplitH() {

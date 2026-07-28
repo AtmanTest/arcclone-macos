@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('teamai', {
   openLoginWindow: (pid, url, partition) => ipcRenderer.invoke('open-login-window', pid, url, partition),
   closeLoginWindow: (pid) => ipcRenderer.invoke('close-login-window', pid),
   getVersion: () => ipcRenderer.invoke('get-version'),
+  checkUpdate: () => ipcRenderer.invoke('check-update'),
   updateApp: () => ipcRenderer.invoke('update-app'),
   openUrl: (url) => ipcRenderer.invoke('open-url', url),
   setZoom: (l) => ipcRenderer.invoke('set-zoom', l),

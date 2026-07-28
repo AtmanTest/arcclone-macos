@@ -110,6 +110,16 @@ function setupIPC() {
   h('open-url', (e, url) => { if (url) shell.openExternal(url); });
   h('set-zoom', (e, l) => { zoomLevel = Math.max(-3, Math.min(5, l)); });
   h('get-zoom', () => zoomLevel);
+  h('check-update', async () => {
+    const { execSync } = require('child_process');
+    try {
+      const cwd = __dirname.replace('/electron', '');
+      execSync('git fetch origin', { cwd, timeout: 10000 });
+      const behind = execSync('git rev-list --count HEAD..origin/main', { cwd, encoding: 'utf8' }).toString().trim();
+      const hasUpdate = parseInt(behind) > 0;
+      return { hasUpdate, behind: parseInt(behind) || 0 };
+    } catch { return { hasUpdate: false, behind: 0, error: true }; }
+  });
   h('update-app', async () => {
     const { execSync } = require('child_process');
     let result = '';

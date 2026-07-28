@@ -1,6 +1,6 @@
 /**
  * PresetLayouts — Mode switching + keyboard shortcuts
- * Ctrl+Shift+G → Grid, Ctrl+Shift+F → Focus, Ctrl+Shift+R → Reset, Ctrl+Shift+V → Split V, Ctrl+Shift+H → Split H
+ * Ctrl+Shift+G → Grid, Ctrl+Shift+F → Focus, Ctrl+Shift+R → Reset, Ctrl+Shift+H → Split H, Ctrl+Shift+C → Cards
  */
 const PresetLayouts = {
   _toolbar: null,
@@ -17,10 +17,9 @@ const PresetLayouts = {
 
     const modes = [
       { id: 'grid', label: '⊞', title: 'Grille Auto' },
-      { id: 'split-v', label: '‖', title: 'Split Vertical' },
       { id: 'split-h', label: '≡', title: 'Split Horizontal' },
-      { id: 'focus', label: '⊙', title: 'Focus (70/30)' },
-      { id: 'cards', label: '🃏', title: 'Cards (+40%)' },
+      { id: 'focus', label: '⊙', title: 'Focus' },
+      { id: 'cards', label: '🃏', title: 'Cards' },
       { id: 'manual', label: '✥', title: 'Manuel' },
     ];
 
@@ -67,7 +66,6 @@ const PresetLayouts = {
         case 'c': e.preventDefault(); this.setMode('cards'); break;
         case 'g': e.preventDefault(); this.setMode('grid'); break;
         case 'f': e.preventDefault(); this.setMode('focus'); break;
-        case 'v': e.preventDefault(); this.setMode('split-v'); break;
         case 'h': e.preventDefault(); this.setMode('split-h'); break;
         case 'r': e.preventDefault(); this.setMode('manual'); WinManager._resetLayout(); break;
       }
