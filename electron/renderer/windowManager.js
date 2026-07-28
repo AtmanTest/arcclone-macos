@@ -343,20 +343,19 @@ const WinManager = {
             ed.dispatchEvent(new Event('input', { bubbles: true }));
             ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
             setTimeout(() => {
-              const container = ed.closest('form') || ed.closest('[class*="input"],[class*="chat"],[class*="prompt"],[class*="footer"]') || ed.parentElement;
-              const btns = container ? container.querySelectorAll('button') : document.querySelectorAll('button');
-              let clicked = false;
-              // Priorité: dernier bouton visible avec SVG dans le conteneur
-              for (let i = btns.length - 1; i >= 0; i--) {
-                if (btns[i].offsetParent !== null && btns[i].querySelector('svg') && !btns[i].disabled) {
-                  btns[i].click(); clicked = true; break;
+              const c = ed.closest('form') || ed.closest('[class*="input"],[class*="chat"],[class*="prompt"],[class*="footer"]') || ed.parentElement;
+              (function poll() {
+                let btns = c ? c.querySelectorAll('button') : [];
+                for (let i = btns.length - 1; i >= 0; i--) {
+                  if (btns[i].offsetParent !== null && btns[i].querySelector('svg') && !btns[i].disabled) {
+                    btns[i].click(); return;
+                  }
                 }
-              }
-              if (!clicked) {
-                // Fallback global
-                const gbtn = document.querySelector('button[type="submit"], [aria-label*="send" i], [aria-label*="envoyer" i]');
-                if (gbtn) gbtn.click();
-              }
+                const g = document.querySelector('button[type="submit"], [aria-label*="send" i], [aria-label*="envoyer" i]');
+                if (g && g.offsetParent !== null && !g.disabled) { g.click(); return; }
+                if (!ed._pc) ed._pc = 0;
+                if (++ed._pc < 15) setTimeout(poll, 200);
+              })();
             }, 150);
           }
         })();
