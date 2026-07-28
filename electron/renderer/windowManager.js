@@ -141,6 +141,7 @@ const WinManager = {
     this._bindToolbar(id, entry);
     this._bindWebView(id, entry);
     this._bindResize(id, entry);
+    this._bindCardClick(id, entry);
 
     // Add to LayoutModel
     LayoutModel.addView(id, prov.id, prov.label, prov.icon, initialUrl || prov.url);
@@ -212,6 +213,17 @@ const WinManager = {
     handle.addEventListener('mousedown', (e) => {
       e.preventDefault(); e.stopPropagation();
       ResizeController.start(e, id, entry.frame, entry.frame.offsetWidth, entry.frame.offsetHeight);
+    });
+  },
+
+  _bindCardClick(id, entry) {
+    entry.frame.addEventListener('click', () => {
+      if (LayoutModel.mode !== 'cards') return;
+      const idx = Array.from(this.frames.keys()).indexOf(id);
+      if (idx >= 0) {
+        LayoutModel.setActiveCard(idx);
+        this._applyLayout();
+      }
     });
   },
 

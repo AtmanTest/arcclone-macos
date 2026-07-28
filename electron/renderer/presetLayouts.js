@@ -19,7 +19,8 @@ const PresetLayouts = {
       { id: 'grid', label: '⊞', title: 'Grille Auto' },
       { id: 'split-v', label: '‖', title: 'Split Vertical' },
       { id: 'split-h', label: '≡', title: 'Split Horizontal' },
-      { id: 'focus', label: '⊙', title: 'Focus' },
+      { id: 'focus', label: '⊙', title: 'Focus (70/30)' },
+      { id: 'cards', label: '🃏', title: 'Cards (+40%)' },
       { id: 'manual', label: '✥', title: 'Manuel' },
     ];
 
@@ -63,6 +64,7 @@ const PresetLayouts = {
     document.addEventListener('keydown', (e) => {
       if (!e.ctrlKey || !e.shiftKey) return;
       switch (e.key.toLowerCase()) {
+        case 'c': e.preventDefault(); this.setMode('cards'); break;
         case 'g': e.preventDefault(); this.setMode('grid'); break;
         case 'f': e.preventDefault(); this.setMode('focus'); break;
         case 'v': e.preventDefault(); this.setMode('split-v'); break;

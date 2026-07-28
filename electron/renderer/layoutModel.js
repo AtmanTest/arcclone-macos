@@ -3,7 +3,8 @@
  * No DOM queries for geometry. All layout state here.
  */
 const LayoutModel = {
-  mode: 'grid',       // grid | split-v | split-h | focus | manual
+  mode: 'grid',       // grid | split-v | split-h | focus | manual | cards
+  _activeCard: 0,
   views: [],          // [{id, providerId, label, icon, url, x, y, w, h, minW, minH}]
   viewportW: 0,       // available width (minus sidebar)
   viewportH: 0,       // available height (minus toolbar)
@@ -36,6 +37,7 @@ const LayoutModel = {
       case 'split-v': return this._computeSplitV();
       case 'split-h': return this._computeSplitH();
       case 'focus': return this._computeFocus();
+      case 'cards': return this._computeCards();
       case 'manual': return this._computeManual();
       default: return this._computeGrid();
     }
@@ -89,6 +91,31 @@ const LayoutModel = {
     return results;
   },
 
+  _computeCards() {
+    const n = this.views.length;
+    if (n === 0) return [];
+    const gap = 3;
+    const activeIdx = Math.min(this._activeCard, n - 1);
+    // Base width = equal share
+    const baseW = Math.floor((this.viewportW - (n - 1) * gap) / n);
+    // Active gets +40%
+    const activeW = Math.floor(baseW * 1.4);
+    const remaining = this.viewportW - activeW - (n - 1) * gap;
+    const otherW = Math.floor(remaining / Math.max(1, n - 1));
+
+    return this.views.map((v, i) => {
+      let w, x;
+      if (i === activeIdx) {
+        x = activeIdx * (otherW + gap);
+        w = activeW;
+      } else {
+        x = i < activeIdx ? i * (otherW + gap) : (i - 1) * (otherW + gap) + activeW + gap;
+        w = otherW;
+      }
+      return { ...v, x, y: 0, w: Math.max(v.minW, w), h: this.viewportH };
+    });
+  },
+
   _computeManual() {
     // Return current positions as-is
     return this.views.map(v => ({ ...v }));
@@ -119,7 +146,8 @@ const LayoutModel = {
   },
 
   // ── Mode switching ──────────────────────────────────────────────────────
-  setMode(mode) { this.mode = mode; },
+  setMode(mode) { this.mode = mode; if (mode !== 'cards') this._activeCard = 0; },
+  setActiveCard(idx) { this._activeCard = idx; },
 
   // ── Serialize ───────────────────────────────────────────────────────────
   serialize() {
