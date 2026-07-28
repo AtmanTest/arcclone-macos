@@ -215,12 +215,8 @@ const WinManager = {
         LayoutModel.setActiveCard(idx);
         this._syncFrames();
       } else if (LayoutModel.mode === 'focus') {
-        const views = LayoutModel.views;
-        if (idx > 0 && views.length > 1) {
-          [views[0], views[idx]] = [views[idx], views[0]];
-          LayoutModel.applyViewOrder(views);
-          this._syncFrames();
-        }
+        LayoutModel.setActiveCard(idx);
+        this._syncFrames();
       }
     };
     const overlay = entry.frame.querySelector('.card-overlay');

@@ -70,8 +70,9 @@ const LayoutModel = {
     return this.views.map((v, i) => ({ ...v, x: 0, y: i * (ch + 3), w: this.viewportW, h: ch }));
   },
 
-  _computeFocus(activeIdx = 0) {
+  _computeFocus() {
     if (this.views.length <= 1) return this._computeGrid();
+    const activeIdx = Math.min(this._activeCard, this.views.length - 1);
     // Focus = active view at 70%, others in sidebar strip on the right
     const focusW = Math.floor(this.viewportW * 0.7);
     const stripW = this.viewportW - focusW - 3;
