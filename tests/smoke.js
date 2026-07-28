@@ -86,11 +86,11 @@ t('BUG-047: Enter key → dispatch', () => a(
 t('BUG-048: _dispatchToAll submit prioritaire', () => a(
   wm.includes('this.frames.forEach((entry) =>')
   && wm.includes('form.requestSubmit()')
-  && wm.includes("indexOf('attach')")
-  && wm.includes('button:has(svg)')
-  && wm.includes('data-testid=')
+  && wm.includes("getAttribute('type') === 'submit'")
+  && wm.includes('data-testid')
+  && wm.includes('btn.querySelector')
   && wm.includes('candidates[c].click()')
-  && wm.includes('400'),
+  && wm.includes('800'),
   '_dispatchToAll incomplet'
 ));
 t('BUG-049: prompt-input dans HTML', () => a(

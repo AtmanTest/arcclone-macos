@@ -327,11 +327,11 @@ const WinManager = {
     this.frames.forEach((entry) => {
       const wv = entry.frame.querySelector('webview');
       if (!wv) return;
-      wv.executeJavaScript(`
+      const js = `
         (function() {
           try {
-            // 1. Trouver l'input
-            var ed = document.querySelector('[contenteditable="true"]') || document.querySelector('textarea, input[type="text"], input[type="search"]');
+            // 1. Trouver l'input (tous les types possibles)
+            var ed = document.querySelector('[contenteditable="true"], textarea, input[type="text"], input[type="search"], [role="textbox"]');
             if (!ed) return;
             ed.focus();
 
@@ -351,57 +351,43 @@ const WinManager = {
             ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
             ed.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
 
-            // 4. Submit après délai (laisse le UI activer le bouton)
+            // 4. Submit après délai
             setTimeout(function() {
               try {
-                // Stratégie A: form.requestSubmit()
+                // A: form.requestSubmit()
                 var form = ed.closest('form');
                 if (form) { try { form.requestSubmit(); return; } catch(e) {} }
 
-                // Stratégie B: chercher le bouton submit par priorité
+                // B: récolter tous les boutons candidates
                 var candidates = [];
+                var allBtns = document.querySelectorAll('button');
+                for (var i = 0; i < allBtns.length; i++) {
+                  var btn = allBtns[i];
+                  if (btn.offsetParent === null || btn.disabled) continue;
 
-                // B1: type="submit"
-                var btns = document.querySelectorAll('button[type="submit"]');
-                for (var i = 0; i < btns.length; i++) {
-                  if (btns[i].offsetParent !== null && !btns[i].disabled) candidates.push(btns[i]);
-                }
+                  // B1: type="submit"
+                  if (btn.getAttribute('type') === 'submit') { candidates.push(btn); continue; }
 
-                // B2: data-testid spécifiques
-                var testIds = ['send-button', 'submit-button', 'send-message'];
-                for (var t = 0; t < testIds.length; t++) {
-                  var el = document.querySelector('[data-testid="' + testIds[t] + '"]');
-                  if (el && el.offsetParent !== null && !el.disabled && el.tagName === 'BUTTON') candidates.push(el);
-                }
+                  // B2: data-testid connu
+                  var tid = btn.getAttribute('data-testid') || '';
+                  if (tid === 'send-button' || tid === 'submit-button' || tid === 'send-message') { candidates.push(btn); continue; }
 
-                // B3: aria-label
-                var ariaLabels = ['send', 'envoyer', 'submit', 'ask'];
-                for (var a = 0; a < ariaLabels.length; a++) {
-                  var els = document.querySelectorAll('[aria-label*="' + ariaLabels[a] + '" i]');
-                  for (var j = 0; j < els.length; j++) {
-                    if (els[j].offsetParent !== null && !els[j].disabled && els[j].tagName === 'BUTTON') candidates.push(els[j]);
-                  }
-                }
+                  // B3: aria-label qui matche
+                  var aria = (btn.getAttribute('aria-label') || '').toLowerCase();
+                  if (aria.indexOf('send') !== -1 || aria.indexOf('envoyer') !== -1 || aria.indexOf('submit') !== -1 || aria.indexOf('ask') !== -1) { candidates.push(btn); continue; }
 
-                // B4: boutons avec SVG (mais PAS "attach" ou "file")
-                var allSvgBtns = document.querySelectorAll('button:has(svg)');
-                for (var k = 0; k < allSvgBtns.length; k++) {
-                  var b = allSvgBtns[k];
-                  if (b.offsetParent === null || b.disabled) continue;
-                  var label = (b.getAttribute('aria-label') || b.textContent || '').toLowerCase();
-                  if (label.indexOf('attach') !== -1 || label.indexOf('file') !== -1 || label.indexOf('join') !== -1) continue;
-                  if (b.querySelector('svg')) candidates.push(b);
-                }
-
-                // B5: dernier bouton visible dans le conteneur de l'input
-                var container = ed.closest('div[class*="input"], div[class*="chat"], div[class*="prompt"], form') || ed.parentElement;
-                if (container) {
-                  var lastBtns = container.querySelectorAll('button');
-                  for (var m = lastBtns.length - 1; m >= 0; m--) {
-                    if (lastBtns[m].offsetParent !== null && !lastBtns[m].disabled) {
-                      candidates.push(lastBtns[m]);
-                      break;
+                  // B4: SVG mais PAS attach/file
+                  var svg = btn.querySelector('svg');
+                  if (svg) {
+                    var txt = (btn.textContent || '').toLowerCase();
+                    if (txt.indexOf('attach') === -1 && txt.indexOf('file') === -1 && txt.indexOf('join') === -1) {
+                      candidates.push(btn); continue;
                     }
+                  }
+
+                  // B5: dernier recours - bouton dans le form/conteneur
+                  if (btn.closest('form') === form || form === null) {
+                    candidates.push(btn);
                   }
                 }
 
@@ -413,10 +399,11 @@ const WinManager = {
                   }
                 }
               } catch(e) {}
-            }, 400);
+            }, 800);
           } catch(e) {}
         })();
-      `).catch(function() {});
+      `;
+      wv.executeJavaScript(js).catch(function() {});
     });
   },
 };
