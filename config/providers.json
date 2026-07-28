@@ -2,7 +2,7 @@
   {"id":"gpt5_terra","label":"GPT-5.6 Terra","url":"https://chatgpt.com","icon":"⚡"},
   {"id":"gpt5_sol","label":"GPT-5.6 Sol Max","url":"https://chatgpt.com","icon":"🤖"},
   {"id":"gemini","label":"Gemini 3.1 Pro","url":"https://gemini.google.com","icon":"🌟"},
-  {"id":"raisonnement","label":"Raisonnement","url":"https://chatgpt.com","icon":"🧠"},
+  {"id":"raisonnement","label":"ChatGPT Raisonnement","url":"https://chatgpt.com","icon":"🧠"},
   {"id":"claude","label":"Claude Sonnet 5","url":"https://claude.ai","icon":"✨"},
   {"id":"zglm","label":"Z GLM 5.2","url":"https://chatglm.cn","icon":"🔬"},
   {"id":"kimi","label":"Kimi K2.6","url":"https://kimi.moonshot.cn","icon":"🌙"},

@@ -107,9 +107,9 @@ const WinManager = {
       || { id: providerId, label: providerId, url: urlOverrides[providerId] || 'about:blank', icon: '🌐' };
 
     const colors = {
-      gpt5_terra: '#10A37F', gpt5_sol: '#10A37F', gemini: '#4285F4',
-      raisonnement: '#10A37F', claude: '#D97757', zglm: '#8B5CF6',
-      kimi: '#EC4899', grok: '#1DA1F2', nemotron: '#6B7280', venice: '#A855F7',
+      gpt5_terra: '#00A67E', gpt5_sol: '#E05E2E', gemini: '#4285F4',
+      raisonnement: '#7C3AED', claude: '#D97757', zglm: '#06B6D4',
+      kimi: '#EC4899', grok: '#1DA1F2', nemotron: '#F59E0B', venice: '#A855F7',
     };
     const providerColor = colors[providerId] || '#555';
 

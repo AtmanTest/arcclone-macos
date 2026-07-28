@@ -110,6 +110,23 @@ function setupIPC() {
   h('open-url', (e, url) => { if (url) shell.openExternal(url); });
   h('set-zoom', (e, l) => { zoomLevel = Math.max(-3, Math.min(5, l)); });
   h('get-zoom', () => zoomLevel);
+  h('update-app', async () => {
+    const { execSync } = require('child_process');
+    let result = '';
+    try {
+      result += '📦 git pull...\n';
+      execSync('git pull', { cwd: __dirname.replace('/electron', ''), timeout: 30000 });
+      result += '✅ Pull OK\n📦 npm install...\n';
+      execSync('npm install --no-audit --no-fund', { cwd: __dirname.replace('/electron', ''), timeout: 120000 });
+      result += '✅ npm install OK\n🔄 Relance...';
+    } catch (e) {
+      result += `❌ Erreur: ${e.message}`;
+    }
+    // Relaunch
+    app.relaunch();
+    app.exit(0);
+    return result;
+  });
 }
 
 // ── App ─────────────────────────────────────────────────────────────────────

@@ -54,6 +54,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     fileInput.click();
   });
 
+  // Update button
+  document.getElementById('btn-update')?.addEventListener('click', async () => {
+    if (!confirm('Mettre à jour depuis GitHub ? L\'app va redémarrer.')) return;
+    const btn = document.getElementById('btn-update');
+    if (btn) { btn.textContent = '⏳ Mise à jour...'; btn.disabled = true; }
+    try {
+      const result = await teamai.updateApp();
+      alert(result);
+    } catch (e) {
+      alert('❌ Erreur: ' + e.message);
+      if (btn) { btn.textContent = '🔄 Mettre à jour'; btn.disabled = false; }
+    }
+  });
+
   // Auto-save session
   window.addEventListener('beforeunload', () => {
     if (WinManager.count > 0) localStorage.setItem('teamai_session', JSON.stringify({ views: WinManager.list }));
