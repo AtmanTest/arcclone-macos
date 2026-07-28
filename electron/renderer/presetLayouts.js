@@ -17,14 +17,14 @@ const PresetLayouts = {
     if (!container) return;
 
     const modes = [
-      { id: 'grid',    icon: '⊞', label: 'Grille',     desc: 'Auto',      color: '#7C3AED' },
-      { id: 'split-h', icon: '≡', label: 'Split H',    desc: 'Horizontal', color: '#06B6D4' },
-      { id: 'focus',   icon: '⊙', label: 'Focus',      desc: '70/30',     color: '#10B981' },
-      { id: 'cards',   icon: '🏛', label: 'Cards',      desc: 'Carrousel', color: '#F59E0B' },
-      { id: 'manual',  icon: '✥', label: 'Manuel',     desc: 'Libre',     color: '#EC4899' },
+      { id: 'grid',    icon: '⊞', label: 'Grille',     desc: 'Auto' },
+      { id: 'split-h', icon: '≡', label: 'Split H',    desc: 'Horizontal' },
+      { id: 'focus',   icon: '⊙', label: 'Focus',      desc: '70/30' },
+      { id: 'cards',   icon: '🏛', label: 'Cards',      desc: 'Carrousel' },
+      { id: 'manual',  icon: '✥', label: 'Manuel',     desc: 'Libre' },
     ];
 
-    container.innerHTML = `<div class="mode-title">📐 Disposition</div><div class="mode-buttons"></div>`;
+    container.innerHTML = `<div class="mode-title">⚡️</div><div class="mode-buttons"></div>`;
     const btnsWrap = container.querySelector('.mode-buttons');
 
     modes.forEach(m => {
@@ -35,7 +35,6 @@ const PresetLayouts = {
         <span class="mode-label">${m.label}</span>
         <span class="mode-desc">${m.desc}</span>`;
       btn.title = m.label + ' (Ctrl+Shift+' + m.id.charAt(0).toUpperCase() + ')';
-      btn.style.setProperty('--mode-color', m.color);
       btn.addEventListener('click', () => this.setMode(m.id));
       btnsWrap.appendChild(btn);
     });
@@ -47,36 +46,33 @@ const PresetLayouts = {
     style.textContent = `
       #mode-selector {
         display: flex; align-items: center; gap: 8px;
-        padding: 5px 0 0; background: #202020;
-        margin-top: 6px; border-top: 1px solid #3A3A3A;
+        padding: 6px 8px 4px; background: #252525;
+        margin-top: 8px; border-radius: 12px;
       }
       #mode-selector .mode-title {
-        font-size: 11px; color: #aaa; font-weight: 700;
-        letter-spacing: 0.5px; white-space: nowrap;
+        font-size: 13px; color: #ccc; font-weight: 700;
+        white-space: nowrap; line-height: 1;
       }
       #mode-selector .mode-buttons {
         display: flex; gap: 4px; flex: 1;
       }
       #mode-selector .mode-btn {
-        display: flex; align-items: center; gap: 5px;
-        background: #2A2A2A; border: 1px solid #3A3A3A;
-        border-radius: 8px; padding: 6px 10px;
-        cursor: pointer; transition: all 0.15s;
-        color: #999; font-size: 10px; line-height: 1.1;
+        display: flex; align-items: center; gap: 4px;
+        background: #2E2E2E; border: 1px solid #404040;
+        border-radius: 8px; padding: 5px 8px;
+        cursor: pointer; transition: all 0.12s;
+        color: #aaa; font-size: 10px; line-height: 1.1;
         flex: 1; justify-content: center; min-width: 0;
       }
       #mode-selector .mode-btn:hover {
-        border-color: var(--mode-color, #7C3AED);
-        background: #333; color: #ddd;
+        background: #3A3A3A; border-color: #5A5A5A; color: #ddd;
       }
       #mode-selector .mode-btn.active {
-        background: var(--mode-color, #7C3AED);
-        border-color: var(--mode-color, #7C3AED);
-        color: white;
-        box-shadow: 0 0 12px color-mix(in srgb, var(--mode-color, #7C3AED) 40%, transparent);
+        background: #4A4A4A; border-color: #7C7C7C; color: white;
+        box-shadow: 0 0 8px rgba(255,255,255,0.08);
       }
       #mode-selector .mode-btn .mode-icon {
-        font-size: 16px; line-height: 1;
+        font-size: 15px; line-height: 1;
       }
       #mode-selector .mode-btn .mode-label {
         font-weight: 700; font-size: 10px;
