@@ -324,56 +324,37 @@ const WinManager = {
   },
 
   _dispatchToAll(text) {
-    const escaped = JSON.stringify(text);
     this.frames.forEach((entry) => {
       const wv = entry.frame.querySelector('webview');
       if (!wv) return;
       wv.executeJavaScript(`
         (function() {
           try {
-            var ed = document.querySelector('[contenteditable="true"]')
-              || document.querySelector('textarea, input[type="text"], input[type="search"]');
+            var ed = document.querySelector('[contenteditable="true"]') || document.querySelector('textarea, input[type="text"], input[type="search"]');
             if (!ed) return;
             ed.focus();
             if (ed.isContentEditable) {
               ed.textContent = '';
               ed.innerHTML = '';
-              var p = document.createElement('p'); p.textContent = ${escaped};
+              var p = document.createElement('p'); p.textContent = ${JSON.stringify(text)};
               ed.appendChild(p);
             } else {
-              ed.value = ${escaped};
+              ed.value = ${JSON.stringify(text)};
             }
             ed.dispatchEvent(new Event('input', { bubbles: true }));
-            ed.dispatchEvent(new Event('change', { bubbles: true }));
-            ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
-            ed.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+            ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+            ed.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
             setTimeout(function() {
               try {
                 var form = ed.closest('form');
                 if (form) { try { form.requestSubmit(); return; } catch(e) {} }
-                var btns = document.querySelectorAll([
-                  'button[type="submit"]',
-                  'button[data-testid="send-button"]',
-                  'button[data-testid="submit-button"]',
-                  '[aria-label*="send" i]',
-                  '[aria-label*="envoyer" i]',
-                  '[aria-label*="submit" i]',
-                  '[aria-label*="Ask" i]',
-                  'button:has(svg)',
-                  'button:last-child'
-                ].join(','));
-                for (var i = 0; i < btns.length; i++) {
-                  var b = btns[i];
-                  if (b && b.offsetParent !== null && !b.disabled && b.tagName === 'BUTTON') {
-                    try { b.click(); return; } catch(e) {}
-                  }
-                }
-                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+                var btn = document.querySelector('button[type="submit"], [aria-label*="send" i], [aria-label*="envoyer" i], [aria-label*="submit" i]');
+                if (btn && btn.offsetParent !== null && !btn.disabled) { btn.click(); }
               } catch(e) {}
-            }, 300);
+            }, 200);
           } catch(e) {}
         })();
-      `).catch(() => {});
+      `).catch(function() {});
     });
   },
 };

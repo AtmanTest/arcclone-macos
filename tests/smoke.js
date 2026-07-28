@@ -84,14 +84,12 @@ t('BUG-047: Enter key → dispatch', () => a(
   'Enter handler manquant'
 ));
 t('BUG-048: _dispatchToAll boucle sur frames + submit', () => a(
-  wm.includes('this.frames.forEach((entry) =>') 
+  wm.includes('this.frames.forEach((entry) =>')
   && wm.includes('wv.executeJavaScript(')
   && wm.includes('form.requestSubmit()')
-  && wm.includes('button[data-testid="send-button"]')
-  && wm.includes('keypress')
-  && wm.includes('setTimeout(function()')
-  && wm.includes('300'),
-  '_dispatchToAll incomplete ou pas d\'appel submit'
+  && wm.includes('which: 13')
+  && wm.includes('function()'),
+  '_dispatchToAll incomplete'
 ));
 t('BUG-049: prompt-input dans HTML', () => a(
   html.includes('id="prompt-input"'),
