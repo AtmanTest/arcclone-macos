@@ -58,7 +58,7 @@ const Sidebar = {
   _renderProviders() {
     const el = document.getElementById('providers-list');
     if (!el) return;
-    const providers = WinManager.providersList;
+    const providers = this._providers.length > 0 ? this._providers : (WinManager.providers || []);
     const connected = JSON.parse(localStorage.getItem('teamai_connected') || '{}');
     el.innerHTML = providers.map(p => `
       <div class="prov-card" data-id="${p.id}">
