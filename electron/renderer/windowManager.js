@@ -33,6 +33,8 @@ const WinManager = {
     }
 
     this._applyLayout();
+    PersistenceManager.restore();
+    PresetLayouts.init();
     this._initDone = true;
   },
 
