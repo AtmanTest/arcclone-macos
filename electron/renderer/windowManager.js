@@ -343,9 +343,21 @@ const WinManager = {
             ed.dispatchEvent(new Event('input', { bubbles: true }));
             ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
             setTimeout(() => {
-              const btn = document.querySelector('button[type="submit"], button:has(svg), [aria-label*="send" i], [aria-label*="envoyer" i]');
-              if (btn) btn.click();
-            }, 100);
+              const container = ed.closest('form') || ed.closest('[class*="input"],[class*="chat"],[class*="prompt"],[class*="footer"]') || ed.parentElement;
+              const btns = container ? container.querySelectorAll('button') : document.querySelectorAll('button');
+              let clicked = false;
+              // Priorité: dernier bouton visible avec SVG dans le conteneur
+              for (let i = btns.length - 1; i >= 0; i--) {
+                if (btns[i].offsetParent !== null && btns[i].querySelector('svg') && !btns[i].disabled) {
+                  btns[i].click(); clicked = true; break;
+                }
+              }
+              if (!clicked) {
+                // Fallback global
+                const gbtn = document.querySelector('button[type="submit"], [aria-label*="send" i], [aria-label*="envoyer" i]');
+                if (gbtn) gbtn.click();
+              }
+            }, 150);
           }
         })();
       `).then(r => console.log('[DISPATCH ' + entry.id + '] OK')).catch(e => console.error('[DISPATCH ' + entry.id + ']', e));
