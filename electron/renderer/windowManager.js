@@ -142,6 +142,7 @@ const WinManager = {
     webview.src = initialUrl || prov.url || 'about:blank';
     webview.setAttribute('partition', partition);
     webview.setAttribute('allowpopups', '');
+    webview.setAttribute('useragent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36');
     webview.style.width = '100%';
     webview.style.height = '100%';
     webview.style.border = 'none';
