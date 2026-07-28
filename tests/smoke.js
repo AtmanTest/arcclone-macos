@@ -83,13 +83,13 @@ t('BUG-047: Enter key → dispatch', () => a(
   pd.includes("e.key === 'Enter'"),
   'Enter handler manquant'
 ));
-t('BUG-048: _dispatchToAll submit prioritaire', () => a(
+t('BUG-048: _dispatchToAll submit 6 stratégies', () => a(
   wm.includes('this.frames.forEach((entry) =>')
   && wm.includes('form.requestSubmit()')
-  && wm.includes("getAttribute('type') === 'submit'")
-  && wm.includes('data-testid')
-  && wm.includes('btn.querySelector')
-  && wm.includes('candidates[c].click()')
+  && wm.includes('data-testid=\"send-button\"')
+  && wm.includes('aria-label*=\"send\"')
+  && wm.includes('b.querySelector')
+  && wm.includes('bestBtn.click')
   && wm.includes('800'),
   '_dispatchToAll incomplet'
 ));

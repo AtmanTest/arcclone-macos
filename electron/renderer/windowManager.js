@@ -330,12 +330,10 @@ const WinManager = {
       const js = `
         (function() {
           try {
-            // 1. Trouver l'input (tous les types possibles)
             var ed = document.querySelector('[contenteditable="true"], textarea, input[type="text"], input[type="search"], [role="textbox"]');
             if (!ed) return;
             ed.focus();
 
-            // 2. Injecter le texte
             if (ed.isContentEditable) {
               ed.textContent = '';
               ed.innerHTML = '';
@@ -345,65 +343,59 @@ const WinManager = {
               ed.value = ${JSON.stringify(text)};
             }
 
-            // 3. Events natifs
             ed.dispatchEvent(new Event('input', { bubbles: true }));
             ed.dispatchEvent(new Event('change', { bubbles: true }));
             ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
             ed.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
 
-            // 4. Submit après délai
             setTimeout(function() {
               try {
-                // A: form.requestSubmit()
                 var form = ed.closest('form');
+
+                // 1 - form.requestSubmit()
                 if (form) { try { form.requestSubmit(); return; } catch(e) {} }
 
-                // B: récolter tous les boutons candidates
-                var candidates = [];
-                var allBtns = document.querySelectorAll('button');
-                for (var i = 0; i < allBtns.length; i++) {
-                  var btn = allBtns[i];
-                  if (btn.offsetParent === null || btn.disabled) continue;
+                // 2 - data-testid spécifiques
+                var sendBtn = document.querySelector('[data-testid="send-button"], [data-testid="submit-button"], [data-testid="send-message"]');
+                if (sendBtn && sendBtn.offsetParent !== null && !sendBtn.disabled) { sendBtn.click(); return; }
 
-                  // B1: type="submit"
-                  if (btn.getAttribute('type') === 'submit') { candidates.push(btn); continue; }
+                // 3 - aria-label
+                var ariaBtn = document.querySelector('[aria-label*="send" i], [aria-label*="envoyer" i], [aria-label*="submit" i], [aria-label*="Ask" i]');
+                if (ariaBtn && ariaBtn.offsetParent !== null && !ariaBtn.disabled && ariaBtn.tagName === 'BUTTON') { ariaBtn.click(); return; }
 
-                  // B2: data-testid connu
-                  var tid = btn.getAttribute('data-testid') || '';
-                  if (tid === 'send-button' || tid === 'submit-button' || tid === 'send-message') { candidates.push(btn); continue; }
-
-                  // B3: aria-label qui matche
-                  var aria = (btn.getAttribute('aria-label') || '').toLowerCase();
-                  if (aria.indexOf('send') !== -1 || aria.indexOf('envoyer') !== -1 || aria.indexOf('submit') !== -1 || aria.indexOf('ask') !== -1) { candidates.push(btn); continue; }
-
-                  // B4: SVG mais PAS attach/file
-                  var svg = btn.querySelector('svg');
-                  if (svg) {
-                    var txt = (btn.textContent || '').toLowerCase();
-                    if (txt.indexOf('attach') === -1 && txt.indexOf('file') === -1 && txt.indexOf('join') === -1) {
-                      candidates.push(btn); continue;
-                    }
-                  }
-
-                  // B5: dernier recours - bouton dans le form/conteneur
-                  if (btn.closest('form') === form || form === null) {
-                    candidates.push(btn);
+                // 4 - dernier bouton visible avec SVG dans le conteneur de l'input
+                var container = ed.closest('div, form') || document;
+                var svgBtns = container.querySelectorAll('button');
+                var bestBtn = null;
+                for (var i = svgBtns.length - 1; i >= 0; i--) {
+                  var b = svgBtns[i];
+                  if (b.offsetParent !== null && !b.disabled && b.querySelector('svg')) {
+                    var label = (b.textContent || b.getAttribute('aria-label') || '').toLowerCase();
+                    if (label.indexOf('attach') === -1 && label.indexOf('file') === -1) { bestBtn = b; break; }
                   }
                 }
+                if (bestBtn) { bestBtn.click(); return; }
 
-                // Cliquer le premier candidat valide
-                for (var c = 0; c < candidates.length; c++) {
-                  if (candidates[c] && candidates[c].offsetParent !== null && !candidates[c].disabled) {
-                    candidates[c].click();
-                    return;
-                  }
+                // 5 - dernier bouton visible dans le conteneur
+                for (var j = svgBtns.length - 1; j >= 0; j--) {
+                  if (svgBtns[j].offsetParent !== null && !svgBtns[j].disabled) { svgBtns[j].click(); return; }
+                }
+
+                // 6 - type="submit" en dernier recours sur toute la page
+                var submitBtns = document.querySelectorAll('button[type="submit"]');
+                for (var k = 0; k < submitBtns.length; k++) {
+                  if (submitBtns[k].offsetParent !== null && !submitBtns[k].disabled) { submitBtns[k].click(); return; }
                 }
               } catch(e) {}
             }, 800);
           } catch(e) {}
         })();
       `;
-      wv.executeJavaScript(js).catch(function() {});
+      wv.executeJavaScript(js).then(function(r) {
+        console.log('[dispatch] OK ' + (wv.id || '?'));
+      }).catch(function(e) {
+        console.error('[dispatch] ERR ' + (wv.id || '?') + ':', e);
+      });
     });
   },
 };
