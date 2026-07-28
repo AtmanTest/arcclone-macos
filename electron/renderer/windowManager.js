@@ -78,6 +78,7 @@ const WinManager = {
         if (overlay) overlay.style.display = isActive ? 'none' : 'block';
       } else {
         entry.frame.style.opacity = '1';
+        entry.frame.style.border = '1px solid var(--border)';
         if (overlay) overlay.style.display = 'none';
       }
     });
