@@ -272,31 +272,6 @@ const WinManager = {
     const viewport = document.getElementById('viewport');
     if (viewport) LayoutModel.init(viewport.clientWidth, viewport.clientHeight);
     this._syncFrames();
-    // Scroll carousel Cards → désactivé (plantait)
-    // this._bindCardsScroll();
-  },
-
-  _bindCardsScroll() {
-    const container = document.getElementById('grid-container');
-    if (!container) return;
-    if (LayoutModel.mode === 'cards') {
-      if (!container._cardsScrollBound) {
-        container.addEventListener('wheel', (e) => {
-          if (LayoutModel.mode !== 'cards') return;
-          const n = LayoutModel.views.length;
-          if (n <= 1) return;
-          let next = LayoutModel._activeCard + (e.deltaY > 0 ? 1 : -1);
-          if (next < 0) next = n - 1;
-          if (next >= n) next = 0;
-          if (next !== LayoutModel._activeCard) {
-            LayoutModel.setActiveCard(next);
-            this._syncFrames();
-          }
-          e.preventDefault();
-        }, { passive: false });
-        container._cardsScrollBound = true;
-      }
-    }
   },
 
   _syncFrames() {

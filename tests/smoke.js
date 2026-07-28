@@ -73,7 +73,7 @@ t('_computeFocus()', () => a(lm.includes('_computeFocus')));
 console.log('\n🃏 Cards');
 t('BUG-010: card-overlay template', () => a(wm.includes('card-overlay')));
 t('BUG-011: header click handler', () => a(wm.includes("header.addEventListener('click', handler)")));
-t('BUG-012: scroll carousel', () => a(wm.includes('_bindCardsScroll')));
+t('BUG-012: scroll carousel supprimé', () => a(!wm.includes('_bindCardsScroll'), 'fonction _bindCardsScroll encore présente'));
 t('BUG-013: 35% width', () => a(lm.includes('0.35')));
 t('BUG-014: bordure blanche', () => a(wm.includes('rgba(255,255,255,0.8)')));
 t('BUG-015: dimming 0.6', () => a(wm.includes("'0.6'")));
