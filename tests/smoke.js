@@ -97,7 +97,10 @@ t('BUG-018: checkUpdate bridge', () => a(pre.includes('checkUpdate:')));
 t('BUG-019: update-app IPC', () => a(main.includes("h('update-app'")));
 t('BUG-020: btn-update HTML', () => a(html.includes('btn-update')));
 t('BUG-021: rouge #EF4444 dispo', () => a(ap.includes('#EF4444')));
-t('BUG-022: check 5min interval', () => a(ap.includes('setInterval(checkUpdate, 300000)')));
+t('BUG-022: check 5min interval + btn-check-update', () => a(
+  ap.includes('setInterval(checkUpdate, 300000)') && ap.includes('btn-check-update'),
+  'checkUpdate périodique ou btn manquant'
+));
 
 // Phase 9: Add IA
 console.log('\n✚ Add IA');
@@ -172,7 +175,7 @@ t('version.json', () => a(ver.version && ver.commit));
 
 // Phase 19: HTML elements
 console.log('\n📋 HTML');
-['btn-update','btn-add-ia','btn-save-session','version-badge','grid-container',
+['btn-update','btn-check-update','btn-add-ia','btn-save-session','version-badge','grid-container',
  'error-bar','prompt-input','go-btn','btn-attach','btn-new-tab','btn-login-assistant',
  'btn-report','btn-reset-layout','zoom-in','zoom-out','zoom-level',
  'providers-list','sidebar-bottom','window-list','stats','prompt-wrap',

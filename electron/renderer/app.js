@@ -80,6 +80,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
   checkUpdate();
+  // Check button → force refresh
+  document.getElementById('btn-check-update')?.addEventListener('click', checkUpdate);
   // Periodic check every 5 min
   setInterval(checkUpdate, 300000);
 
