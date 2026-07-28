@@ -15,10 +15,12 @@ const ErrorBar = {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const providers = await teamai.loadProviders();
-  PromptDispatcher.init();
-  await WinManager.init(providers);
-  await Sidebar.init(providers);
+  try {
+    const providers = await teamai.loadProviders();
+    if (!providers || providers.length === 0) throw new Error('Aucun provider chargé');
+    PromptDispatcher.init();
+    await WinManager.init(providers);
+    await Sidebar.init(providers);
 
   // Resize observer
   const viewport = document.getElementById('viewport');
@@ -110,4 +112,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('beforeunload', () => {
     if (WinManager.count > 0) localStorage.setItem('teamai_session', JSON.stringify({ views: WinManager.list }));
   });
+  } catch (e) {
+    console.error('FATAL:', e);
+    document.getElementById('app').innerHTML = `<div style="color:red;padding:40px;font-size:18px">❌ Erreur: ${e.message}<br><small>${e.stack || ''}</small></div>`;
+  }
 });
