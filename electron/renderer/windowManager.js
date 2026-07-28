@@ -68,6 +68,17 @@ const WinManager = {
         entry.frame.style.left = '';
         entry.frame.style.top = '';
       }
+      // Cards mode: dim non-active + show overlay
+      const overlay = entry.frame.querySelector('.card-overlay');
+      if (LayoutModel.mode === 'cards') {
+        const idx = Array.from(this.frames.keys()).indexOf(id);
+        const isActive = idx === LayoutModel._activeCard;
+        entry.frame.style.opacity = isActive ? '1' : '0.6';
+        if (overlay) overlay.style.display = isActive ? 'none' : 'block';
+      } else {
+        entry.frame.style.opacity = '1';
+        if (overlay) overlay.style.display = 'none';
+      }
     });
     this._layout();
   },
@@ -120,7 +131,9 @@ const WinManager = {
         <input class="url-bar" placeholder="URL..." spellcheck="false" value="${initialUrl || prov.url || ''}">
         <button class="close-btn" title="Fermer">✕</button>
       </div>
-      <div class="webview-area"></div>
+      <div class="webview-area">
+        <div class="card-overlay"></div>
+      </div>
       <div class="resize-handle"></div>
     `;
     container.appendChild(frame);
@@ -217,7 +230,10 @@ const WinManager = {
   },
 
   _bindCardClick(id, entry) {
-    entry.frame.addEventListener('click', () => {
+    const overlay = entry.frame.querySelector('.card-overlay');
+    if (!overlay) return;
+    overlay.addEventListener('click', (e) => {
+      e.stopPropagation();
       if (LayoutModel.mode !== 'cards') return;
       const idx = Array.from(this.frames.keys()).indexOf(id);
       if (idx >= 0) {
