@@ -3,13 +3,14 @@
  * Provider cards, stats, bookmarks, login assistant.
  */
 const Sidebar = {
-  async init() {
+  _providers: [],
+  async init(providers) {
+    this._providers = providers || [];
     this._renderProviders();
     this.renderAll();
     this._renderVersion();
     document.getElementById('btn-new-tab')?.addEventListener('click', () => {
-      const p = WinManager.providersList;
-      if (p.length > 0) WinManager.addView(p[0].id);
+      if (this._providers.length > 0) WinManager.addView(this._providers[0].id);
     });
     document.getElementById('btn-login-assistant')?.addEventListener('click', () => LoginAssistant.start());
     document.getElementById('btn-report')?.addEventListener('click', () => ReportManager.open());

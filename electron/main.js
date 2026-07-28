@@ -110,6 +110,10 @@ function setupIPC() {
   h('open-url', (e, url) => { if (url) shell.openExternal(url); });
   h('set-zoom', (e, l) => { zoomLevel = Math.max(-3, Math.min(5, l)); });
   h('get-zoom', () => zoomLevel);
+  h('load-providers', () => {
+    const p = loadJSON(CFG.PROVIDERS);
+    return Array.isArray(p) ? p : [];
+  });
   h('check-update', async () => {
     const { execSync } = require('child_process');
     try {

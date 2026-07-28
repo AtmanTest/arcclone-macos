@@ -15,9 +15,10 @@ const ErrorBar = {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
+  const providers = await teamai.loadProviders();
   PromptDispatcher.init();
-  await WinManager.init();
-  await Sidebar.init();
+  await WinManager.init(providers);
+  await Sidebar.init(providers);
 
   // Resize observer
   const viewport = document.getElementById('viewport');
