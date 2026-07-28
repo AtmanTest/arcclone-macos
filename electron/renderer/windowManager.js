@@ -272,7 +272,8 @@ const WinManager = {
     const viewport = document.getElementById('viewport');
     if (viewport) LayoutModel.init(viewport.clientWidth, viewport.clientHeight);
     this._syncFrames();
-    this._bindCardsScroll();
+    // Scroll carousel Cards → désactivé (plantait)
+    // this._bindCardsScroll();
   },
 
   _bindCardsScroll() {
