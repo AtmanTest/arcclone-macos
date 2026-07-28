@@ -327,44 +327,27 @@ const WinManager = {
     this.frames.forEach((entry) => {
       const wv = entry.frame.querySelector('webview');
       if (!wv) return;
-      const js = String.raw`
+      wv.executeJavaScript(`
         (function() {
-          try {
-            var ed = document.querySelector('[contenteditable="true"], textarea, input[type="text"], [role="textbox"]');
-            if (!ed) return 'NO_INPUT';
+          const ed = document.querySelector('[contenteditable="true"]') || document.querySelector('textarea, input[type="text"]');
+          if (ed) {
             ed.focus();
             if (ed.isContentEditable) {
-              ed.textContent = ''; ed.innerHTML = '';
-              var p = document.createElement('p'); p.textContent = ${JSON.stringify(text)};
+              ed.textContent = '';
+              ed.innerHTML = '';
+              const p = document.createElement('p'); p.textContent = ${JSON.stringify(text)};
               ed.appendChild(p);
             } else {
               ed.value = ${JSON.stringify(text)};
             }
             ed.dispatchEvent(new Event('input', { bubbles: true }));
-            var form = ed.closest('form');
-            var tries = 0;
-            var maxTries = 8;
-            (function poll() {
-              try {
-                if (form) { try { form.requestSubmit(); return; } catch(e) {} }
-                var el = document.querySelector('[data-testid="send-button"], [aria-label*="send" i], [aria-label*="envoyer" i]');
-                if (el && !el.disabled && el.offsetParent !== null) { el.click(); return; }
-                var all = document.querySelectorAll('button');
-                for (var i = 0; i < all.length; i++) {
-                  if (all[i].offsetParent !== null && !all[i].disabled) { all[i].click(); return; }
-                }
-              } catch(e) {}
-              tries++;
-              if (tries < maxTries) { setTimeout(poll, 300); }
-            })();
-            return 'SET';
-          } catch(e) { return 'ERR:' + e.message; }
+            ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+            setTimeout(() => {
+              const btn = document.querySelector('button[type="submit"], button:has(svg), [aria-label*="send" i], [aria-label*="envoyer" i]');
+              if (btn) btn.click();
+            }, 100);
+          }
         })();
-      `;
-      wv.executeJavaScript(js).then(function(r) {
-        console.log('[DISPATCH ' + entry.id + '] ' + r);
-      }).catch(function(e) {
-        console.error('[DISPATCH ' + entry.id + '] FAIL:', e);
-      });
+      `).then(r => console.log('[DISPATCH ' + entry.id + '] OK')).catch(e => console.error('[DISPATCH ' + entry.id + ']', e));
     });
   },};
