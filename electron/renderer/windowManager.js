@@ -294,14 +294,19 @@ const WinManager = {
         entry.frame.style.left = '';
         entry.frame.style.top = '';
       }
-      // Cards/Focus overlay + dimming
+      // Cards/Focus overlay + dimming (ne JAMAIS assombrir les titres)
       const overlay = entry.frame.querySelector('.card-overlay');
+      const header = entry.frame.querySelector('.card-header');
+      const wvArea = entry.frame.querySelector('.webview-area') || entry.frame.querySelector('webview');
       if (LayoutModel.mode === 'cards' || LayoutModel.mode === 'focus') {
         const idx = Array.from(this.frames.keys()).indexOf(id);
-        const isActive = idx === LayoutModel._activeCard || idx === 0;
-        entry.frame.style.opacity = isActive ? '1' : '0.6';
-        entry.frame.style.border = isActive ? '2px solid rgba(255,255,255,0.8)' : '1px solid var(--border)';
+        const isActive = idx === LayoutModel._activeCard;
         if (overlay) overlay.style.display = isActive ? 'none' : 'block';
+        // Bordure blanche UNIQUEMENT sur la carte active, pas de bordure blanche sinon
+        entry.frame.style.border = isActive ? '2px solid rgba(255,255,255,0.8)' : '1px solid var(--border)';
+        // Opacité: n'assombrir QUE la zone webview, JAMAIS le header
+        if (wvArea) wvArea.style.opacity = isActive ? '1' : '0.6';
+        if (header) header.style.opacity = '1';
       } else {
         entry.frame.style.opacity = '1';
         entry.frame.style.border = '1px solid var(--border)';
