@@ -67,6 +67,34 @@ t('BUG-009: shortcut V supprimé', () => a(!pr.includes("case 'v'")));
 t('_computeCards()', () => a(lm.includes('_computeCards')));
 t('applyViewOrder()', () => a(lm.includes('applyViewOrder')));
 t('setActiveCard()', () => a(lm.includes('setActiveCard')));
+
+// ── CRITIQUE: SEARCH ALL dispatch ──
+console.log('\n⚠️  CRITIQUE — SEARCH ALL');
+const pd = fs.readFileSync(path.join(ROOT,'electron','renderer','promptDispatcher.js'),'utf8');
+t('BUG-045: PromptDispatcher.init() appelle _dispatchToAll', () => a(
+  pd.includes('WinManager._dispatchToAll(text)'),
+  '_dispatchToAll manquant dans PromptDispatcher'
+));
+t('BUG-046: go-btn click → dispatch', () => a(
+  pd.includes("btn.addEventListener('click', dispatch)"),
+  'click handler manquant'
+));
+t('BUG-047: Enter key → dispatch', () => a(
+  pd.includes("e.key === 'Enter'"),
+  'Enter handler manquant'
+));
+t('BUG-048: _dispatchToAll boucle sur frames', () => a(
+  wm.includes('this.frames.forEach((entry) =>') && wm.includes('wv.executeJavaScript('),
+  '_dispatchToAll incomplete'
+));
+t('BUG-049: prompt-input dans HTML', () => a(
+  html.includes('id="prompt-input"'),
+  'prompt-input manquant'
+));
+t('BUG-050: go-btn dans HTML', () => a(
+  html.includes('id="go-btn"'),
+  'go-btn manquant'
+));
 t('_computeFocus()', () => a(lm.includes('_computeFocus')));
 
 // Phase 5: Cards mode
