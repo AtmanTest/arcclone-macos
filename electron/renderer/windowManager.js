@@ -348,7 +348,7 @@ const WinManager = {
               try {
                 var form = ed.closest('form');
                 if (form) { try { form.requestSubmit(); return; } catch(e) {} }
-                var btn = document.querySelector('button[type="submit"], [aria-label*="send" i], [aria-label*="envoyer" i], [aria-label*="submit" i]');
+                var btn = document.querySelector('button[type="submit"], button:has(svg), [aria-label*="send" i], [aria-label*="envoyer" i], [aria-label*="submit" i], [aria-label*="Ask" i]');
                 if (btn && btn.offsetParent !== null && !btn.disabled) { btn.click(); }
               } catch(e) {}
             }, 200);

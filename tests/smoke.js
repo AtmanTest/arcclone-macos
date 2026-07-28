@@ -88,6 +88,7 @@ t('BUG-048: _dispatchToAll boucle sur frames + submit', () => a(
   && wm.includes('wv.executeJavaScript(')
   && wm.includes('form.requestSubmit()')
   && wm.includes('which: 13')
+  && wm.includes('button:has(svg)')
   && wm.includes('function()'),
   '_dispatchToAll incomplete'
 ));
