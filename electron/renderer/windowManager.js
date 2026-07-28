@@ -74,6 +74,7 @@ const WinManager = {
         const idx = Array.from(this.frames.keys()).indexOf(id);
         const isActive = idx === LayoutModel._activeCard;
         entry.frame.style.opacity = isActive ? '1' : '0.6';
+        entry.frame.style.border = isActive ? '2px solid rgba(255,255,255,0.8)' : '1px solid var(--border)';
         if (overlay) overlay.style.display = isActive ? 'none' : 'block';
       } else {
         entry.frame.style.opacity = '1';

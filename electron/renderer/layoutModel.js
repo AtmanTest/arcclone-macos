@@ -98,8 +98,8 @@ const LayoutModel = {
     const activeIdx = Math.min(this._activeCard, n - 1);
     // Base width = equal share
     const baseW = Math.floor((this.viewportW - (n - 1) * gap) / n);
-    // Active gets +40%
-    const activeW = Math.floor(baseW * 1.4);
+    // Active gets 80%
+    const activeW = Math.floor(this.viewportW * 0.8);
     const remaining = this.viewportW - activeW - (n - 1) * gap;
     const otherW = Math.floor(remaining / Math.max(1, n - 1));
 
