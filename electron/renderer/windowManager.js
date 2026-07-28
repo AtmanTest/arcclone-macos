@@ -323,79 +323,44 @@ const WinManager = {
     }
   },
 
-  _dispatchToAll(text) {
+    _dispatchToAll(text) {
     this.frames.forEach((entry) => {
       const wv = entry.frame.querySelector('webview');
       if (!wv) return;
-      const js = `
+      const js = String.raw`
         (function() {
           try {
-            var ed = document.querySelector('[contenteditable="true"], textarea, input[type="text"], input[type="search"], [role="textbox"]');
-            if (!ed) return;
+            var ed = document.querySelector('[contenteditable="true"], textarea, input[type="text"], [role="textbox"]');
+            if (!ed) return 'NO_INPUT';
             ed.focus();
-
             if (ed.isContentEditable) {
-              ed.textContent = '';
-              ed.innerHTML = '';
+              ed.textContent = ''; ed.innerHTML = '';
               var p = document.createElement('p'); p.textContent = ${JSON.stringify(text)};
               ed.appendChild(p);
             } else {
               ed.value = ${JSON.stringify(text)};
             }
-
             ed.dispatchEvent(new Event('input', { bubbles: true }));
-            ed.dispatchEvent(new Event('change', { bubbles: true }));
-            ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-            ed.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-
+            var form = ed.closest('form');
             setTimeout(function() {
               try {
-                var form = ed.closest('form');
-
-                // 1 - form.requestSubmit()
                 if (form) { try { form.requestSubmit(); return; } catch(e) {} }
-
-                // 2 - data-testid spécifiques
-                var sendBtn = document.querySelector('[data-testid="send-button"], [data-testid="submit-button"], [data-testid="send-message"]');
-                if (sendBtn && sendBtn.offsetParent !== null && !sendBtn.disabled) { sendBtn.click(); return; }
-
-                // 3 - aria-label
-                var ariaBtn = document.querySelector('[aria-label*="send" i], [aria-label*="envoyer" i], [aria-label*="submit" i], [aria-label*="Ask" i]');
-                if (ariaBtn && ariaBtn.offsetParent !== null && !ariaBtn.disabled && ariaBtn.tagName === 'BUTTON') { ariaBtn.click(); return; }
-
-                // 4 - dernier bouton visible avec SVG dans le conteneur de l'input
-                var container = ed.closest('div, form') || document;
-                var svgBtns = container.querySelectorAll('button');
-                var bestBtn = null;
-                for (var i = svgBtns.length - 1; i >= 0; i--) {
-                  var b = svgBtns[i];
-                  if (b.offsetParent !== null && !b.disabled && b.querySelector('svg')) {
-                    var label = (b.textContent || b.getAttribute('aria-label') || '').toLowerCase();
-                    if (label.indexOf('attach') === -1 && label.indexOf('file') === -1) { bestBtn = b; break; }
-                  }
-                }
-                if (bestBtn) { bestBtn.click(); return; }
-
-                // 5 - dernier bouton visible dans le conteneur
-                for (var j = svgBtns.length - 1; j >= 0; j--) {
-                  if (svgBtns[j].offsetParent !== null && !svgBtns[j].disabled) { svgBtns[j].click(); return; }
-                }
-
-                // 6 - type="submit" en dernier recours sur toute la page
-                var submitBtns = document.querySelectorAll('button[type="submit"]');
-                for (var k = 0; k < submitBtns.length; k++) {
-                  if (submitBtns[k].offsetParent !== null && !submitBtns[k].disabled) { submitBtns[k].click(); return; }
+                var el = document.querySelector('[data-testid="send-button"], [aria-label*="send" i], [aria-label*="envoyer" i]');
+                if (el) { el.click(); return; }
+                var all = document.querySelectorAll('button');
+                for (var i = 0; i < all.length; i++) {
+                  if (all[i].offsetParent !== null && !all[i].disabled) { all[i].click(); return; }
                 }
               } catch(e) {}
-            }, 800);
-          } catch(e) {}
+            }, 500);
+            return 'SET';
+          } catch(e) { return 'ERR:' + e.message; }
         })();
       `;
       wv.executeJavaScript(js).then(function(r) {
-        console.log('[dispatch] OK ' + (wv.id || '?'));
+        console.log('[DISPATCH ' + entry.id + '] ' + r);
       }).catch(function(e) {
-        console.error('[dispatch] ERR ' + (wv.id || '?') + ':', e);
+        console.error('[DISPATCH ' + entry.id + '] FAIL:', e);
       });
     });
-  },
-};
+  },};
