@@ -96,20 +96,20 @@ const LayoutModel = {
     if (n === 0) return [];
     const gap = 3;
     const activeIdx = Math.min(this._activeCard, n - 1);
-    // Base width = equal share
-    const baseW = Math.floor((this.viewportW - (n - 1) * gap) / n);
-    // Active gets 50%
-    const activeW = Math.floor(this.viewportW * 0.5);
+    // Reorder: active card first, rest follow
+    const ordered = [this.views[activeIdx], ...this.views.filter((_, i) => i !== activeIdx)];
+    // Active gets 35%
+    const activeW = Math.floor(this.viewportW * 0.35);
     const remaining = this.viewportW - activeW - (n - 1) * gap;
     const otherW = Math.floor(remaining / Math.max(1, n - 1));
 
-    return this.views.map((v, i) => {
+    return ordered.map((v, i) => {
       let w, x;
-      if (i === activeIdx) {
-        x = activeIdx * (otherW + gap);
+      if (i === 0) {
+        x = 0;
         w = activeW;
       } else {
-        x = i < activeIdx ? i * (otherW + gap) : (i - 1) * (otherW + gap) + activeW + gap;
+        x = activeW + gap + (i - 1) * (otherW + gap);
         w = otherW;
       }
       return { ...v, x, y: 0, w: Math.max(v.minW, w), h: this.viewportH };

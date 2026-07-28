@@ -106,6 +106,13 @@ const WinManager = {
     const prov = this.providers.find(p => p.id === providerId)
       || { id: providerId, label: providerId, url: urlOverrides[providerId] || 'about:blank', icon: '🌐' };
 
+    const colors = {
+      gpt5_terra: '#10A37F', gpt5_sol: '#10A37F', gemini: '#4285F4',
+      raisonnement: '#10A37F', claude: '#D97757', zglm: '#8B5CF6',
+      kimi: '#EC4899', grok: '#1DA1F2', nemotron: '#6B7280', venice: '#A855F7',
+    };
+    const providerColor = colors[providerId] || '#555';
+
     this._idCounter++;
     const id = `wv_${this._idCounter}`;
     // ⭐ MÊME PARTITION PAR PROVIDER = cookies persistés entre vues
@@ -122,6 +129,10 @@ const WinManager = {
     ).join('');
 
     frame.innerHTML = `
+      <div class="card-header" style="background:${providerColor}">
+        <span class="card-header-icon">${prov.icon}</span>
+        <span class="card-header-name">${prov.label}</span>
+      </div>
       <div class="toolbar">
         <span class="num-badge">${this._idCounter}</span>
         <select class="provider-combo">${comboOps}</select>

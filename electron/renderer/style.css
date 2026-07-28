@@ -163,6 +163,13 @@ input, select, button, textarea { font-family: var(--font); }
 }
 .window-frame.resized { flex: 0 0 auto; }
 
+.window-frame .card-header {
+  display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+  font-size: 10px; font-weight: 600; color: white; min-height: 24px;
+}
+.window-frame .card-header-icon { font-size: 12px; }
+.window-frame .card-header-name { text-shadow: 0 0 4px rgba(0,0,0,0.3); }
+
 .window-frame .toolbar {
   height: var(--toolbar-h); min-height: var(--toolbar-h);
   background: #12121a; border-bottom: 1px solid var(--border);
