@@ -47,8 +47,8 @@ const PresetLayouts = {
     style.textContent = `
       #mode-selector {
         display: flex; align-items: center; gap: 8px;
-        padding: 5px 10px 6px; background: var(--bg2, #0D0D14);
-        border-top: 1px solid var(--border, #1E1E2E);
+        padding: 5px 0 0; background: #202020;
+        margin-top: 6px; border-top: 1px solid #3A3A3A;
       }
       #mode-selector .mode-title {
         font-size: 11px; color: #aaa; font-weight: 700;
@@ -59,15 +59,15 @@ const PresetLayouts = {
       }
       #mode-selector .mode-btn {
         display: flex; align-items: center; gap: 5px;
-        background: #13131E; border: 1px solid #1E1E2E;
+        background: #2A2A2A; border: 1px solid #3A3A3A;
         border-radius: 8px; padding: 6px 10px;
         cursor: pointer; transition: all 0.15s;
-        color: #888; font-size: 10px; line-height: 1.1;
+        color: #999; font-size: 10px; line-height: 1.1;
         flex: 1; justify-content: center; min-width: 0;
       }
       #mode-selector .mode-btn:hover {
         border-color: var(--mode-color, #7C3AED);
-        background: #1A1A28; color: #ddd;
+        background: #333; color: #ddd;
       }
       #mode-selector .mode-btn.active {
         background: var(--mode-color, #7C3AED);
