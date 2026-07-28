@@ -1,0 +1,11 @@
+#!/bin/bash
+# Git pre-push hook — lance les smoke tests avant chaque push
+# Install: cp hooks/pre-push .git/hooks/ && chmod +x .git/hooks/pre-push
+
+echo "🧪 Lancement des smoke tests avant push..."
+node tests/smoke.js
+if [ $? -ne 0 ]; then
+  echo "❌ Smoke tests échoués. Push bloqué. Corrige d'abord !"
+  exit 1
+fi
+echo "✅ Smoke tests OK. Push autorisé."

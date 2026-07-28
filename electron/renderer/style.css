@@ -162,6 +162,7 @@ input, select, button, textarea { font-family: var(--font); }
   position: relative;
 }
 .window-frame.resized { flex: 0 0 auto; }
+.window-frame.focused { z-index: 100; box-shadow: 0 0 30px rgba(124,58,237,0.3); }
 
 .window-frame .card-header {
   display: flex; align-items: center; gap: 6px; padding: 4px 8px;

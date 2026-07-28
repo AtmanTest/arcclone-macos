@@ -9,7 +9,7 @@ const LoginAssistant = {
   _modalOpen: false,
 
   start() {
-    this._providers = WinManager.providersList.filter(p => p.id && p.id !== 'default');
+    this._providers = (WinManager.providers || []).filter(p => p.id && p.id !== 'default');
     this._currentIdx = 0;
     this._modalOpen = true;
 
