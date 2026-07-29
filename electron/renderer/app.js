@@ -82,8 +82,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           updateBtn._updateInfo = info;
         } else {
           updateBtn.textContent = '\u2713 \u00c0 jour';
-          updateBtn.style.color = '#555';
-          updateBtn.style.fontWeight = '400';
+          updateBtn.style.color = '#22c55e';
+          updateBtn.style.fontWeight = '700';
           updateBtn.disabled = true;
           updateBtn._updateInfo = null;
         }
