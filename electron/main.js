@@ -1,7 +1,7 @@
 /**
- * TeamAI v4 — Main Process
- * Utilise webviewTag (plus BrowserView) pour que les toolbars HTML soient VISIBLES.
- * Google OAuth → popup BrowserWindow avec même partition.
+ * TeamAI v5 — Main Process
+ * Partition partagée Google : persist:google_shared
+ * Tous les webviews Google OAuth utilisent cette même partition.
  */
 const { app, BrowserWindow, ipcMain, session, shell } = require('electron');
 const path = require('path');
@@ -9,53 +9,114 @@ const fs = require('fs');
 
 let mainWindow = null;
 const authWindows = new Map();
+const loginWindows = new Map();
 let zoomLevel = 0;
 
-// ── Config ──────────────────────────────────────────────────────────────────
 const CFG = {
   PROVIDERS: path.join(__dirname, '..', 'config', 'providers.json'),
-  VERSION: path.join(__dirname, '..', 'config', 'version.json'),
-  GITHUB_URL: 'https://github.com/AtmanTest/arcclone-macos',
+  VERSION:   path.join(__dirname, '..', 'config', 'version.json'),
+  GITHUB_URL:'https://github.com/AtmanTest/arcclone-macos',
 };
+
+// Partition Google partagée — une seule pour TOUTES les IA
+const GOOGLE_PARTITION = 'persist:google_shared';
 
 function loadJSON(p) { try { return JSON.parse(fs.readFileSync(p, 'utf-8')); } catch { return {}; } }
 function loadProviders() { const d = loadJSON(CFG.PROVIDERS); return Array.isArray(d) ? d : []; }
 
-const DEFAULT_PRESET = ['gpt5_terra','gpt5_sol','gemini','raisonnement','claude','zglm','kimi','grok','nemotron','venice'];
+// ── Google Account Window ──────────────────────────────────────────────────
+let googleAccountWindow = null;
 
-// ── Google OAuth ────────────────────────────────────────────────────────────
+function openGoogleAccount() {
+  if (googleAccountWindow && !googleAccountWindow.isDestroyed()) {
+    googleAccountWindow.focus();
+    return true;
+  }
+  googleAccountWindow = new BrowserWindow({
+    width: 500, height: 700,
+    parent: mainWindow,
+    title: 'Connexion Google — TeamAI',
+    backgroundColor: '#ffffff',
+    webPreferences: {
+      partition: GOOGLE_PARTITION,
+      sandbox: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+      enableWebAuthn: true,
+    },
+  });
+  // Charger le choix de compte Google directement
+  googleAccountWindow.loadURL('https://accounts.google.com/ServiceLogin?hl=fr&continue=https://myaccount.google.com/');
+
+  // Détecter la connexion réussie
+  googleAccountWindow.webContents.on('did-navigate', (e, url) => {
+    if (url.includes('myaccount.google.com') || url.includes('accounts.google.com/o/oauth2') && url.includes('code=')) {
+      // Envoyer événement au renderer
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('google-status-changed', { connected: true });
+      }
+    }
+  });
+
+  googleAccountWindow.on('closed', () => {
+    googleAccountWindow = null;
+    // Vérifier le statut après fermeture
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('google-status-changed', { connected: null /* will be checked */ });
+    }
+  });
+  return true;
+}
+
+async function getGoogleStatus() {
+  try {
+    const googleSession = session.fromPartition(GOOGLE_PARTITION);
+    const cookies = await googleSession.cookies.get({ domain: '.google.com', name: 'SAPISID' });
+    if (cookies && cookies.length > 0) {
+      // Essayer de récupérer l'email depuis le cookie accounts
+      const sidCookies = await googleSession.cookies.get({ domain: '.google.com', name: 'SID' });
+      return { connected: true, email: sidCookies.length > 0 ? 'Compte Google connecté \u2705' : 'Connecté' };
+    }
+    return { connected: false };
+  } catch { return { connected: false }; }
+}
+
+// ── Google OAuth Popup ─────────────────────────────────────────────────────
 function openAuthWindow(url, partition) {
-  if (authWindows.has(partition)) {
-    try { authWindows.get(partition).close(); } catch {}
+  // Toujours utiliser la partition Google partagée pour les URLs Google
+  const isGoogle = url.includes('accounts.google.com') || url.includes('google.com/o/oauth2');
+  const effectivePartition = isGoogle ? GOOGLE_PARTITION : (partition || GOOGLE_PARTITION);
+
+  if (authWindows.has(effectivePartition)) {
+    try { authWindows.get(effectivePartition).close(); } catch {}
   }
   const authWin = new BrowserWindow({
-    width: 900, height: 700, parent: mainWindow, modal: false,
+    width: 500, height: 700,
+    parent: mainWindow, modal: false,
     title: 'Connexion — TeamAI',
-    webPreferences: { partition, sandbox: false, nodeIntegration: false, contextIsolation: true },
+    webPreferences: { partition: effectivePartition, sandbox: false, nodeIntegration: false, contextIsolation: true },
   });
   authWin.loadURL(url);
-  authWindows.set(partition, authWin);
-
+  authWindows.set(effectivePartition, authWin);
   authWin.webContents.on('did-navigate', (e, navUrl) => {
     if (!navUrl.includes('accounts.google.com') && navUrl !== url && !navUrl.includes('oauth') && !navUrl.includes('login')) {
       setTimeout(() => { try { authWin.close(); } catch {} }, 1200);
     }
   });
-  authWin.on('closed', () => authWindows.delete(partition));
+  authWin.on('closed', () => authWindows.delete(effectivePartition));
 }
 
-// ── Login Windows (provider connection wizard) ────────────────────────────
-const loginWindows = new Map(); // providerId → BrowserWindow
+// ── Login Windows ──────────────────────────────────────────────────────────
+function openLoginWindow(providerId, url, _partition) {
+  // Utiliser la partition Google partagée pour TOUS les login windows
+  // Ainsi Google OAuth dans chaque IA trouve les cookies existants
+  const partition = GOOGLE_PARTITION;
 
-function openLoginWindow(providerId, url, partition) {
-  // Close existing login window for this provider
   if (loginWindows.has(providerId)) {
     try { loginWindows.get(providerId).close(); } catch {}
   }
-
   const win = new BrowserWindow({
-    width: 1100, height: 800,
-    minWidth: 800, minHeight: 600,
+    width: 1100, height: 800, minWidth: 800, minHeight: 600,
     parent: mainWindow,
     title: `Connexion — ${providerId}`,
     backgroundColor: '#FFFFFF',
@@ -65,23 +126,15 @@ function openLoginWindow(providerId, url, partition) {
       nodeIntegration: false,
       contextIsolation: true,
       enableWebAuthn: true,
-      enableCredentialsService: true,
     },
   });
-
   win.loadURL(url);
   loginWindows.set(providerId, win);
-
-  // Passkey / credential support — Electron Chromium handles this natively
-  // when the WebContents has a real window with proper Chromium features.
-
   win.on('closed', () => {
     loginWindows.delete(providerId);
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow && !mainWindow.isDestroyed())
       mainWindow.webContents.send('login-window-closed', providerId);
-    }
   });
-
   return true;
 }
 
@@ -92,58 +145,50 @@ function closeLoginWindow(providerId) {
   }
 }
 
-// ── IPC ─────────────────────────────────────────────────────────────────────
+// ── IPC ────────────────────────────────────────────────────────────────────
 function setupIPC() {
   const h = (ch, fn) => ipcMain.handle(ch, fn);
-  h('get-providers', () => loadProviders());
-  h('dispatch-prompt', (e, text) => {
-    if (!mainWindow) return;
-    mainWindow.webContents.send('exec-js-all', text);
-  });
-  h('open-auth-window', (e, url, partition) => openAuthWindow(url, partition));
-  h('open-login-window', (e, pid, url, partition) => openLoginWindow(pid, url, partition));
-  h('close-login-window', (e, pid) => closeLoginWindow(pid));
-  h('get-version', () => {
-    const v = loadJSON(CFG.VERSION);
-    return { version: v.version || '0.4.0', commit: v.commit || 'dev', url: CFG.GITHUB_URL };
-  });
-  h('open-url', (e, url) => { if (url) shell.openExternal(url); });
-  h('set-zoom', (e, l) => { zoomLevel = Math.max(-3, Math.min(5, l)); });
-  h('get-zoom', () => zoomLevel);
-  h('load-providers', () => {
-    const p = loadJSON(CFG.PROVIDERS);
-    return Array.isArray(p) ? p : [];
-  });
+  h('get-providers',       () => loadProviders());
+  h('dispatch-prompt',     (e, text) => { if (mainWindow) mainWindow.webContents.send('exec-js-all', text); });
+  h('open-auth-window',    (e, url, partition) => openAuthWindow(url, partition));
+  h('open-login-window',   (e, pid, url, partition) => openLoginWindow(pid, url, partition));
+  h('close-login-window',  (e, pid) => closeLoginWindow(pid));
+  h('open-google-account', () => openGoogleAccount());
+  h('get-google-status',   () => getGoogleStatus());
+  h('get-version',         () => { const v = loadJSON(CFG.VERSION); return { version: v.version || '0.4.0', commit: v.commit || 'dev', url: CFG.GITHUB_URL }; });
+  h('open-url',            (e, url) => { if (url) shell.openExternal(url); });
+  h('set-zoom',            (e, l) => { zoomLevel = Math.max(-3, Math.min(5, l)); });
+  h('get-zoom',            () => zoomLevel);
+  h('load-providers',      () => { const p = loadJSON(CFG.PROVIDERS); return Array.isArray(p) ? p : []; });
   h('check-update', async () => {
     const { execSync } = require('child_process');
     try {
       const cwd = __dirname.replace('/electron', '');
       execSync('git fetch origin', { cwd, timeout: 10000 });
-      const behind = execSync('git rev-list --count HEAD..origin/main', { cwd, encoding: 'utf8' }).toString().trim();
-      const hasUpdate = parseInt(behind) > 0;
-      return { hasUpdate, behind: parseInt(behind) || 0 };
+      const behind = parseInt(execSync('git rev-list --count HEAD..origin/main', { cwd, encoding: 'utf8' }).trim());
+      let lastCommit = '', lastAuthor = '', lastMessage = '';
+      if (behind > 0) {
+        try {
+          lastCommit  = execSync('git log origin/main -1 --format=%H',  { cwd, encoding: 'utf8' }).trim();
+          lastAuthor  = execSync('git log origin/main -1 --format=%an', { cwd, encoding: 'utf8' }).trim();
+          lastMessage = execSync('git log origin/main -1 --format=%s',  { cwd, encoding: 'utf8' }).trim();
+        } catch {}
+      }
+      return { hasUpdate: behind > 0, behind, lastCommit, lastAuthor, lastMessage };
     } catch { return { hasUpdate: false, behind: 0, error: true }; }
   });
   h('update-app', async () => {
     const { execSync } = require('child_process');
-    let result = '';
     try {
-      result += '📦 git pull...\n';
       execSync('git pull', { cwd: __dirname.replace('/electron', ''), timeout: 30000 });
-      result += '✅ Pull OK\n📦 npm install...\n';
       execSync('npm install --no-audit --no-fund', { cwd: __dirname.replace('/electron', ''), timeout: 120000 });
-      result += '✅ npm install OK\n🔄 Relance...';
-    } catch (e) {
-      result += `❌ Erreur: ${e.message}`;
-    }
-    // Relaunch
-    app.relaunch();
-    app.exit(0);
-    return result;
+    } catch (e) { return `\u274c Erreur: ${e.message}`; }
+    app.relaunch(); app.exit(0);
+    return 'OK';
   });
 }
 
-// ── App ─────────────────────────────────────────────────────────────────────
+// ── App ────────────────────────────────────────────────────────────────────
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400, height: 900, minWidth: 1000, minHeight: 700,
@@ -152,7 +197,7 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, nodeIntegration: false, sandbox: false,
-      webviewTag: true, // ← ACTIVATES <webview> TAG
+      webviewTag: true,
     },
   });
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
