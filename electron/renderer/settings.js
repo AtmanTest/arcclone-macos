@@ -104,9 +104,17 @@ const Settings = {
       }
     } catch { bar.textContent = ''; }
   },
+
+  /** Apply and persist auto-save settings */
+  _applyAutoSave() {
+    const mode        = localStorage.getItem('teamai_autosave_mode')     || 'exit';
+    const intervalMin = localStorage.getItem('teamai_autosave_interval') || '5';
+    PersistenceManager.startAutoSave(mode, parseInt(intervalMin, 10));
+  },
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+  // ── Existing bindings ────────────────────────────────────────────────────
   document.getElementById('btn-settings')?.addEventListener('click', () => Settings.open());
   document.getElementById('settings-close')?.addEventListener('click', () => Settings.close());
   document.getElementById('settings-modal')?.addEventListener('click', (e) => {
@@ -131,4 +139,60 @@ document.addEventListener('DOMContentLoaded', () => {
     alert('\u2705 Sessions effac\u00e9es.');
   });
   document.getElementById('settings-open-github')?.addEventListener('click', () => teamai.openUrl('https://github.com/AtmanTest/arcclone-macos'));
+
+  // ── Default startup mode ─────────────────────────────────────────────────
+  const modeSelect = document.getElementById('settings-default-mode');
+  if (modeSelect) {
+    modeSelect.value = localStorage.getItem('teamai_default_mode') || 'focus';
+    modeSelect.addEventListener('change', () => {
+      localStorage.setItem('teamai_default_mode', modeSelect.value);
+    });
+  }
+
+  // ── Auto-save ────────────────────────────────────────────────────────────
+  const autoSaveModeSelect     = document.getElementById('settings-autosave-mode');
+  const autoSaveIntervalInput  = document.getElementById('settings-autosave-interval');
+  const autoSaveIntervalRow    = document.getElementById('autosave-interval-row');
+  const autoSaveStatus         = document.getElementById('autosave-status');
+
+  function updateAutoSaveUI(mode) {
+    const showInterval = mode === 'interval' || mode === 'both';
+    if (autoSaveIntervalRow) autoSaveIntervalRow.style.display = showInterval ? 'flex' : 'none';
+    if (autoSaveStatus) {
+      const labels = {
+        off:      '🚫 Sauvegarde automatique désactivée',
+        exit:     '🚪 Sauvegarde à chaque fermeture de l\'app',
+        interval: `⏱ Sauvegarde toutes les ${autoSaveIntervalInput?.value || 5} min`,
+        both:     `✅ Fermeture + toutes les ${autoSaveIntervalInput?.value || 5} min`,
+      };
+      autoSaveStatus.textContent = labels[mode] || '';
+    }
+  }
+
+  if (autoSaveModeSelect) {
+    const savedMode = localStorage.getItem('teamai_autosave_mode') || 'exit';
+    autoSaveModeSelect.value = savedMode;
+    updateAutoSaveUI(savedMode);
+
+    autoSaveModeSelect.addEventListener('change', () => {
+      const mode = autoSaveModeSelect.value;
+      localStorage.setItem('teamai_autosave_mode', mode);
+      updateAutoSaveUI(mode);
+      Settings._applyAutoSave();
+    });
+  }
+
+  if (autoSaveIntervalInput) {
+    autoSaveIntervalInput.value = localStorage.getItem('teamai_autosave_interval') || '5';
+    autoSaveIntervalInput.addEventListener('change', () => {
+      const v = Math.max(1, Math.min(60, parseInt(autoSaveIntervalInput.value, 10) || 5));
+      autoSaveIntervalInput.value = v;
+      localStorage.setItem('teamai_autosave_interval', String(v));
+      updateAutoSaveUI(autoSaveModeSelect?.value || 'exit');
+      Settings._applyAutoSave();
+    });
+  }
+
+  // Kick off auto-save on app start with persisted prefs
+  Settings._applyAutoSave();
 });

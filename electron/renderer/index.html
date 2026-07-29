@@ -140,6 +140,29 @@
         </div>
       </div>
 
+      <!-- Sauvegarde automatique -->
+      <div style="padding:12px 16px;border-bottom:1px solid #1e1e2e;">
+        <div style="color:#777;font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">💾 Sauvegarde automatique</div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <label for="settings-autosave-mode" style="color:#aaa;font-size:10px;">Déclencheur</label>
+          <select id="settings-autosave-mode" style="background:#1a1a2e;color:#aaa;border:1px solid #2a2a3a;border-radius:6px;padding:5px 8px;font-size:10px;cursor:pointer;">
+            <option value="off">🚫 Désactivée</option>
+            <option value="exit">🚪 À la fermeture</option>
+            <option value="interval">⏱ Toutes les N minutes</option>
+            <option value="both">✅ Fermeture + intervalle</option>
+          </select>
+        </div>
+
+        <div id="autosave-interval-row" style="display:none;align-items:center;justify-content:space-between;">
+          <label for="settings-autosave-interval" style="color:#aaa;font-size:10px;">Intervalle (minutes)</label>
+          <input type="number" id="settings-autosave-interval" min="1" max="60" value="5"
+            style="width:64px;background:#1a1a2e;color:#aaa;border:1px solid #2a2a3a;border-radius:6px;padding:5px 8px;font-size:10px;text-align:center;">
+        </div>
+
+        <div id="autosave-status" style="margin-top:8px;font-size:9px;color:#555;"></div>
+      </div>
+
       <!-- Providers -->
       <div style="padding:12px 16px;border-bottom:1px solid #1e1e2e;">
         <div style="color:#777;font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">📦 Providers</div>
