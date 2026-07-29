@@ -1,3 +1,11 @@
+const GOOGLE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="22" height="22">
+  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+  <path fill="none" d="M0 0h48v48H0z"/>
+</svg>`;
+
 const Sidebar = {
   _providers: [],
   async init(providers) {
@@ -38,49 +46,36 @@ const Sidebar = {
     if (!card) {
       card = document.createElement('div');
       card.id = 'google-profile-card';
-      card.innerHTML = `
-        <div class="g-avatar not-connected">G</div>
-        <div class="g-info">
-          <div class="g-name">Google</div>
-          <div class="g-email">Non connecté</div>
-        </div>
-        <div class="g-status-dot offline"></div>
-      `;
       card.addEventListener('click', () => Settings.open());
       const versionBadge = document.getElementById('version-badge');
       if (versionBadge && versionBadge.parentNode)
         versionBadge.parentNode.insertBefore(card, versionBadge.nextSibling);
     }
+
     try {
       const s = await teamai.getGoogleStatus();
-      const avatar = card.querySelector('.g-avatar');
-      const gName  = card.querySelector('.g-name');
-      const gEmail = card.querySelector('.g-email');
-      const dot    = card.querySelector('.g-status-dot');
       if (s && s.connected) {
-        const email   = s.email || 'Compte Google';
-        const initial = email.charAt(0).toUpperCase();
-        const colors  = [
-          ['#4285F4','#fff'],['#EA4335','#fff'],['#34A853','#fff'],
-          ['#7C3AED','#fff'],['#06B6D4','#fff'],['#F59E0B','#000'],
-          ['#EC4899','#fff'],['#10B981','#fff'],
-        ];
-        const [bg, fg] = colors[initial.charCodeAt(0) % colors.length];
-        avatar.className = 'g-avatar';
-        avatar.style.cssText = `background:${bg};color:${fg};`;
-        avatar.textContent = initial;
+        const email = s.email || 'Compte Google';
         const namePart = email.includes('@') ? email.split('@')[0] : email;
-        gName.textContent  = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-        gEmail.textContent = email.includes('@') ? email : '';
-        dot.className = 'g-status-dot online';
-        card.title = `Connecté : ${email} — Cliquer pour les Réglages`;
+        const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+        card.innerHTML = `
+          <div class="g-avatar g-logo">${GOOGLE_SVG}</div>
+          <div class="g-info">
+            <div class="g-name">${displayName}</div>
+            <div class="g-email">${email}</div>
+          </div>
+          <div class="g-status-dot online"></div>
+        `;
+        card.title = `Connecté : ${email} — Réglages`;
       } else {
-        avatar.className = 'g-avatar not-connected';
-        avatar.style.cssText = '';
-        avatar.textContent = 'G';
-        gName.textContent  = 'Google';
-        gEmail.textContent = 'Non connecté — cliquer';
-        dot.className = 'g-status-dot offline';
+        card.innerHTML = `
+          <div class="g-avatar g-logo g-logo-dim">${GOOGLE_SVG}</div>
+          <div class="g-info">
+            <div class="g-name" style="color:#666;">Google</div>
+            <div class="g-email">Non connecté — cliquer</div>
+          </div>
+          <div class="g-status-dot offline"></div>
+        `;
         card.title = 'Se connecter à Google';
       }
     } catch {}
@@ -131,9 +126,9 @@ const Sidebar = {
         const pid = btn.dataset.id;
         const prov = providers.find(p => p.id === pid);
         if (!prov) return;
-        const confirmModal = document.createElement('div');
-        confirmModal.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
-        confirmModal.innerHTML = `
+        const cm = document.createElement('div');
+        cm.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        cm.innerHTML = `
           <div style="background:#1a1a2e;border:1px solid #EF4444;border-radius:12px;padding:24px;width:320px;text-align:center;">
             <div style="font-size:28px;margin-bottom:10px;">⚠️</div>
             <div style="color:#fff;font-size:13px;font-weight:700;margin-bottom:8px;">Supprimer ${prov.icon} ${prov.label} ?</div>
@@ -142,16 +137,15 @@ const Sidebar = {
               <button id="del-confirm" style="flex:1;background:#EF4444;color:#fff;border:none;border-radius:6px;padding:9px;font-weight:700;cursor:pointer;">Supprimer</button>
               <button id="del-cancel" style="flex:1;background:#222;color:#aaa;border:none;border-radius:6px;padding:9px;cursor:pointer;">Annuler</button>
             </div>
-          </div>
-        `;
-        document.body.appendChild(confirmModal);
-        confirmModal.querySelector('#del-cancel').addEventListener('click', () => confirmModal.remove());
-        confirmModal.querySelector('#del-confirm').addEventListener('click', () => {
+          </div>`;
+        document.body.appendChild(cm);
+        cm.querySelector('#del-cancel').addEventListener('click', () => cm.remove());
+        cm.querySelector('#del-confirm').addEventListener('click', () => {
           const idx = WinManager.providers.findIndex(p => p.id === pid);
           if (idx !== -1) WinManager.providers.splice(idx, 1);
           this._providers = this._providers.filter(p => p.id !== pid);
           localStorage.setItem('teamai_custom_providers', JSON.stringify(WinManager.providers));
-          confirmModal.remove();
+          cm.remove();
           this._renderProviders();
         });
       });
