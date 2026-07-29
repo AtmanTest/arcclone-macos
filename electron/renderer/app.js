@@ -3,7 +3,7 @@ const ErrorBar = {
   show(msg) {
     const bar = document.getElementById('error-bar');
     if (!bar) return;
-    bar.textContent = '⚠ ' + msg;
+    bar.textContent = '\u26a0 ' + msg;
     bar.classList.add('show');
     clearTimeout(this._timeout);
     this._timeout = setTimeout(() => bar.classList.remove('show'), 8000);
@@ -17,105 +17,194 @@ const ErrorBar = {
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     const providers = await teamai.loadProviders();
-    if (!providers || providers.length === 0) throw new Error('Aucun provider chargé');
+    if (!providers || providers.length === 0) throw new Error('Aucun provider charg\u00e9');
     PromptDispatcher.init();
     await WinManager.init(providers);
     await Sidebar.init(providers);
 
-  // Resize observer
-  const viewport = document.getElementById('viewport');
-  if (viewport) {
-    let t; const ro = new ResizeObserver(() => { clearTimeout(t); t = setTimeout(() => WinManager._layout(), 100); });
-    ro.observe(viewport);
-  }
+    // Resize observer
+    const viewport = document.getElementById('viewport');
+    if (viewport) {
+      let t;
+      const ro = new ResizeObserver(() => { clearTimeout(t); t = setTimeout(() => WinManager._layout(), 100); });
+      ro.observe(viewport);
+    }
 
-  // File attachment
-  document.getElementById('btn-attach')?.addEventListener('click', async () => {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file'; fileInput.multiple = false;
-    fileInput.addEventListener('change', async () => {
-      const file = fileInput.files?.[0];
-      if (!file) return;
-      const input = document.getElementById('prompt-input');
-      if (!input) return;
-      const isText = file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.md')
-        || file.name.endsWith('.js') || file.name.endsWith('.py') || file.name.endsWith('.json')
-        || file.name.endsWith('.csv') || file.name.endsWith('.html') || file.name.endsWith('.css')
-        || file.name.endsWith('.xml') || file.name.endsWith('.yaml') || file.name.endsWith('.yml')
-        || file.name.endsWith('.log') || file.name.endsWith('.sh');
-      const isImage = file.type.startsWith('image/');
-      if (isText) {
-        const text = await file.text();
-        input.value += `\n\n[Fichier: ${file.name}]\n${text.substring(0, 10000)}`;
-      } else if (isImage) {
-        input.value += `\n\n📷 [Image: ${file.name}] — Ajoute l'image manuellement dans chaque chat.`;
-      } else {
-        input.value += `\n\n📎 [Fichier: ${file.name} (${(file.size / 1024).toFixed(1)} KB)] — Ajoute-le manuellement.`;
+    // File attachment
+    document.getElementById('btn-attach')?.addEventListener('click', async () => {
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file'; fileInput.multiple = false;
+      fileInput.addEventListener('change', async () => {
+        const file = fileInput.files?.[0];
+        if (!file) return;
+        const input = document.getElementById('prompt-input');
+        if (!input) return;
+        const isText = file.type.startsWith('text/') || ['.txt','.md','.js','.py','.json','.csv','.html','.css','.xml','.yaml','.yml','.log','.sh'].some(e => file.name.endsWith(e));
+        const isImage = file.type.startsWith('image/');
+        if (isText) {
+          const text = await file.text();
+          input.value += `\n\n[Fichier: ${file.name}]\n${text.substring(0, 10000)}`;
+        } else if (isImage) {
+          input.value += `\n\n\ud83d\udcf7 [Image: ${file.name}] \u2014 Ajoute l'image manuellement dans chaque chat.`;
+        } else {
+          input.value += `\n\n\ud83d\udcce [Fichier: ${file.name} (${(file.size / 1024).toFixed(1)} KB)] \u2014 Ajoute-le manuellement.`;
+        }
+      });
+      fileInput.click();
+    });
+
+    // ── Update button ──
+    const updateBtn = document.getElementById('btn-update');
+    async function checkUpdate() {
+      if (!updateBtn) return;
+      try {
+        const info = await teamai.checkUpdate();
+        if (info.hasUpdate) {
+          updateBtn.textContent = `\ud83d\udd04 Mise \u00e0 jour disponible (${info.behind} commits)`;
+          updateBtn.style.color = '#EF4444';
+          updateBtn.style.fontWeight = '700';
+          updateBtn.disabled = false;
+        } else {
+          updateBtn.textContent = '\u2713 \u00c0 jour';
+          updateBtn.style.color = '#555';
+          updateBtn.style.fontWeight = '400';
+          updateBtn.disabled = true;
+        }
+      } catch {
+        updateBtn.textContent = '\ud83d\udd04 Mettre \u00e0 jour';
+        updateBtn.style.color = '#666';
+        updateBtn.disabled = false;
+      }
+    }
+    checkUpdate();
+    document.getElementById('btn-check-update')?.addEventListener('click', checkUpdate);
+    setInterval(checkUpdate, 300000);
+
+    updateBtn?.addEventListener('click', async () => {
+      try {
+        const info = await teamai.checkUpdate();
+        if (info.hasUpdate) {
+          // Fetch last commit info for the popup
+          Changelog.open({
+            commit: info.lastCommit || 'inconnu',
+            author: info.lastAuthor || 'inconnu',
+            message: info.lastMessage || '',
+            changes: info.changes || [],
+            onConfirm: async () => {
+              updateBtn.textContent = '\u23f3 Mise \u00e0 jour...'; updateBtn.disabled = true;
+              try { await teamai.updateApp(); }
+              catch (e) { alert('\u274c Erreur: ' + e.message); updateBtn.textContent = '\ud83d\udd04 Mettre \u00e0 jour'; updateBtn.disabled = false; }
+            },
+            onCancel: () => {},
+          });
+        }
+      } catch (e) {
+        alert('Erreur v\u00e9rification: ' + e.message);
       }
     });
-    fileInput.click();
-  });
 
-  // ── Update button ──
-  const updateBtn = document.getElementById('btn-update');
-  async function checkUpdate() {
-    if (!updateBtn) return;
-    try {
-      const info = await teamai.checkUpdate();
-      if (info.hasUpdate) {
-        updateBtn.textContent = `🔄 Mise à jour disponible (${info.behind} commits)`;
-        updateBtn.style.color = '#EF4444';
-        updateBtn.style.fontWeight = '700';
-        updateBtn.disabled = false;
+    // ── Ajouter IA button ── modal propre
+    document.getElementById('btn-add-ia')?.addEventListener('click', () => _openAddIAModal());
+
+    function _openAddIAModal() {
+      let modal = document.getElementById('add-ia-modal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'add-ia-modal';
+        modal.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        modal.innerHTML = `
+          <div style="background:#1a1a2e;border:1px solid #333;border-radius:12px;padding:24px;width:380px;">
+            <h3 style="color:#fff;margin:0 0 16px;font-size:14px;">\u2795 Ajouter une IA</h3>
+            <div style="margin-bottom:10px;">
+              <label style="color:#aaa;font-size:11px;">Nom</label>
+              <input id="add-ia-name" placeholder="ex: Mistral" style="width:100%;box-sizing:border-box;background:#111;border:1px solid #333;border-radius:6px;color:#fff;padding:7px 10px;font-size:12px;margin-top:4px;">
+            </div>
+            <div style="margin-bottom:10px;">
+              <label style="color:#aaa;font-size:11px;">URL</label>
+              <input id="add-ia-url" placeholder="https://..." style="width:100%;box-sizing:border-box;background:#111;border:1px solid #333;border-radius:6px;color:#fff;padding:7px 10px;font-size:12px;margin-top:4px;">
+            </div>
+            <div style="margin-bottom:16px;">
+              <label style="color:#aaa;font-size:11px;">Ic\u00f4ne (emoji)</label>
+              <input id="add-ia-icon" placeholder="\ud83e\udd16" value="\ud83e\udd16" style="width:100%;box-sizing:border-box;background:#111;border:1px solid #333;border-radius:6px;color:#fff;padding:7px 10px;font-size:12px;margin-top:4px;">
+            </div>
+            <p style="color:#888;font-size:10px;margin:0 0 14px;">Apr\u00e8s ajout, l'assistant de connexion s'ouvrira pour cr\u00e9er ton compte sur ce service.</p>
+            <div style="display:flex;gap:8px;">
+              <button id="add-ia-confirm" style="flex:1;background:#7C3AED;color:#fff;border:none;border-radius:6px;padding:9px;font-weight:700;cursor:pointer;font-size:12px;">Ajouter \u2192 Se connecter</button>
+              <button id="add-ia-cancel" style="flex:1;background:#222;color:#aaa;border:none;border-radius:6px;padding:9px;cursor:pointer;font-size:12px;">Annuler</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        modal.querySelector('#add-ia-cancel').addEventListener('click', () => modal.remove());
+        modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+        modal.querySelector('#add-ia-confirm').addEventListener('click', () => {
+          const name = modal.querySelector('#add-ia-name').value.trim();
+          const url  = modal.querySelector('#add-ia-url').value.trim();
+          const icon = modal.querySelector('#add-ia-icon').value.trim() || '\ud83e\udd16';
+          if (!name || !url) { alert('Nom et URL requis'); return; }
+          const id = name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+          const newProv = { id, label: name, url, icon };
+          WinManager.providers.push(newProv);
+          WinManager.addView(id);
+          // Sauvegarder dans providers custom (localStorage)
+          const custom = JSON.parse(localStorage.getItem('teamai_custom_providers') || '[]');
+          custom.push(newProv);
+          localStorage.setItem('teamai_custom_providers', JSON.stringify(custom));
+          modal.remove();
+          // Ouvrir assistant connexion pour ce provider
+          setTimeout(() => LoginAssistant.startSingle(newProv), 300);
+        });
       } else {
-        updateBtn.textContent = '✓ À jour';
-        updateBtn.style.color = '#555';
-        updateBtn.style.fontWeight = '400';
-        updateBtn.disabled = true;
+        modal.querySelector('#add-ia-name').value = '';
+        modal.querySelector('#add-ia-url').value = '';
+        document.body.appendChild(modal);
       }
-    } catch {
-      updateBtn.textContent = '🔄 Mettre à jour';
-      updateBtn.style.color = '#666';
-      updateBtn.disabled = false;
     }
-  }
-  checkUpdate();
-  // Check button → force refresh
-  document.getElementById('btn-check-update')?.addEventListener('click', checkUpdate);
-  // Periodic check every 5 min
-  setInterval(checkUpdate, 300000);
 
-  updateBtn?.addEventListener('click', async () => {
-    if (!confirm('Mettre à jour depuis GitHub ? L\'app va redémarrer.')) return;
-    updateBtn.textContent = '⏳ Mise à jour...'; updateBtn.disabled = true;
-    try {
-      await teamai.updateApp();
-    } catch (e) {
-      alert('❌ Erreur: ' + e.message);
-      updateBtn.textContent = '🔄 Mettre à jour'; updateBtn.disabled = false;
-    }
-  });
+    // Export providers JSON
+    window._exportProviders = function() {
+      const data = WinManager.providers;
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'teamai_providers.json';
+      a.click();
+    };
 
-  // ── Add IA button ──
-  document.getElementById('btn-add-ia')?.addEventListener('click', () => {
-    const name = prompt('Nom du provider IA :');
-    if (!name) return;
-    const id = name.toLowerCase().replace(/[^a-z0-9_]/g, '_').trim();
-    if (!id) return;
-    const url = prompt('URL du provider :', 'https://');
-    if (!url) return;
-    const icon = prompt('Icône (emoji) :', '🤖') || '🤖';
-    // Add to providers list
-    WinManager.providers.push({ id, label: name, url, icon });
-    WinManager.addView(id);
-  });
+    // Import providers JSON
+    window._importProviders = function() {
+      const fi = document.createElement('input');
+      fi.type = 'file'; fi.accept = '.json';
+      fi.addEventListener('change', async () => {
+        const file = fi.files?.[0]; if (!file) return;
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          if (!Array.isArray(data)) throw new Error('Format invalide');
+          // Merge: ajouter les nouveaux, ne pas dupliquer
+          const existing = new Set(WinManager.providers.map(p => p.id));
+          let added = 0;
+          for (const p of data) {
+            if (!existing.has(p.id) && p.id && p.url) {
+              WinManager.providers.push(p);
+              added++;
+            }
+          }
+          localStorage.setItem('teamai_custom_providers', JSON.stringify(WinManager.providers));
+          alert(`\u2705 ${added} provider(s) import\u00e9(s). Rechargement...`);
+          location.reload();
+        } catch(e) { alert('\u274c Import \u00e9chou\u00e9: ' + e.message); }
+      });
+      fi.click();
+    };
 
-  // Auto-save session
-  window.addEventListener('beforeunload', () => {
-    if (WinManager.count > 0) localStorage.setItem('teamai_session', JSON.stringify({ views: WinManager.list }));
-  });
+    // Auto-save session
+    window.addEventListener('beforeunload', () => {
+      if (WinManager.count > 0) localStorage.setItem('teamai_session', JSON.stringify({ views: WinManager.list }));
+    });
+
   } catch (e) {
     console.error('FATAL:', e);
-    document.getElementById('app').innerHTML = `<div style="color:red;padding:40px;font-size:18px">❌ Erreur: ${e.message}<br><small>${e.stack || ''}</small></div>`;
+    document.getElementById('app').innerHTML = `<div style="color:red;padding:40px;font-size:18px">\u274c Erreur: ${e.message}<br><small>${e.stack || ''}</small></div>`;
   }
 });

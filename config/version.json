@@ -1,9 +1,6 @@
 {
-  "version": "0.19.1",
-  "commit": "4f6a851",
-  "_next": {
-    "major": 0,
-    "minor": 19,
-    "patch": 2
-  }
+  "version": "0.21.0",
+  "commit": "v0.21.0",
+  "date": "2026-07-29",
+  "author": "Kimi3"
 }

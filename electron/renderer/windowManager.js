@@ -1,6 +1,6 @@
 /**
- * TeamAI v17 — Window Manager
- * Crée, gère et dispose les fenêtres webview. Layout, toolbar, focus, cards.
+ * TeamAI v18 — Window Manager
+ * 25 providers — fingerprints complets
  */
 const WinManager = {
   frames: new Map(),
@@ -28,7 +28,8 @@ const WinManager = {
       } catch { /* ignore */ }
     }
     if (this.frames.size === 0) {
-      for (const p of this.providers) this._createView(p.id);
+      // Par défaut: afficher 6 premiers providers
+      for (const p of this.providers.slice(0, 6)) this._createView(p.id);
     }
 
     this._applyLayout();
@@ -45,12 +46,17 @@ const WinManager = {
   _createView(providerId, initialUrl) {
     const urlOverrides = { zglm: 'https://chatglm.cn/?lang=en' };
     const prov = this.providers.find(p => p.id === providerId)
-      || { id: providerId, label: providerId, url: urlOverrides[providerId] || 'about:blank', icon: '🌐' };
+      || { id: providerId, label: providerId, url: urlOverrides[providerId] || 'about:blank', icon: '\ud83c\udf10' };
 
     const colors = {
-      gpt5_terra: '#00A67E', gpt5_sol: '#E05E2E', gemini: '#4285F4',
-      raisonnement: '#7C3AED', claude: '#D97757', zglm: '#06B6D4',
-      kimi: '#EC4899', grok: '#1DA1F2', nemotron: '#F59E0B', venice: '#A855F7',
+      raisonnement: '#7C3AED', gemini: '#4285F4', claude: '#D97757',
+      grok: '#1DA1F2', kimi: '#EC4899', zglm: '#06B6D4',
+      copilot: '#0078D4', perplexity: '#20B2AA', mistral: '#FF6B35',
+      deepseek: '#00CED1', meta: '#0866FF', qwen: '#FF4500',
+      huggingchat: '#FF9D00', phind: '#6366F1', you: '#00D4AA',
+      poe: '#8B5CF6', groq: '#F97316', cohere: '#39D353',
+      pi: '#E91E8C', venice: '#A855F7', nemotron: '#F59E0B',
+      aisdk: '#000000', together: '#FF6B6B', openrouter: '#6366F1', lmsys: '#EF4444',
     };
     const providerColor = colors[providerId] || '#555';
 
@@ -109,13 +115,9 @@ const WinManager = {
       }
     });
     webview.addEventListener('did-fail-load', (e) => {
-      if (e.errorCode !== -3) {
-        ErrorBar.show(`❌ ${prov.label}: ${e.errorDescription || 'Erreur de chargement'}`);
-      }
+      if (e.errorCode !== -3) ErrorBar.show(`❌ ${prov.label}: ${e.errorDescription || 'Erreur de chargement'}`);
     });
-    webview.addEventListener('crashed', () => {
-      ErrorBar.show(`💥 ${prov.label}: WebView a crashé`);
-    });
+    webview.addEventListener('crashed', () => ErrorBar.show(`💥 ${prov.label}: WebView a crashé`));
     webview.addEventListener('did-get-redirect-request', (e) => {
       if (e.isMainFrame && e.newURL) entry.urlBar.value = e.newURL;
     });
@@ -133,10 +135,7 @@ const WinManager = {
       const wv = frame.querySelector('webview');
       const prov = this.providers.find(p => p.id === newProvId);
       const newUrl = prov?.url || 'about:blank';
-      if (wv) {
-        wv.src = newUrl;
-        wv.setAttribute('partition', `persist:teamai_${newProvId}`);
-      }
+      if (wv) { wv.src = newUrl; wv.setAttribute('partition', `persist:teamai_${newProvId}`); }
       const view = LayoutModel.views.find(v => v.id === id);
       if (view) { view.providerId = newProvId; view.label = prov?.label || newProvId; view.url = newUrl; }
       entry.urlBar.value = newUrl;
@@ -150,8 +149,7 @@ const WinManager = {
         else if (btn.dataset.action === 'forward') { try { wv.goForward(); } catch {} }
         else if (btn.dataset.action === 'reload') { try { wv.reload(); } catch {} }
         else if (btn.dataset.action === 'bookmark') {
-          Bookmarks.add(id, entry.combo?.options[entry.combo.selectedIndex]?.text || 'IA', wv.getURL())
-            .then(() => Bookmarks.render());
+          Bookmarks.add(id, entry.combo?.options[entry.combo.selectedIndex]?.text || 'IA', wv.getURL()).then(() => Bookmarks.render());
         } else if (btn.dataset.action === 'focus') {
           if (frame.classList.contains('focused')) {
             frame.classList.remove('focused');
@@ -160,10 +158,7 @@ const WinManager = {
             this._applyLayout();
           } else {
             frame.classList.add('focused');
-            frame.style.position = 'fixed';
-            frame.style.top = '0'; frame.style.left = '0';
-            frame.style.width = '100vw'; frame.style.height = '100vh';
-            frame.style.zIndex = '100';
+            frame.style.cssText += ';position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:100;';
           }
         }
       });
@@ -171,22 +166,15 @@ const WinManager = {
     entry.urlBar.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        let val = entry.urlBar.value.trim();
-        if (!val) return;
-        const wv = frame.querySelector('webview');
-        if (!wv) return;
-        if (val.match(/^https?:\/\//) || val.match(/^[a-z0-9][-a-z0-9]*\.[a-z]{2,}/i)) {
-          if (!val.startsWith('http')) val = 'https://' + val;
-        } else {
+        let val = entry.urlBar.value.trim(); if (!val) return;
+        const wv = frame.querySelector('webview'); if (!wv) return;
+        if (!val.match(/^https?:\/\//) && !val.match(/^[a-z0-9][-a-z0-9]*\.[a-z]{2,}/i))
           val = 'https://www.google.com/search?q=' + encodeURIComponent(val);
-        }
+        else if (!val.startsWith('http')) val = 'https://' + val;
         wv.src = val;
       }
     });
-    frame.querySelector('.close-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      this._remove(id);
-    });
+    frame.querySelector('.close-btn').addEventListener('click', (e) => { e.stopPropagation(); this._remove(id); });
   },
 
   _bindResize(id, entry) {
@@ -203,12 +191,8 @@ const WinManager = {
       e.stopPropagation();
       const idx = Array.from(this.frames.keys()).indexOf(id);
       if (idx < 0) return;
-      if (LayoutModel.mode === 'cards') {
-        LayoutModel.setActiveCard(idx);
-        this._syncFrames();
-      } else if (LayoutModel.mode === 'focus') {
-        LayoutModel.setActiveCard(idx);
-        this._syncFrames();
+      if (LayoutModel.mode === 'cards' || LayoutModel.mode === 'focus') {
+        LayoutModel.setActiveCard(idx); this._syncFrames();
       }
     };
     const overlay = entry.frame.querySelector('.card-overlay');
@@ -228,31 +212,12 @@ const WinManager = {
   _resetLayout() {
     for (const [, e] of this.frames) {
       e.frame.classList.remove('resized', 'focused');
-      e.frame.style.width = ''; e.frame.style.height = ''; e.frame.style.position = '';
-      e.frame.style.top = ''; e.frame.style.left = ''; e.frame.style.zIndex = '';
+      e.frame.style.cssText = '';
       const wv = e.frame.querySelector('webview');
       if (wv) wv.style.opacity = '1';
     }
     LayoutModel.setMode('grid');
     this._applyLayout();
-  },
-
-  _toggleFocus(id) {
-    const entry = this.frames.get(id);
-    if (!entry) return;
-    const frame = entry.frame;
-    if (frame.classList.contains('focused')) {
-      frame.classList.remove('focused');
-      frame.style.position = ''; frame.style.width = ''; frame.style.height = '';
-      frame.style.top = ''; frame.style.left = ''; frame.style.zIndex = '';
-      this._applyLayout();
-    } else {
-      frame.classList.add('focused');
-      frame.style.position = 'fixed';
-      frame.style.top = '0'; frame.style.left = '0';
-      frame.style.width = '100vw'; frame.style.height = '100vh';
-      frame.style.zIndex = '100';
-    }
   },
 
   _applyLayout() {
@@ -266,7 +231,6 @@ const WinManager = {
     if (computed.length === 0) return;
     const order = LayoutModel.views.map(v => v.id);
     const sorted = computed.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
-
     this.frames.forEach((entry, id) => {
       const pos = sorted.find(s => s.id === id);
       if (!pos) return;
@@ -282,7 +246,6 @@ const WinManager = {
         entry.frame.style.top = '';
       }
       const overlay = entry.frame.querySelector('.card-overlay');
-      const header = entry.frame.querySelector('.card-header');
       const wvArea = entry.frame.querySelector('.webview-area') || entry.frame.querySelector('webview');
       if (LayoutModel.mode === 'cards' || LayoutModel.mode === 'focus') {
         const idx = Array.from(this.frames.keys()).indexOf(id);
@@ -290,9 +253,7 @@ const WinManager = {
         if (overlay) overlay.style.display = isActive ? 'none' : 'block';
         entry.frame.style.border = isActive ? '2px solid rgba(255,255,255,0.8)' : '1px solid var(--border)';
         if (wvArea) wvArea.style.opacity = isActive ? '1' : '0.6';
-        if (header) header.style.opacity = '1';
       } else {
-        entry.frame.style.opacity = '1';
         entry.frame.style.border = '1px solid var(--border)';
         if (overlay) overlay.style.display = 'none';
       }
@@ -312,19 +273,56 @@ const WinManager = {
   },
 
   _dispatchToAll(text) {
-    // Provider fingerprints
-    // Grok: contenteditable div (pas textarea) — send button ciblé par aria-label Send uniquement, blacklist voice/mic/audio
     const PROVIDERS = {
-      'chatgpt.com':       { input: '[contenteditable][data-id], [contenteditable="true"]', send: '[data-testid="send-button"]' },
-      'gemini.google.com': { input: '[contenteditable][role="textbox"]',                    send: 'button[aria-label*="Send" i], button[aria-label*="Envoyer" i]' },
-      'claude.ai':         { input: '[contenteditable][data-placeholder], [contenteditable="true"]', send: 'button[aria-label*="Send" i], button[data-value="send"]' },
-      'chatglm.cn':        { input: '[contenteditable]', send: null, useEnter: true },
-      'kimi.ai':           { input: '.chat-input [contenteditable], #chat-input [contenteditable], [contenteditable]', send: null, useEnter: true },
-      'kimi.com':          { input: '.chat-input [contenteditable], #chat-input [contenteditable], [contenteditable]', send: null, useEnter: true },
-      // Grok: contenteditable div, send button avec aria-label "Send message" uniquement
-      'grok.com':          { input: '[contenteditable="true"], [contenteditable=""], div[contenteditable]', send: 'button[aria-label="Send message"], button[aria-label="Envoyer"], button[data-testid="send-button"]' },
-      'build.nvidia.com':  { input: 'textarea', send: 'button[type="submit"], button[aria-label*="Send" i]' },
-      'venice.ai':         { input: 'textarea', send: 'button[type="submit"][aria-label*="Send" i], button[type="submit"]' },
+      // ChatGPT
+      'chatgpt.com':            { input: '[contenteditable][data-id], [contenteditable="true"]', send: '[data-testid="send-button"]' },
+      // Gemini
+      'gemini.google.com':      { input: '[contenteditable][role="textbox"]', send: 'button[aria-label*="Send" i], button[aria-label*="Envoyer" i]' },
+      // Claude
+      'claude.ai':              { input: '[contenteditable][data-placeholder], [contenteditable="true"]', send: 'button[aria-label*="Send" i], button[data-value="send"]' },
+      // GLM
+      'chatglm.cn':             { input: '[contenteditable]', send: null, useEnter: true },
+      // Kimi (dual hostname)
+      'kimi.ai':                { input: '.chat-input [contenteditable], #chat-input [contenteditable], [contenteditable]', send: null, useEnter: true },
+      'kimi.com':               { input: '.chat-input [contenteditable], #chat-input [contenteditable], [contenteditable]', send: null, useEnter: true },
+      // Grok
+      'grok.com':               { input: '[contenteditable="true"], [contenteditable=""], div[contenteditable]', send: 'button[aria-label="Send message"], button[aria-label="Envoyer"], button[data-testid="send-button"]' },
+      // Nvidia
+      'build.nvidia.com':       { input: 'textarea', send: 'button[type="submit"], button[aria-label*="Send" i]' },
+      // Venice
+      'venice.ai':              { input: 'textarea', send: 'button[type="submit"]' },
+      // Copilot
+      'copilot.microsoft.com':  { input: 'textarea, [contenteditable]', send: 'button[aria-label*="Send" i], button[aria-label*="Submit" i], button[type="submit"]' },
+      // Perplexity
+      'perplexity.ai':          { input: 'textarea', send: 'button[aria-label*="Submit" i], button[type="submit"]' },
+      // Mistral Le Chat
+      'chat.mistral.ai':        { input: 'textarea, [contenteditable]', send: 'button[type="submit"], button[aria-label*="Send" i]' },
+      // DeepSeek
+      'chat.deepseek.com':      { input: 'textarea, [contenteditable]', send: 'button[type="submit"], [aria-label*="Send" i]', useEnter: false },
+      // Meta AI
+      'meta.ai':                { input: '[contenteditable], textarea', send: 'button[aria-label*="Send" i], button[type="submit"]' },
+      // Qwen
+      'qwenlm.ai':              { input: 'textarea, [contenteditable]', send: 'button[type="submit"], button[aria-label*="Send" i]' },
+      // HuggingChat
+      'huggingface.co':         { input: 'textarea', send: 'button[type="submit"], button[aria-label*="Send" i]' },
+      // Phind
+      'phind.com':              { input: 'textarea', send: 'button[type="submit"], button[aria-label*="Search" i]' },
+      // You.com
+      'you.com':                { input: 'textarea, [contenteditable]', send: 'button[type="submit"], button[aria-label*="Send" i]' },
+      // Poe
+      'poe.com':                { input: 'textarea', send: 'button[data-button-id="send"], button[type="submit"]' },
+      // Groq
+      'groq.com':               { input: 'textarea, [contenteditable]', send: 'button[type="submit"], button[aria-label*="Send" i]' },
+      // Cohere Coral
+      'coral.cohere.com':       { input: 'textarea', send: 'button[type="submit"], button[aria-label*="Send" i]' },
+      // Pi AI
+      'pi.ai':                  { input: 'textarea, [contenteditable]', send: null, useEnter: true },
+      // OpenRouter
+      'openrouter.ai':          { input: 'textarea, [contenteditable]', send: 'button[type="submit"], button[aria-label*="Send" i]' },
+      // LMSYS Arena
+      'chat.lmsys.org':         { input: 'textarea', send: 'button[id*="send"], button[type="submit"]' },
+      // Together AI
+      'api.together.ai':        { input: 'textarea', send: 'button[type="submit"], button[aria-label*="Send" i]' },
     };
 
     const escapedText = JSON.stringify(text);
@@ -336,7 +334,6 @@ const WinManager = {
       var cfg = fpKey ? FP[fpKey] : {};
       var BLACKLIST = /attach|joindre|model|micro|image|file|photo|clip|gear|param|setting|voice|mic|audio|dict/i;
 
-      // 1. Trouver l'input
       var ed = null;
       if (cfg.input) {
         var sels = cfg.input.split(',').map(function(s){ return s.trim(); });
@@ -351,21 +348,17 @@ const WinManager = {
 
       ed.focus();
 
-      // 2. Injection texte
       if (ed.isContentEditable) {
-        // Vider puis injecter
         ed.innerHTML = '';
         ed.focus();
         document.execCommand('selectAll', false, null);
         document.execCommand('delete', false, null);
         var inserted = document.execCommand('insertText', false, ${escapedText});
-        // Fallback si execCommand ne fonctionne pas (Grok bloque parfois)
         if (!inserted || !ed.textContent.trim()) {
           ed.innerHTML = '';
           var span = document.createElement('span');
           span.textContent = ${escapedText};
           ed.appendChild(span);
-          // Placer le curseur à la fin
           var range = document.createRange();
           var sel = window.getSelection();
           range.selectNodeContents(ed);
@@ -384,7 +377,6 @@ const WinManager = {
         ed.dispatchEvent(new Event('change', { bubbles: true }));
       }
 
-      // 3. Submit via Enter (GLM, Kimi) ou bouton send
       if (cfg.useEnter) {
         setTimeout(function() {
           ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
@@ -404,7 +396,6 @@ const WinManager = {
             } catch(e) {}
           }
         }
-        // Fallback générique: aria-label send/submit, hors blacklist
         var allBtns = Array.prototype.slice.call(document.querySelectorAll('button[aria-label]'));
         for (var j = 0; j < allBtns.length; j++) {
           var lbl = allBtns[j].getAttribute('aria-label').toLowerCase();
@@ -412,7 +403,6 @@ const WinManager = {
               && !BLACKLIST.test(lbl)
               && !allBtns[j].disabled && allBtns[j].offsetParent !== null) return allBtns[j];
         }
-        // Fallback: remonter l'arbre depuis l'input
         var node = ed.parentElement;
         for (var d = 0; d < 8 && node; d++, node = node.parentElement) {
           var sub = node.querySelector('button[type="submit"]');
@@ -427,9 +417,7 @@ const WinManager = {
               return l.indexOf('send') !== -1 || l.indexOf('envoyer') !== -1 || l.indexOf('submit') !== -1;
             });
             if (scored) return scored;
-            var clean = svgBtns.filter(function(b){
-              return !BLACKLIST.test(b.getAttribute('aria-label') || b.className || '');
-            });
+            var clean = svgBtns.filter(function(b){ return !BLACKLIST.test(b.getAttribute('aria-label') || b.className || ''); });
             if (clean.length >= 1) return clean[clean.length - 1];
           }
         }
@@ -439,9 +427,9 @@ const WinManager = {
       var attempts = 0;
       function poll() {
         var form = ed.closest('form');
-        if (form) { try { form.requestSubmit(); return 'FORM_SUBMIT'; } catch(e) {} }
+        if (form) { try { form.requestSubmit(); return; } catch(e) {} }
         var btn = findSendBtn();
-        if (btn) { btn.click(); return 'CLICKED:' + (btn.getAttribute('aria-label') || btn.className); }
+        if (btn) { btn.click(); return; }
         if (++attempts < 15) setTimeout(poll, 200);
       }
       setTimeout(poll, 400);
