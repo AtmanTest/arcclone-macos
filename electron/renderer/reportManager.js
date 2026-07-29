@@ -76,17 +76,14 @@ const ReportManager = {
     // Section 2 — Prompt
     md += `## 1. Prompt soumis
 
-> ${prompt.replace(/
-/g,'
-> ')}
+> ${prompt.replace(/\n/g, '\n> ')}
 
 `;
 
     // Section 3 — IA consultées
     md += `## 2. IA consultées (${count})
 
-${this._data.map((d,i)=>`${i+1}. ${d.label}`).join('
-')}
+${this._data.map((d,i)=>`${i+1}. ${d.label}`).join('\n')}
 
 `;
 
@@ -139,8 +136,7 @@ _À déterminer selon le contexte._
     const urls = this._data.flatMap(d => [...d.text.matchAll(/https?:\/\/[^\s)"]+/g)].map(m=>m[0]));
     md += `## 8. URLs / Sources citées (${urls.length})
 
-${urls.length ? urls.map(u=>`- ${u}`).join('
-') : '_Aucune URL détectée._'}
+${urls.length ? urls.map(u=>`- ${u}`).join('\n') : '_Aucune URL détece.'}
 
 `;
 
@@ -161,8 +157,7 @@ ${hasCode ? '_Des blocs de code ont été trouvés dans les réponses ci-des
       md += `- **${d.label}** : ~${words} mots, ${d.text.length} caractères
 `;
     });
-    md += '
-';
+    md += '\n';
 
     // Section — Temps de session
     md += `## 11. Contexte session
