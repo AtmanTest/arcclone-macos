@@ -1,41 +1,116 @@
+/**
+ * TeamAI — Report Manager
+ * Collecte les r\u00e9ponses des webviews + export .md + export Google Drive
+ */
 const ReportManager = {
-  async open() {
-    document.getElementById('report-modal')?.classList.add('open');
-    await this._collect();
+  _data: [],
+
+  open() {
+    const modal = document.getElementById('report-modal');
+    if (modal) modal.classList.add('open');
+    this._collect();
   },
-  close() { document.getElementById('report-modal')?.classList.remove('open'); },
+
   async _collect() {
     const body = document.getElementById('report-body');
     if (!body) return;
-    body.textContent = 'Collecte...';
-    const responses = [];
-    let i = 0;
-    for (const [id, entry] of WinManager.frames) {
-      i++;
-      body.textContent = `Collecte (${i}/${WinManager.count})...`;
-      const js = `(function(){const sels=['.markdown','[data-message-author-role="assistant"]','.prose','.message-content','main','article'];const text=document.body?document.body.innerText.substring(0,5000):'';for(const s of sels){const el=document.querySelector(s);if(el&&el.innerText.length>100)return el.innerText.substring(0,5000)}return text;})();`;
-      try {
-        const text = await entry.webview.executeJavaScript(js);
-        responses.push({ label: entry.combo?.options[entry.combo.selectedIndex]?.text || 'IA', url: entry.webview?.src || '', response: text || '(vide)' });
-      } catch { responses.push({ label: 'IA', url: '', response: '(erreur)' }); }
-    }
-    let text = `# Rapport IA — ${new Date().toLocaleString()}\n\n`;
-    for (const r of responses) { text += `---\n## ${r.label}\nURL: ${r.url || 'N/A'}\n\n${r.response || '(pas de réponse)'}\n\n`; }
-    text += `---\n*${responses.length} IA interrogées par TeamAI*\n`;
-    body.textContent = text;
+    body.innerHTML = '<div style="color:#888;padding:20px;">\u23f3 Collecte des r\u00e9ponses...</div>';
+    this._data = [];
+
+    const promises = [];
+    WinManager.frames.forEach((entry, id) => {
+      const wv = entry.frame.querySelector('webview');
+      if (!wv) return;
+      const label = entry.combo?.options[entry.combo.selectedIndex]?.text || id;
+      promises.push(
+        wv.executeJavaScript(`(function(){
+          var el = document.querySelector('.message:last-child, [data-message-author-role="assistant"]:last-child, .response:last-child, article:last-child, [class*="response"]:last-child');
+          if (!el) el = document.body;
+          return (el ? el.innerText : '').substring(0, 2000);
+        })()`)
+        .then(text => ({ label, text: text || '(pas de r\u00e9ponse)' }))
+        .catch(() => ({ label, text: '(erreur de collecte)' }))
+      );
+    });
+
+    this._data = await Promise.all(promises);
+    this._render();
+
+    // Auto-export Drive si activ\u00e9
+    const autoExport = document.getElementById('drive-auto-export')?.checked
+      || localStorage.getItem('teamai_drive_auto') === 'true';
+    if (autoExport) setTimeout(() => this.exportToDrive(), 500);
   },
-  _exportMD() {
+
+  _render() {
     const body = document.getElementById('report-body');
-    if (!body?.textContent) return;
-    const blob = new Blob([body.textContent], { type: 'text/markdown' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `rapport-ia-${Date.now()}.md`; a.click(); URL.revokeObjectURL(a.href);
+    if (!body) return;
+    if (!this._data.length) { body.innerHTML = '<div style="color:#888;padding:20px;">Aucune donn\u00e9e</div>'; return; }
+    body.innerHTML = this._data.map(d => `
+      <div style="margin-bottom:16px;border-bottom:1px solid #1e1e2e;padding-bottom:12px;">
+        <div style="color:#7C3AED;font-weight:700;font-size:12px;margin-bottom:6px;">${d.label}</div>
+        <div style="color:#ccc;font-size:11px;line-height:1.6;white-space:pre-wrap;">${d.text.replace(/</g,'&lt;')}</div>
+      </div>
+    `).join('');
+  },
+
+  _toMarkdown() {
+    const date = new Date().toLocaleString('fr-FR');
+    const prompt = document.getElementById('prompt-input')?.value || '';
+    return `# Rapport TeamAI\n_${date}_\n\n**Prompt:** ${prompt}\n\n---\n\n`
+      + this._data.map(d => `## ${d.label}\n\n${d.text}`).join('\n\n---\n\n');
+  },
+
+  exportMd() {
+    const blob = new Blob([this._toMarkdown()], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `TeamAI_rapport_${new Date().toISOString().slice(0,10)}.md`;
+    a.click();
+  },
+
+  async exportToDrive() {
+    const btn = document.getElementById('report-export-drive');
+    if (btn) { btn.textContent = '\u23f3 Upload Drive...'; btn.disabled = true; }
+    try {
+      const status = await teamai.getGoogleStatus();
+      if (!status || !status.connected) {
+        alert('\u26a0\ufe0f Connecte-toi \u00e0 Google d\'abord dans R\u00e9glages.');
+        Settings.open();
+        if (btn) { btn.textContent = '\ud83d\udcc2 Sauvegarder sur Drive'; btn.disabled = false; }
+        return;
+      }
+      // Ouvrir Google Drive dans une fen\u00eatre de la partition partag\u00e9e
+      // et d\u00e9clencher l'upload via l'API Drive REST (avec le token Google de la session)
+      await teamai.exportReportToDrive({
+        filename: `TeamAI_rapport_${new Date().toISOString().slice(0,10)}.md`,
+        content: this._toMarkdown(),
+        mimeType: 'text/markdown',
+      });
+      if (btn) { btn.textContent = '\u2705 Sauvegard\u00e9 sur Drive'; }
+      setTimeout(() => { if (btn) { btn.textContent = '\ud83d\udcc2 Sauvegarder sur Drive'; btn.disabled = false; } }, 3000);
+    } catch(e) {
+      alert('\u274c Drive: ' + (e.message || e));
+      if (btn) { btn.textContent = '\ud83d\udcc2 Sauvegarder sur Drive'; btn.disabled = false; }
+    }
   },
 };
+
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('report-close-modal')?.addEventListener('click', () => ReportManager.close());
-  document.getElementById('report-close-btn')?.addEventListener('click', () => ReportManager.close());
+  document.getElementById('report-close-modal')?.addEventListener('click', () => {
+    document.getElementById('report-modal')?.classList.remove('open');
+  });
+  document.getElementById('report-close-btn')?.addEventListener('click', () => {
+    document.getElementById('report-modal')?.classList.remove('open');
+  });
+  document.getElementById('report-export-md')?.addEventListener('click', () => ReportManager.exportMd());
+  document.getElementById('report-export-drive')?.addEventListener('click', () => ReportManager.exportToDrive());
   document.getElementById('report-refresh')?.addEventListener('click', () => ReportManager._collect());
-  document.getElementById('report-export-md')?.addEventListener('click', () => ReportManager._exportMD());
-  document.getElementById('report-modal')?.addEventListener('click', (e) => { if (e.target === document.getElementById('report-modal')) ReportManager.close(); });
+
+  // Persistance checkbox auto-export
+  const cb = document.getElementById('drive-auto-export');
+  if (cb) {
+    cb.checked = localStorage.getItem('teamai_drive_auto') === 'true';
+    cb.addEventListener('change', () => localStorage.setItem('teamai_drive_auto', cb.checked));
+  }
 });

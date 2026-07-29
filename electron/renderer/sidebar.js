@@ -1,5 +1,5 @@
 /**
- * TeamAI v9 — Sidebar
+ * TeamAI v10 — Sidebar
  */
 const Sidebar = {
   _providers: [],
@@ -31,15 +31,42 @@ const Sidebar = {
       const el = document.getElementById('version-badge');
       if (el && v) {
         el.textContent = `\u2736 v${v.version} \u2736`;
-        el.title = `${v.version} \u2014 ${(v.commit || '').slice(0,7)}`;
-        el.style.color = '#4ADE80';
-        el.style.fontWeight = '700';
-        el.style.fontSize = '11px';
-        el.style.letterSpacing = '0.5px';
-        el.style.cursor = 'pointer';
+        el.title = `${v.version} \u2014 ${(v.commit||'').slice(0,7)}`;
+        el.style.cssText = 'color:#4ADE80;font-weight:700;font-size:11px;letter-spacing:0.5px;cursor:pointer;display:block;text-align:center;margin-bottom:2px;';
         el.addEventListener('click', () => Changelog.open());
       }
     }).catch(() => {});
+
+    // Badge Google sous la version
+    this._renderGoogleBadge();
+  },
+
+  async _renderGoogleBadge() {
+    let badge = document.getElementById('google-account-badge');
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.id = 'google-account-badge';
+      badge.style.cssText = 'text-align:center;font-size:9px;color:#888;padding:2px 4px;cursor:pointer;';
+      const versionBadge = document.getElementById('version-badge');
+      if (versionBadge && versionBadge.parentNode) {
+        versionBadge.parentNode.insertBefore(badge, versionBadge.nextSibling);
+      }
+      badge.addEventListener('click', () => Settings.open());
+    }
+    try {
+      const status = await teamai.getGoogleStatus();
+      if (status && status.connected && status.email) {
+        badge.innerHTML = `<span style="color:#4ADE80;">\u2022</span> ${status.email}`;
+        badge.title = 'Compte Google connect\u00e9 \u2014 Cliquer pour les r\u00e9glages';
+      } else if (status && status.connected) {
+        badge.innerHTML = `<span style="color:#4ADE80;">\u2022</span> Google connect\u00e9`;
+      } else {
+        badge.innerHTML = `<span style="color:#EF4444;">\u2022</span> Google non connect\u00e9`;
+        badge.title = 'Cliquer pour se connecter';
+      }
+    } catch {
+      badge.innerHTML = '';
+    }
   },
 
   _renderWindowList() {
@@ -48,7 +75,8 @@ const Sidebar = {
     el.innerHTML = '';
     WinManager.frames.forEach((entry, id) => {
       const div = document.createElement('div'); div.className = 'win-item'; div.dataset.id = id;
-      const combo = entry.combo; const lbl = combo?.options[combo.selectedIndex]?.text || 'IA';
+      const combo = entry.combo;
+      const lbl = combo?.options[combo.selectedIndex]?.text || 'IA';
       const idx = Array.from(WinManager.frames.keys()).indexOf(id) + 1;
       div.innerHTML = `<span class="num">${idx}</span><span class="label">${lbl}</span><span class="close-btn">\u2715</span>`;
       div.querySelector('.close-btn').addEventListener('click', (e) => { e.stopPropagation(); WinManager._remove(id); });
@@ -84,14 +112,13 @@ const Sidebar = {
         const pid = btn.dataset.id;
         const prov = providers.find(p => p.id === pid);
         if (!prov) return;
-        // Confirmation modale
         const confirmModal = document.createElement('div');
         confirmModal.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
         confirmModal.innerHTML = `
           <div style="background:#1a1a2e;border:1px solid #EF4444;border-radius:12px;padding:24px;width:320px;text-align:center;">
             <div style="font-size:28px;margin-bottom:10px;">\u26a0\ufe0f</div>
             <div style="color:#fff;font-size:13px;font-weight:700;margin-bottom:8px;">Supprimer ${prov.icon} ${prov.label} ?</div>
-            <div style="color:#888;font-size:11px;margin-bottom:18px;">Cette IA sera retir\u00e9e de ta liste. Tu pourras la r\u00e9ajouter depuis Ajouter IA.</div>
+            <div style="color:#888;font-size:11px;margin-bottom:18px;">Cette IA sera retir\u00e9e de ta liste.</div>
             <div style="display:flex;gap:8px;">
               <button id="del-confirm" style="flex:1;background:#EF4444;color:#fff;border:none;border-radius:6px;padding:9px;font-weight:700;cursor:pointer;">Supprimer</button>
               <button id="del-cancel" style="flex:1;background:#222;color:#aaa;border:none;border-radius:6px;padding:9px;cursor:pointer;">Annuler</button>
@@ -101,11 +128,9 @@ const Sidebar = {
         document.body.appendChild(confirmModal);
         confirmModal.querySelector('#del-cancel').addEventListener('click', () => confirmModal.remove());
         confirmModal.querySelector('#del-confirm').addEventListener('click', () => {
-          // Supprimer du tableau providers
           const idx = WinManager.providers.findIndex(p => p.id === pid);
           if (idx !== -1) WinManager.providers.splice(idx, 1);
           this._providers = this._providers.filter(p => p.id !== pid);
-          // Sauvegarder
           localStorage.setItem('teamai_custom_providers', JSON.stringify(WinManager.providers));
           confirmModal.remove();
           this._renderProviders();
@@ -132,7 +157,6 @@ const Sidebar = {
   _saveSession() {
     const list = WinManager.list;
     localStorage.setItem('teamai_session', JSON.stringify({ views: list, saved: new Date().toISOString() }));
-    // Feedback visuel
     const btn = document.getElementById('btn-save-session');
     if (btn) { const old = btn.textContent; btn.textContent = '\u2705 Sauvegard\u00e9'; setTimeout(() => btn.textContent = old, 1500); }
   },
