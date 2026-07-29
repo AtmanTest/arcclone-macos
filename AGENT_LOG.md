@@ -36,4 +36,6 @@ Chaque agent lit et écrit ici pour se synchroniser sans endpoint ni webhook.
 
 ```
 [2026-07-29 09:12 CEST] [KIMI3] FIX — windowManager.js : kimi.moonshot.cn → kimi.ai + Grok send selector élargi. Commit: 1398564
+[2026-07-29 09:12 CEST] [KIMI3] CHORE — Création AGENT_LOG.md + définition workflow. Commit: 4f6a851
+[2026-07-29 10:15 CEST] [HERMES] TEST — 169/169 ✅. version -> v0.19.1 (commit 4f6a851). Log ajouté.
 ```
