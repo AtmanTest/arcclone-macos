@@ -17,13 +17,60 @@ const ErrorBar = {
 // ── Focus-on-relaunch flag ──
 const FOCUS_RELAUNCH_KEY = 'teamai_focus_on_relaunch';
 
+/**
+ * Populate #version-number + #branch-pill
+ * Tries teamai.getAppVersion() / teamai.getGitBranch() from the preload.
+ * Falls back to parsing package.json path exposed via IPC, or defaults.
+ */
+async function _initVersionBadge() {
+  const vEl  = document.getElementById('version-number');
+  const bEl  = document.getElementById('branch-pill');
+  if (!vEl || !bEl) return;
+
+  // ── Version ──
+  let version = 'v?.?.?';
+  try {
+    if (typeof teamai !== 'undefined') {
+      if (teamai.getAppVersion)      version = 'v' + (await teamai.getAppVersion());
+      else if (teamai.checkUpdate) {
+        const info = await teamai.checkUpdate();
+        if (info && info.currentVersion) version = 'v' + info.currentVersion;
+      }
+    }
+  } catch { /* keep default */ }
+  vEl.textContent = version;
+
+  // ── Branch ──
+  let branch = 'main';
+  try {
+    if (typeof teamai !== 'undefined' && teamai.getGitBranch) {
+      branch = (await teamai.getGitBranch()) || 'main';
+    } else {
+      // Fallback: infer from update info
+      const info = await teamai?.checkUpdate?.();
+      if (info && info.branch) branch = info.branch;
+    }
+  } catch { /* keep default */ }
+
+  bEl.textContent = branch;
+
+  // Couleur selon type de branche
+  let type = 'feature';
+  if (branch === 'main' || branch === 'master') type = 'main';
+  else if (branch === 'develop' || branch === 'dev') type = 'develop';
+  bEl.setAttribute('data-branch-type', type);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+  // Version badge init (non-bloquant)
+  _initVersionBadge().catch(() => {});
+
   try {
     const providers = await teamai.loadProviders();
     if (!providers || providers.length === 0) throw new Error('Aucun provider charg\u00e9');
     PromptDispatcher.init();
     await WinManager.init(providers);
-    await Sidebar.init(providers); // ✓ restored — was accidentally removed
+    await Sidebar.init(providers);
 
     // ── Post-update: force focus layout ──
     if (localStorage.getItem(FOCUS_RELAUNCH_KEY) === '1') {
@@ -33,7 +80,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       PersistenceManager.save();
     }
 
-    // Listen for pre-relaunch signal
     teamai.onSetFocusOnRelaunch(() => {
       localStorage.setItem(FOCUS_RELAUNCH_KEY, '1');
     });
@@ -74,6 +120,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!updateBtn) return;
       try {
         const info = await teamai.checkUpdate();
+        // Refresh branch pill si la branche est dans la réponse
+        if (info && info.branch) {
+          const bEl = document.getElementById('branch-pill');
+          if (bEl) {
+            bEl.textContent = info.branch;
+            let type = 'feature';
+            if (info.branch === 'main' || info.branch === 'master') type = 'main';
+            else if (info.branch === 'develop' || info.branch === 'dev') type = 'develop';
+            bEl.setAttribute('data-branch-type', type);
+          }
+        }
         if (info && info.hasUpdate) {
           updateBtn.textContent = `\ud83d\udd04 Mise \u00e0 jour (${info.behind} commits)`;
           updateBtn.style.color = '#EF4444';
