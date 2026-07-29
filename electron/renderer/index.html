@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TeamAI</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="dispatchProgress.css">
 </head>
 <body>
   <div id="app">
@@ -49,6 +50,9 @@
         </div>
         <div id="mode-selector"></div>
       </div>
+
+      <!-- Dispatch Progress Bar — injecté dynamiquement par DispatchProgress.start() -->
+
       <div id="viewport">
         <div id="error-bar"></div>
         <div id="grid-container"></div>
@@ -190,6 +194,7 @@
   <script src="presetLayouts.js"></script>
   <script src="sidebar.js"></script>
   <script src="bookmarks.js"></script>
+  <script src="dispatchProgress.js"></script>
   <script src="promptDispatcher.js"></script>
   <script src="reportManager.js"></script>
   <script src="changelog.js"></script>

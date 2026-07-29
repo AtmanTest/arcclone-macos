@@ -28,14 +28,12 @@ const WinManager = {
       } catch { /* ignore */ }
     }
     if (this.frames.size === 0) {
-      // Par défaut: afficher 6 premiers providers
       for (const p of this.providers.slice(0, 6)) this._createView(p.id);
     }
 
     this._applyLayout();
     PersistenceManager.restore();
 
-    // Apply startup mode preference AFTER restore() so it isn't overwritten by saved session
     const defaultMode = localStorage.getItem('teamai_default_mode') || 'focus';
     LayoutModel.setMode(defaultMode);
 
@@ -85,8 +83,8 @@ const WinManager = {
       <div class="toolbar">
         <span class="num-badge">${this._idCounter}</span>
         <select class="provider-combo">${comboOps}</select>
-        <button class="nav-btn" title="Précédent" data-action="back">◀</button>
-        <button class="nav-btn" title="Suivant" data-action="forward">▶</button>
+        <button class="nav-btn" title="Précédent" data-action="back">◄</button>
+        <button class="nav-btn" title="Suivant" data-action="forward">►</button>
         <button class="nav-btn" title="Actualiser" data-action="reload">⟳</button>
         <button class="nav-btn" title="Focus plein écran" data-action="focus">👁</button>
         <button class="nav-btn" title="Favoris" data-action="bookmark">★</button>
@@ -279,60 +277,46 @@ const WinManager = {
     }
   },
 
+  // ── Dispatch + Progress Bar ─────────────────────────────────────────────
   _dispatchToAll(text) {
     const PROVIDERS = {
-      // ChatGPT
       'chatgpt.com':            { input: '[contenteditable][data-id], [contenteditable="true"]', send: '[data-testid="send-button"]' },
-      // Gemini
       'gemini.google.com':      { input: '[contenteditable][role="textbox"]', send: 'button[aria-label*="Send" i], button[aria-label*="Envoyer" i]' },
-      // Claude
       'claude.ai':              { input: '[contenteditable][data-placeholder], [contenteditable="true"]', send: 'button[aria-label*="Send" i], button[data-value="send"]' },
-      // GLM
       'chatglm.cn':             { input: '[contenteditable]', send: null, useEnter: true },
-      // Kimi (dual hostname)
       'kimi.ai':                { input: '.chat-input [contenteditable], #chat-input [contenteditable], [contenteditable]', send: null, useEnter: true },
       'kimi.com':               { input: '.chat-input [contenteditable], #chat-input [contenteditable], [contenteditable]', send: null, useEnter: true },
-      // Grok
       'grok.com':               { input: '[contenteditable="true"], [contenteditable=""], div[contenteditable]', send: 'button[aria-label="Send message"], button[aria-label="Envoyer"], button[data-testid="send-button"]' },
-      // Nvidia
       'build.nvidia.com':       { input: 'textarea', send: 'button[type="submit"], button[aria-label*="Send" i]' },
-      // Venice
       'venice.ai':              { input: 'textarea', send: 'button[type="submit"]' },
-      // Copilot
       'copilot.microsoft.com':  { input: 'textarea, [contenteditable]', send: 'button[aria-label*="Send" i], button[aria-label*="Submit" i], button[type="submit"]' },
-      // Perplexity
       'perplexity.ai':          { input: 'textarea', send: 'button[aria-label*="Submit" i], button[type="submit"]' },
-      // Mistral Le Chat
       'chat.mistral.ai':        { input: 'textarea, [contenteditable]', send: 'button[type="submit"], button[aria-label*="Send" i]' },
-      // DeepSeek
       'chat.deepseek.com':      { input: 'textarea, [contenteditable]', send: 'button[type="submit"], [aria-label*="Send" i]', useEnter: false },
-      // Meta AI
       'meta.ai':                { input: '[contenteditable], textarea', send: 'button[aria-label*="Send" i], button[type="submit"]' },
-      // Qwen
       'qwenlm.ai':              { input: 'textarea, [contenteditable]', send: 'button[type="submit"], button[aria-label*="Send" i]' },
-      // HuggingChat
       'huggingface.co':         { input: 'textarea', send: 'button[type="submit"], button[aria-label*="Send" i]' },
-      // Phind
       'phind.com':              { input: 'textarea', send: 'button[type="submit"], button[aria-label*="Search" i]' },
-      // You.com
       'you.com':                { input: 'textarea, [contenteditable]', send: 'button[type="submit"], button[aria-label*="Send" i]' },
-      // Poe
       'poe.com':                { input: 'textarea', send: 'button[data-button-id="send"], button[type="submit"]' },
-      // Groq
       'groq.com':               { input: 'textarea, [contenteditable]', send: 'button[type="submit"], button[aria-label*="Send" i]' },
-      // Cohere Coral
       'coral.cohere.com':       { input: 'textarea', send: 'button[type="submit"], button[aria-label*="Send" i]' },
-      // Pi AI
       'pi.ai':                  { input: 'textarea, [contenteditable]', send: null, useEnter: true },
-      // OpenRouter
       'openrouter.ai':          { input: 'textarea, [contenteditable]', send: 'button[type="submit"], button[aria-label*="Send" i]' },
-      // LMSYS Arena
       'chat.lmsys.org':         { input: 'textarea', send: 'button[id*="send"], button[type="submit"]' },
-      // Together AI
       'api.together.ai':        { input: 'textarea', send: 'button[type="submit"], button[aria-label*="Send" i]' },
     };
 
     const escapedText = JSON.stringify(text);
+
+    // ── Construire les entrées pour DispatchProgress ──
+    const progressEntries = [];
+    this.frames.forEach((entry) => {
+      const view = LayoutModel.views.find(v => v.id === entry.id);
+      if (!view) return;
+      progressEntries.push({ id: entry.id, label: view.label || view.providerId, icon: view.icon || '', color: '#7C3AED', providerId: view.providerId });
+    });
+    if (typeof DispatchProgress !== 'undefined') DispatchProgress.start(progressEntries);
 
     const injectJS = `(function(){
       var h = location.hostname.replace(/^www\\./, '');
@@ -443,12 +427,35 @@ const WinManager = {
       return 'INJECTED';
     })();`;
 
+    let done = 0;
+    const total = this.frames.size;
+
     this.frames.forEach((entry) => {
       const wv = entry.frame.querySelector('webview');
-      if (!wv) return;
+      if (!wv) {
+        if (typeof DispatchProgress !== 'undefined') DispatchProgress.tick(entry.id, 'error');
+        done++;
+        if (done >= total && typeof DispatchProgress !== 'undefined') DispatchProgress.finish();
+        return;
+      }
+
+      // Passe à loading dès qu'on lance l'injection
+      if (typeof DispatchProgress !== 'undefined') DispatchProgress.tick(entry.id, 'loading');
+
       wv.executeJavaScript(injectJS)
-        .then(r => console.log('[DISPATCH ' + entry.id + ']', r))
-        .catch(e => console.error('[DISPATCH ' + entry.id + ']', e.message));
+        .then(r => {
+          console.log('[DISPATCH ' + entry.id + ']', r);
+          const status = (r === 'NO_INPUT') ? 'error' : 'ok';
+          if (typeof DispatchProgress !== 'undefined') DispatchProgress.tick(entry.id, status);
+        })
+        .catch(e => {
+          console.error('[DISPATCH ' + entry.id + ']', e.message);
+          if (typeof DispatchProgress !== 'undefined') DispatchProgress.tick(entry.id, 'error');
+        })
+        .finally(() => {
+          done++;
+          if (done >= total && typeof DispatchProgress !== 'undefined') DispatchProgress.finish();
+        });
     });
   },
 };
