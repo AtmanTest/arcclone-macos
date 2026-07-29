@@ -25,14 +25,12 @@ function loadProviders() { const d = loadJSON(CFG.PROVIDERS); return Array.isArr
 
 // ── Google Status (PKCE-first, cookie fallback) ──
 async function getGoogleStatus() {
-  // 1. Check PKCE tokens first
   const tokens = getStoredTokens();
   if (tokens && tokens.access_token) {
     try {
       const info = await fetchGoogleUserInfo(tokens.access_token);
       if (info && info.email) return { connected: true, email: info.email, method: 'pkce' };
     } catch {
-      // Try refresh
       if (tokens.refresh_token) {
         try {
           await refreshAccessToken(tokens.refresh_token);
@@ -42,7 +40,6 @@ async function getGoogleStatus() {
       } else { clearTokens(); }
     }
   }
-  // 2. Cookie session fallback
   try {
     const gs = session.fromPartition(GOOGLE_PARTITION);
     const sapisid = await gs.cookies.get({ domain: '.google.com', name: 'SAPISID' });
@@ -67,7 +64,7 @@ async function getGoogleStatus() {
   } catch { return { connected: false }; }
 }
 
-// ── Google Account Window (cookie flow) ──
+// ── Google Account Window ──
 function openGoogleAccount() {
   if (googleAccountWindow && !googleAccountWindow.isDestroyed()) { googleAccountWindow.focus(); return true; }
   googleAccountWindow = new BrowserWindow({
@@ -92,13 +89,11 @@ function openGoogleAccount() {
 
 // ── Drive Export ──
 async function exportReportToDrive({ filename, content, mimeType }) {
-  // Prefer PKCE access_token
   const tokens = getStoredTokens();
   let authHeader;
   if (tokens && tokens.access_token) {
     authHeader = `Bearer ${tokens.access_token}`;
   } else {
-    // Fallback SAPISIDHASH
     const gs = session.fromPartition(GOOGLE_PARTITION);
     const cookies = await gs.cookies.get({ domain: '.google.com' });
     const sapisid = cookies.find(c => c.name === 'SAPISID');
@@ -109,26 +104,14 @@ async function exportReportToDrive({ filename, content, mimeType }) {
     const hash = createHash('sha1').update(`${now} ${sapisid.value} ${origin}`).digest('hex');
     authHeader = `SAPISIDHASH ${now}_${hash}`;
   }
-
   const boundary = 'teamai_boundary_' + Date.now();
   const metadata = JSON.stringify({ name: filename, parents: [], mimeType });
   const body = [
-    `--${boundary}`,
-    'Content-Type: application/json; charset=UTF-8',
-    '',
-    metadata,
-    `--${boundary}`,
-    `Content-Type: ${mimeType}`,
-    '',
-    content,
-    `--${boundary}--`,
+    `--${boundary}`, 'Content-Type: application/json; charset=UTF-8', '', metadata,
+    `--${boundary}`, `Content-Type: ${mimeType}`, '', content, `--${boundary}--`,
   ].join('\r\n');
-
   return new Promise((resolve, reject) => {
-    const req = net.request({
-      method: 'POST',
-      url: 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
-    });
+    const req = net.request({ method: 'POST', url: 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart' });
     req.setHeader('Authorization', authHeader);
     req.setHeader('Content-Type', `multipart/related; boundary=${boundary}`);
     req.setHeader('X-Goog-AuthUser', '0');
@@ -213,9 +196,7 @@ function setupIPC() {
       if (mainWindow && !mainWindow.isDestroyed())
         mainWindow.webContents.send('google-status-changed', { connected: true, email: userInfo.email, method: 'pkce' });
       return { success: true, email: userInfo.email, tokens };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
+    } catch (e) { return { success: false, error: e.message }; }
   });
   h('google-signout-pkce', () => {
     clearTokens();
@@ -224,6 +205,7 @@ function setupIPC() {
     return { success: true };
   });
   h('google-get-tokens', () => getStoredTokens());
+  // ── Update ──
   h('check-update', async () => {
     const { execSync } = require('child_process');
     try {
@@ -245,6 +227,12 @@ function setupIPC() {
       execSync('git pull', { cwd: __dirname.replace('/electron', ''), timeout: 30000 });
       execSync('npm install --no-audit --no-fund', { cwd: __dirname.replace('/electron', ''), timeout: 120000 });
     } catch(e) { return `❌ ${e.message}`; }
+    // Signal renderer to write focus flag before relaunch
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('set-focus-on-relaunch');
+      // Give renderer 300ms to write localStorage before we kill the process
+      await new Promise(r => setTimeout(r, 300));
+    }
     app.relaunch(); app.exit(0); return 'OK';
   });
 }

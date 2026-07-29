@@ -23,4 +23,5 @@ contextBridge.exposeInMainWorld('teamai', {
   onExecJsAll:           (cb) => ipcRenderer.on('exec-js-all', (e, text) => cb(text)),
   onLoginWindowClosed:   (cb) => ipcRenderer.on('login-window-closed', (e, pid) => cb(pid)),
   onGoogleStatusChanged: (cb) => ipcRenderer.on('google-status-changed', (e, s) => cb(s)),
+  onSetFocusOnRelaunch:  (cb) => ipcRenderer.on('set-focus-on-relaunch', () => cb()),
 });

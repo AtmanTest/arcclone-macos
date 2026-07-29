@@ -14,6 +14,9 @@ const ErrorBar = {
   },
 };
 
+// ── Focus-on-relaunch flag ──
+const FOCUS_RELAUNCH_KEY = 'teamai_focus_on_relaunch';
+
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     const providers = await teamai.loadProviders();
@@ -21,6 +24,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     PromptDispatcher.init();
     await WinManager.init(providers);
     await Sidebar.init(providers);
+
+    // ── Post-update: force focus layout ──
+    if (localStorage.getItem(FOCUS_RELAUNCH_KEY) === '1') {
+      localStorage.removeItem(FOCUS_RELAUNCH_KEY);
+      LayoutModel.setMode('focus');
+      WinManager._applyLayout();
+      PersistenceManager.save();
+    }
+
+    // Listen for pre-relaunch signal
+    teamai.onSetFocusOnRelaunch(() => {
+      localStorage.setItem(FOCUS_RELAUNCH_KEY, '1');
+    });
 
     const viewport = document.getElementById('viewport');
     if (viewport) {
@@ -82,14 +98,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     setInterval(checkUpdate, 300000);
 
     updateBtn?.addEventListener('click', async () => {
-      // Re-fetch info fraiche
       let info = updateBtn._updateInfo;
       if (!info || !info.hasUpdate) {
         try { info = await teamai.checkUpdate(); } catch { info = null; }
       }
       if (!info || !info.hasUpdate) return;
 
-      const sha   = (info.lastCommit  || '').slice(0, 7) || 'inconnu';
+      const sha     = (info.lastCommit  || '').slice(0, 7) || 'inconnu';
       const fullSha = info.lastCommit || '';
       const author  = info.lastAuthor  || 'inconnu';
       const msg     = info.lastMessage || '(pas de message)';
@@ -147,7 +162,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    // Export / Import
     window._exportProviders = function() {
       const blob = new Blob([JSON.stringify(WinManager.providers, null, 2)], { type: 'application/json' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'teamai_providers.json'; a.click();
