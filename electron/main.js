@@ -55,6 +55,64 @@ async function getGoogleStatus() {
   return { connected: false };
 }
 
+// ── Google Profile (name + email + photo) ──
+async function getGoogleProfile() {
+  const tokens = getStoredTokens();
+  if (!tokens || !tokens.access_token) return null;
+  try {
+    const info = await fetchGoogleUserInfo(tokens.access_token);
+    if (info && info.email) return { name: info.name || '', email: info.email, photo: info.picture || '' };
+  } catch {
+    if (tokens.refresh_token) {
+      try {
+        const refreshed = await refreshAccessToken(tokens.refresh_token);
+        const info2 = await fetchGoogleUserInfo(refreshed.access_token || tokens.access_token);
+        if (info2 && info2.email) return { name: info2.name || '', email: info2.email, photo: info2.picture || '' };
+      } catch { clearTokens(); }
+    } else { clearTokens(); }
+  }
+  return null;
+}
+
+// ── Drive Status ──
+async function getDriveStatus() {
+  const tokens = getStoredTokens();
+  if (!tokens || !tokens.access_token) return { connected: false };
+  try {
+    const info = await fetchGoogleUserInfo(tokens.access_token);
+    if (info && info.email) return { connected: true, email: info.email };
+  } catch {
+    if (tokens.refresh_token) {
+      try {
+        const refreshed = await refreshAccessToken(tokens.refresh_token);
+        const info2 = await fetchGoogleUserInfo(refreshed.access_token || tokens.access_token);
+        if (info2 && info2.email) return { connected: true, email: info2.email };
+      } catch { clearTokens(); }
+    } else { clearTokens(); }
+  }
+  return { connected: false };
+}
+
+// ── Drive Test — vérifie l'accès Drive ──
+async function testDrive() {
+  const tokens = getStoredTokens();
+  if (!tokens || !tokens.access_token) return false;
+  return new Promise((resolve) => {
+    const req = net.request({ method: 'GET', url: 'https://www.googleapis.com/drive/v3/about?fields=user' });
+    req.setHeader('Authorization', `Bearer ${tokens.access_token}`);
+    let data = '';
+    req.on('response', (res) => {
+      res.on('data', c => { data += c; });
+      res.on('end', () => {
+        try { const j = JSON.parse(data); resolve(!!(j.user && j.user.emailAddress)); }
+        catch { resolve(false); }
+      });
+    });
+    req.on('error', () => resolve(false));
+    req.end();
+  });
+}
+
 // ── Drive Export — Bearer token only ──
 async function exportReportToDrive({ filename, content, mimeType }) {
   const tokens = getStoredTokens();
@@ -148,12 +206,15 @@ function setupIPC() {
   h('open-login-window',      (e, pid, url) => openLoginWindow(pid, url));
   h('close-login-window',     (e, pid) => closeLoginWindow(pid));
   h('get-google-status',      () => getGoogleStatus());
+  h('get-google-profile',     () => getGoogleProfile());
+  h('get-drive-status',       () => getDriveStatus());
+  h('test-drive',             () => testDrive());
   h('export-report-to-drive', (e, opts) => exportReportToDrive(opts));
   h('get-version',            () => { const v = loadJSON(CFG.VERSION); return { version: v.version || '0.0.0', commit: v.commit || 'dev', url: CFG.GITHUB_URL }; });
   h('open-url',               (e, url) => { if (url) shell.openExternal(url); });
   h('set-zoom',               (e, l) => { zoomLevel = Math.max(-3, Math.min(5, l)); });
-  
-ipcMain.on('do-update-backup', () => backupGooglePartition());
+
+  ipcMain.on('do-update-backup', () => backupGooglePartition());
   h('get-zoom',               () => zoomLevel);
   h('load-providers',         () => { const p = loadJSON(CFG.PROVIDERS); return Array.isArray(p) ? p : []; });
   // ── PKCE OAuth ──
