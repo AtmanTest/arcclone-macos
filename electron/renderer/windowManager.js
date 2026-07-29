@@ -323,65 +323,134 @@ const WinManager = {
     }
   },
 
-    _dispatchToAll(text) {
+  _dispatchToAll(text) {
+    // Fingerprints par hostname → sélecteurs précis
+    const PROVIDERS = {
+      'chatgpt.com':       { input: '[contenteditable][data-id], [contenteditable="true"]', send: '[data-testid="send-button"]' },
+      'gemini.google.com': { input: '[contenteditable][role="textbox"]',                    send: 'button[aria-label*="Send" i], button[aria-label*="Envoyer" i]' },
+      'claude.ai':         { input: '[contenteditable][data-placeholder], [contenteditable="true"]', send: 'button[aria-label*="Send" i], button[data-value="send"]' },
+      'chatglm.cn':        { input: '[contenteditable]',                                    send: 'button[class*="send" i], button[aria-label*="Send" i]' },
+      'kimi.moonshot.cn':  { input: '.chat-input [contenteditable], [contenteditable]',     send: 'button[class*="send" i], button[aria-label*="Send" i]' },
+      'grok.com':          { input: 'textarea',                                             send: 'button[type="submit"][aria-label*="Envoyer" i], button[type="submit"]' },
+      'build.nvidia.com':  { input: 'textarea',                                             send: 'button[type="submit"], button[aria-label*="Send" i]' },
+      'venice.ai':         { input: 'textarea',                                             send: 'button[type="submit"][aria-label*="Send" i], button[type="submit"]' },
+    };
+
+    const BLACKLIST = /attach|joindre|model|micro|image|file|photo|clip|gear|param|setting/i;
+
+    const escapedText = JSON.stringify(text);
+
+    const injectJS = `(function(){
+      var h = location.hostname.replace(/^www\\./, '');
+      var FP = ${JSON.stringify(PROVIDERS)};
+      var fpKey = Object.keys(FP).find(function(k){ return h.endsWith(k); });
+      var cfg = fpKey ? FP[fpKey] : {};
+
+      // 1. Trouver l'input
+      var ed = null;
+      if (cfg.input) {
+        var sels = cfg.input.split(',').map(function(s){ return s.trim(); });
+        for (var si = 0; si < sels.length; si++) {
+          ed = document.querySelector(sels[si]);
+          if (ed) break;
+        }
+      }
+      if (!ed) ed = document.querySelector('[contenteditable="true"],[contenteditable=""]');
+      if (!ed) ed = document.querySelector('textarea, input[type="text"]');
+      if (!ed) return 'NO_INPUT';
+
+      ed.focus();
+
+      // 2. Injection compatible React/Vue/Lexical
+      if (ed.isContentEditable) {
+        // execCommand bypass isTrusted
+        document.execCommand('selectAll', false, null);
+        document.execCommand('delete', false, null);
+        document.execCommand('insertText', false, ${escapedText});
+        // Fallback si execCommand désactivé (Firefox/strict)
+        if (!ed.textContent.trim()) {
+          ed.innerHTML = '';
+          var p = document.createElement('p');
+          p.textContent = ${escapedText};
+          ed.appendChild(p);
+          ed.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: ${escapedText} }));
+        }
+      } else {
+        // textarea/input : native value setter pour React
+        var proto = ed.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+        var nv = Object.getOwnPropertyDescriptor(proto, 'value');
+        if (nv && nv.set) nv.set.call(ed, ${escapedText});
+        else ed.value = ${escapedText};
+        ed.dispatchEvent(new Event('input', { bubbles: true }));
+        ed.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      // 3. Trouver le bouton send avec scoring
+      var BLACKLIST = /attach|joindre|model|micro|image|file|photo|clip|gear|param|setting/i;
+      function findSendBtn() {
+        // Priorité 1 : fingerprint précis
+        if (cfg.send) {
+          var ss = cfg.send.split(',').map(function(s){ return s.trim(); });
+          for (var i = 0; i < ss.length; i++) {
+            try {
+              var b = document.querySelector(ss[i]);
+              if (b && !b.disabled && b.offsetParent !== null) return b;
+            } catch(e) {}
+          }
+        }
+        // Priorité 2 : data-testid
+        var tid = document.querySelector('[data-testid="send-button"],[data-testid="submit-button"]');
+        if (tid && !tid.disabled && tid.offsetParent !== null) return tid;
+        // Priorité 3 : aria-label global
+        var allBtns = Array.prototype.slice.call(document.querySelectorAll('button[aria-label]'));
+        for (var j = 0; j < allBtns.length; j++) {
+          var lbl = allBtns[j].getAttribute('aria-label').toLowerCase();
+          if ((lbl.indexOf('send') !== -1 || lbl.indexOf('envoyer') !== -1 || lbl.indexOf('submit') !== -1)
+              && !allBtns[j].disabled && allBtns[j].offsetParent !== null) return allBtns[j];
+        }
+        // Priorité 4 : remonter depuis l'input (max 8 niveaux)
+        var node = ed.parentElement;
+        for (var d = 0; d < 8 && node; d++, node = node.parentElement) {
+          var sub = node.querySelector('button[type="submit"]');
+          if (sub && !sub.disabled && sub.offsetParent !== null) return sub;
+          var svgBtns = Array.prototype.slice.call(node.querySelectorAll('button')).filter(function(b){
+            return b.querySelector('svg') && !b.disabled && b.offsetParent !== null;
+          });
+          if (svgBtns.length === 1) return svgBtns[0];
+          if (svgBtns.length > 1) {
+            var scored = svgBtns.find(function(b){
+              var l = (b.getAttribute('aria-label') || '').toLowerCase();
+              return l.indexOf('send') !== -1 || l.indexOf('envoyer') !== -1 || l.indexOf('submit') !== -1;
+            });
+            if (scored) return scored;
+            var clean = svgBtns.filter(function(b){
+              return !BLACKLIST.test(b.getAttribute('aria-label') || b.className || '');
+            });
+            if (clean.length >= 1) return clean[clean.length - 1];
+          }
+        }
+        return null;
+      }
+
+      // 4. Poll max 15×200ms
+      var attempts = 0;
+      function poll() {
+        var form = ed.closest('form');
+        if (form) { try { form.requestSubmit(); return 'FORM_SUBMIT'; } catch(e) {} }
+        var btn = findSendBtn();
+        if (btn) { btn.click(); return 'CLICKED:' + (btn.getAttribute('aria-label') || btn.className); }
+        if (++attempts < 15) setTimeout(poll, 200);
+      }
+      setTimeout(poll, 250);
+      return 'INJECTED';
+    })();`;
+
     this.frames.forEach((entry) => {
       const wv = entry.frame.querySelector('webview');
       if (!wv) return;
-      wv.executeJavaScript(`
-        (function() {
-          const ed = document.querySelector('[contenteditable="true"]') || document.querySelector('textarea, input[type="text"]');
-          if (ed) {
-            ed.focus();
-            if (ed.isContentEditable) {
-              ed.textContent = '';
-              ed.innerHTML = '';
-              const p = document.createElement('p'); p.textContent = ${JSON.stringify(text)};
-              ed.appendChild(p);
-            } else {
-              ed.value = ${JSON.stringify(text)};
-            }
-            ed.dispatchEvent(new Event('input', { bubbles: true }));
-            ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-            setTimeout(() => {
-              const form = ed.closest('form');
-              const cont = form || ed.closest('[class*="input"],[class*="chat"],[class*="prompt"],[class*="footer"]') || ed.parentElement;
-              (function poll() {
-                // 1 - form.requestSubmit()
-                if (form) { try { form.requestSubmit(); return; } catch(e) {} }
-                // 2 - type="submit" dans le conteneur
-                let btns = cont ? cont.querySelectorAll('button[type="submit"]') : [];
-                for (let i = 0; i < btns.length; i++) {
-                  if (!btns[i].disabled && btns[i].offsetParent !== null) { btns[i].click(); return; }
-                }
-                // 3 - data-testid send-button
-                const tid = document.querySelector('[data-testid="send-button"],[data-testid="submit-button"]');
-                if (tid && !tid.disabled && tid.offsetParent !== null) { tid.click(); return; }
-                // 4 - aria-label send/envoyer dans le conteneur
-                btns = cont ? cont.querySelectorAll('[aria-label*="send" i],[aria-label*="envoyer" i],[aria-label*="submit" i]') : [];
-                for (let i = 0; i < btns.length; i++) {
-                  if (btns[i].tagName === 'BUTTON' && !btns[i].disabled && btns[i].offsetParent !== null) { btns[i].click(); return; }
-                }
-                // 5 - dernier SVG visible non-disabled dans le conteneur
-                btns = cont ? cont.querySelectorAll('button') : [];
-                for (let i = btns.length - 1; i >= 0; i--) {
-                  if (btns[i].querySelector('svg') && !btns[i].disabled && btns[i].offsetParent !== null) {
-                    btns[i].click(); return;
-                  }
-                }
-                // 6 - aria-label global
-                const ga = document.querySelector('[aria-label*="send" i],[aria-label*="envoyer" i],[aria-label*="submit" i],[aria-label*="Ask" i]');
-                if (ga && ga.tagName === 'BUTTON' && !ga.disabled && ga.offsetParent !== null) { ga.click(); return; }
-                // 7 - dernier bouton visible dans le conteneur
-                for (let i = btns.length - 1; i >= 0; i--) {
-                  if (!btns[i].disabled && btns[i].offsetParent !== null) { btns[i].click(); return; }
-                }
-                // Poll retry
-                if (!ed._pc) ed._pc = 0;
-                if (++ed._pc < 15) setTimeout(poll, 200);
-              })();
-            }, 200);
-          }
-        })();
-      `).then(r => console.log('[DISPATCH ' + entry.id + '] OK')).catch(e => console.error('[DISPATCH ' + entry.id + ']', e));
+      wv.executeJavaScript(injectJS)
+        .then(r => console.log('[DISPATCH ' + entry.id + ']', r))
+        .catch(e => console.error('[DISPATCH ' + entry.id + ']', e.message));
     });
-  },};
+  },
+};
