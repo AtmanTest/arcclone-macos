@@ -1,5 +1,5 @@
 /**
- * TeamAI v16 — Window Manager
+ * TeamAI v17 — Window Manager
  * Crée, gère et dispose les fenêtres webview. Layout, toolbar, focus, cards.
  */
 const WinManager = {
@@ -312,22 +312,20 @@ const WinManager = {
   },
 
   _dispatchToAll(text) {
+    // Provider fingerprints
+    // Grok: contenteditable div (pas textarea) — send button ciblé par aria-label Send uniquement, blacklist voice/mic/audio
     const PROVIDERS = {
       'chatgpt.com':       { input: '[contenteditable][data-id], [contenteditable="true"]', send: '[data-testid="send-button"]' },
       'gemini.google.com': { input: '[contenteditable][role="textbox"]',                    send: 'button[aria-label*="Send" i], button[aria-label*="Envoyer" i]' },
       'claude.ai':         { input: '[contenteditable][data-placeholder], [contenteditable="true"]', send: 'button[aria-label*="Send" i], button[data-value="send"]' },
-      // GLM: pas de bouton send standard — dispatch via Enter key sur contenteditable
       'chatglm.cn':        { input: '[contenteditable]', send: null, useEnter: true },
-      // Kimi: dual hostname kimi.ai + kimi.com — même config
       'kimi.ai':           { input: '.chat-input [contenteditable], #chat-input [contenteditable], [contenteditable]', send: null, useEnter: true },
       'kimi.com':          { input: '.chat-input [contenteditable], #chat-input [contenteditable], [contenteditable]', send: null, useEnter: true },
-      // Grok: blacklist voice/mic — cibler SVG send uniquement
-      'grok.com':          { input: 'textarea', send: 'button[aria-label*="Send" i]:not([aria-label*="voice" i]):not([aria-label*="mic" i]):not([aria-label*="audio" i]), button[data-testid="send-button"]' },
+      // Grok: contenteditable div, send button avec aria-label "Send message" uniquement
+      'grok.com':          { input: '[contenteditable="true"], [contenteditable=""], div[contenteditable]', send: 'button[aria-label="Send message"], button[aria-label="Envoyer"], button[data-testid="send-button"]' },
       'build.nvidia.com':  { input: 'textarea', send: 'button[type="submit"], button[aria-label*="Send" i]' },
       'venice.ai':         { input: 'textarea', send: 'button[type="submit"][aria-label*="Send" i], button[type="submit"]' },
     };
-
-    const BLACKLIST = /attach|joindre|model|micro|image|file|photo|clip|gear|param|setting|voice|mic|audio|dict/i;
 
     const escapedText = JSON.stringify(text);
 
@@ -336,6 +334,7 @@ const WinManager = {
       var FP = ${JSON.stringify(PROVIDERS)};
       var fpKey = Object.keys(FP).find(function(k){ return h.endsWith(k); });
       var cfg = fpKey ? FP[fpKey] : {};
+      var BLACKLIST = /attach|joindre|model|micro|image|file|photo|clip|gear|param|setting|voice|mic|audio|dict/i;
 
       // 1. Trouver l'input
       var ed = null;
@@ -352,18 +351,30 @@ const WinManager = {
 
       ed.focus();
 
-      // 2. Injection
+      // 2. Injection texte
       if (ed.isContentEditable) {
+        // Vider puis injecter
+        ed.innerHTML = '';
+        ed.focus();
         document.execCommand('selectAll', false, null);
         document.execCommand('delete', false, null);
-        document.execCommand('insertText', false, ${escapedText});
-        if (!ed.textContent.trim()) {
+        var inserted = document.execCommand('insertText', false, ${escapedText});
+        // Fallback si execCommand ne fonctionne pas (Grok bloque parfois)
+        if (!inserted || !ed.textContent.trim()) {
           ed.innerHTML = '';
-          var p = document.createElement('p');
-          p.textContent = ${escapedText};
-          ed.appendChild(p);
-          ed.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: ${escapedText} }));
+          var span = document.createElement('span');
+          span.textContent = ${escapedText};
+          ed.appendChild(span);
+          // Placer le curseur à la fin
+          var range = document.createRange();
+          var sel = window.getSelection();
+          range.selectNodeContents(ed);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
         }
+        ed.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: ${escapedText} }));
+        ed.dispatchEvent(new Event('change', { bubbles: true }));
       } else {
         var proto = ed.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
         var nv = Object.getOwnPropertyDescriptor(proto, 'value');
@@ -374,10 +385,7 @@ const WinManager = {
       }
 
       // 3. Submit via Enter (GLM, Kimi) ou bouton send
-      var BLACKLIST = /attach|joindre|model|micro|image|file|photo|clip|gear|param|setting|voice|mic|audio|dict/i;
-
       if (cfg.useEnter) {
-        // Dispatch Enter key — compatible React synthetic events
         setTimeout(function() {
           ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
           ed.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
@@ -396,8 +404,7 @@ const WinManager = {
             } catch(e) {}
           }
         }
-        var tid = document.querySelector('[data-testid="send-button"],[data-testid="submit-button"]');
-        if (tid && !tid.disabled && tid.offsetParent !== null && !BLACKLIST.test(tid.getAttribute('aria-label') || '')) return tid;
+        // Fallback générique: aria-label send/submit, hors blacklist
         var allBtns = Array.prototype.slice.call(document.querySelectorAll('button[aria-label]'));
         for (var j = 0; j < allBtns.length; j++) {
           var lbl = allBtns[j].getAttribute('aria-label').toLowerCase();
@@ -405,6 +412,7 @@ const WinManager = {
               && !BLACKLIST.test(lbl)
               && !allBtns[j].disabled && allBtns[j].offsetParent !== null) return allBtns[j];
         }
+        // Fallback: remonter l'arbre depuis l'input
         var node = ed.parentElement;
         for (var d = 0; d < 8 && node; d++, node = node.parentElement) {
           var sub = node.querySelector('button[type="submit"]');
@@ -436,7 +444,7 @@ const WinManager = {
         if (btn) { btn.click(); return 'CLICKED:' + (btn.getAttribute('aria-label') || btn.className); }
         if (++attempts < 15) setTimeout(poll, 200);
       }
-      setTimeout(poll, 300);
+      setTimeout(poll, 400);
       return 'INJECTED';
     })();`;
 
