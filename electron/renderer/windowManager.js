@@ -330,8 +330,10 @@ const WinManager = {
       'gemini.google.com': { input: '[contenteditable][role="textbox"]',                    send: 'button[aria-label*="Send" i], button[aria-label*="Envoyer" i]' },
       'claude.ai':         { input: '[contenteditable][data-placeholder], [contenteditable="true"]', send: 'button[aria-label*="Send" i], button[data-value="send"]' },
       'chatglm.cn':        { input: '[contenteditable]',                                    send: 'button[class*="send" i], button[aria-label*="Send" i]' },
-      'kimi.moonshot.cn':  { input: '.chat-input [contenteditable], [contenteditable]',     send: 'button[class*="send" i], button[aria-label*="Send" i]' },
-      'grok.com':          { input: 'textarea',                                             send: 'button[type="submit"][aria-label*="Envoyer" i], button[type="submit"]' },
+      // FIX: kimi.moonshot.cn → kimi.ai (URL réelle du service)
+      'kimi.ai':           { input: '.chat-input [contenteditable], [contenteditable]',     send: 'button[data-testid*="send" i], button[class*="send" i], button[aria-label*="Send" i]' },
+      // FIX: grok.com send selector élargi — pas de type="submit" fiable sur grok.com
+      'grok.com':          { input: 'textarea',                                             send: 'button[data-testid*="send" i], button[class*="send" i], button[aria-label*="Send" i], button[aria-label*="Envoyer" i], button[type="submit"]' },
       'build.nvidia.com':  { input: 'textarea',                                             send: 'button[type="submit"], button[aria-label*="Send" i]' },
       'venice.ai':         { input: 'textarea',                                             send: 'button[type="submit"][aria-label*="Send" i], button[type="submit"]' },
     };
