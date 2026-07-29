@@ -109,6 +109,64 @@ const ReportManager = {
     }));
 
     const allUrls = [...new Set(this._data.flatMap(d => [...d.text.matchAll(/https?:\/\/[^\s)"'\]]+/g)].map(m => m[0])))];
+    md += `## 1. Prompt soumis
+
+> ${prompt.replace(/\n/g, '\n> ')}
+
+`;
+
+    // Section 3 — IA consultées
+    md += `## 2. IA consultées (${count})
+
+${this._data.map((d,i)=>`${i+1}. ${d.label}`).join('\n|')}
+
+`;
+
+    // Section 4 — Résumé exécutif
+    const firstText = this._data[0]?.text?.substring(0,300) || '';
+    md += `## 3. Résumé exécutif
+
+_Première réponse reçue (${this._data[0]?.label || '—'}) :_
+
+${firstText}…
+
+`;
+
+    // Section 5-N — Réponses individuelles
+    md += `## 4. Réponses détaillées
+
+`;
+    this._data.forEach((d, i) => {
+      md += `### ${i+1}. ${d.label}
+
+${d.text}
+
+---
+
+`;
+    });
+
+    // Section — Points communs
+    md += `## 5. Points communs
+
+_À remplir manuellement ou via analyse._
+
+`;
+
+    // Section — Divergences
+    md += `## 6. Divergences notables
+
+_À remplir manuellement ou via analyse._
+
+`;
+
+    // Section — Meilleure réponse
+    md += `## 7. Meilleure réponse (subjective)
+
+_À déterminer selon le contexte._
+
+`;
+
     const hasCode = this._data.some(d => d.text.includes('```'));
 
     // Construire les cartes IA en évitant les template literals imbriqués
