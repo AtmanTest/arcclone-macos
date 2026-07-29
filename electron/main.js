@@ -1,10 +1,11 @@
 /**
  * TeamAI v6 — Main Process
- * persist:google_shared + Drive API export
+ * persist:google_shared + Drive API export + OAuth PKCE
  */
 const { app, BrowserWindow, ipcMain, session, shell, net } = require('electron');
 const path = require('path');
 const fs   = require('fs');
+const { startGooglePKCE, fetchGoogleUserInfo, refreshAccessToken, getStoredTokens, clearTokens } = require('./auth/google-pkce');
 
 let mainWindow = null;
 const authWindows  = new Map();
@@ -22,39 +23,51 @@ const GOOGLE_PARTITION = 'persist:google_shared';
 function loadJSON(p) { try { return JSON.parse(fs.readFileSync(p, 'utf-8')); } catch { return {}; } }
 function loadProviders() { const d = loadJSON(CFG.PROVIDERS); return Array.isArray(d) ? d : []; }
 
-// ── Google Status ──
+// ── Google Status (PKCE-first, cookie fallback) ──
 async function getGoogleStatus() {
+  // 1. Check PKCE tokens first
+  const tokens = getStoredTokens();
+  if (tokens && tokens.access_token) {
+    try {
+      const info = await fetchGoogleUserInfo(tokens.access_token);
+      if (info && info.email) return { connected: true, email: info.email, method: 'pkce' };
+    } catch {
+      // Try refresh
+      if (tokens.refresh_token) {
+        try {
+          await refreshAccessToken(tokens.refresh_token);
+          const info2 = await fetchGoogleUserInfo(getStoredTokens().access_token);
+          if (info2 && info2.email) return { connected: true, email: info2.email, method: 'pkce' };
+        } catch { clearTokens(); }
+      } else { clearTokens(); }
+    }
+  }
+  // 2. Cookie session fallback
   try {
     const gs = session.fromPartition(GOOGLE_PARTITION);
-    // SAPISID = cookie de session Google actif
     const sapisid = await gs.cookies.get({ domain: '.google.com', name: 'SAPISID' });
     if (!sapisid || sapisid.length === 0) return { connected: false };
-    // R\u00e9cup\u00e9rer l'email via le cookie GMAIL_AT ou depuis les headers de profil
-    // M\u00e9thode la plus fiable : chercher dans les cookies account-related
     let email = '';
     try {
-      // Le cookie "email" existe sur certains flows Google
       const emailCookies = await gs.cookies.get({ domain: '.google.com', name: 'GMAIL_AT' });
       if (emailCookies.length === 0) {
-        // Fallback: chercher dans les cookies accounts.google.com
         const allCookies = await gs.cookies.get({ url: 'https://accounts.google.com' });
         const accountCookie = allCookies.find(c => c.name === 'AccountChooser' || c.name.includes('email'));
         if (accountCookie) email = decodeURIComponent(accountCookie.value || '').split(':')[0] || '';
       }
-    } catch { /* email reste vide, on indique juste "connect\u00e9" */ }
-    // Si on a une session active, on peut lire le profil via une requ\u00eate interne
+    } catch {}
     if (!email) {
       try {
         const profileCookies = await gs.cookies.get({ url: 'https://myaccount.google.com' });
         const osjc = profileCookies.find(c => c.name === 'OSID' || c.name === 'LSID');
-        if (osjc) email = 'Compte Google connect\u00e9';
+        if (osjc) email = 'Compte Google connecté';
       } catch {}
     }
-    return { connected: true, email: email || 'Compte Google connect\u00e9 \u2705' };
+    return { connected: true, email: email || 'Compte Google connecté ✅', method: 'cookie' };
   } catch { return { connected: false }; }
 }
 
-// ── Google Account Window ──
+// ── Google Account Window (cookie flow) ──
 function openGoogleAccount() {
   if (googleAccountWindow && !googleAccountWindow.isDestroyed()) { googleAccountWindow.focus(); return true; }
   googleAccountWindow = new BrowserWindow({
@@ -79,20 +92,24 @@ function openGoogleAccount() {
 
 // ── Drive Export ──
 async function exportReportToDrive({ filename, content, mimeType }) {
-  const gs = session.fromPartition(GOOGLE_PARTITION);
-  // R\u00e9cup\u00e9rer le token OAuth depuis les cookies de la session
-  const cookies = await gs.cookies.get({ domain: '.google.com' });
-  const sapisid = cookies.find(c => c.name === 'SAPISID');
-  if (!sapisid) throw new Error('Non connect\u00e9 \u00e0 Google');
+  // Prefer PKCE access_token
+  const tokens = getStoredTokens();
+  let authHeader;
+  if (tokens && tokens.access_token) {
+    authHeader = `Bearer ${tokens.access_token}`;
+  } else {
+    // Fallback SAPISIDHASH
+    const gs = session.fromPartition(GOOGLE_PARTITION);
+    const cookies = await gs.cookies.get({ domain: '.google.com' });
+    const sapisid = cookies.find(c => c.name === 'SAPISID');
+    if (!sapisid) throw new Error('Non connecté à Google');
+    const origin = 'https://www.googleapis.com';
+    const now = Math.floor(Date.now() / 1000);
+    const { createHash } = require('crypto');
+    const hash = createHash('sha1').update(`${now} ${sapisid.value} ${origin}`).digest('hex');
+    authHeader = `SAPISIDHASH ${now}_${hash}`;
+  }
 
-  // Construire le token SAPISIDHASH pour l'auth
-  const origin = 'https://www.googleapis.com';
-  const now = Math.floor(Date.now() / 1000);
-  const { createHash } = require('crypto');
-  const hash = createHash('sha1').update(`${now} ${sapisid.value} ${origin}`).digest('hex');
-  const authToken = `SAPISIDHASH ${now}_${hash}`;
-
-  // Cr\u00e9er le fichier sur Drive via multipart upload
   const boundary = 'teamai_boundary_' + Date.now();
   const metadata = JSON.stringify({ name: filename, parents: [], mimeType });
   const body = [
@@ -111,13 +128,10 @@ async function exportReportToDrive({ filename, content, mimeType }) {
     const req = net.request({
       method: 'POST',
       url: 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
-      partition: GOOGLE_PARTITION,
-      session: gs,
     });
-    req.setHeader('Authorization', authToken);
+    req.setHeader('Authorization', authHeader);
     req.setHeader('Content-Type', `multipart/related; boundary=${boundary}`);
     req.setHeader('X-Goog-AuthUser', '0');
-    req.setHeader('Origin', origin);
     let responseData = '';
     req.on('response', (res) => {
       res.on('data', chunk => { responseData += chunk.toString(); });
@@ -125,8 +139,8 @@ async function exportReportToDrive({ filename, content, mimeType }) {
         try {
           const json = JSON.parse(responseData);
           if (json.id) resolve({ id: json.id, name: json.name });
-          else reject(new Error(json.error?.message || 'Upload \u00e9chou\u00e9'));
-        } catch { reject(new Error('R\u00e9ponse invalide Drive')); }
+          else reject(new Error(json.error?.message || 'Upload échoué'));
+        } catch { reject(new Error('Réponse invalide Drive')); }
       });
     });
     req.on('error', reject);
@@ -191,6 +205,25 @@ function setupIPC() {
   h('set-zoom',               (e, l) => { zoomLevel = Math.max(-3, Math.min(5, l)); });
   h('get-zoom',               () => zoomLevel);
   h('load-providers',         () => { const p = loadJSON(CFG.PROVIDERS); return Array.isArray(p) ? p : []; });
+  // ── PKCE OAuth ──
+  h('google-signin-pkce', async () => {
+    try {
+      const tokens = await startGooglePKCE();
+      const userInfo = await fetchGoogleUserInfo(tokens.access_token);
+      if (mainWindow && !mainWindow.isDestroyed())
+        mainWindow.webContents.send('google-status-changed', { connected: true, email: userInfo.email, method: 'pkce' });
+      return { success: true, email: userInfo.email, tokens };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+  h('google-signout-pkce', () => {
+    clearTokens();
+    if (mainWindow && !mainWindow.isDestroyed())
+      mainWindow.webContents.send('google-status-changed', { connected: false });
+    return { success: true };
+  });
+  h('google-get-tokens', () => getStoredTokens());
   h('check-update', async () => {
     const { execSync } = require('child_process');
     try {
@@ -211,7 +244,7 @@ function setupIPC() {
     try {
       execSync('git pull', { cwd: __dirname.replace('/electron', ''), timeout: 30000 });
       execSync('npm install --no-audit --no-fund', { cwd: __dirname.replace('/electron', ''), timeout: 120000 });
-    } catch(e) { return `\u274c ${e.message}`; }
+    } catch(e) { return `❌ ${e.message}`; }
     app.relaunch(); app.exit(0); return 'OK';
   });
 }
