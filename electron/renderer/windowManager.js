@@ -18,7 +18,6 @@ const WinManager = {
     LayoutModel.views = [];
     this._idCounter = 0;
 
-    // Restore session or create defaults
     const saved = localStorage.getItem('teamai_session');
     if (saved) {
       try {
@@ -93,7 +92,6 @@ const WinManager = {
     this.frames.set(id, entry);
     LayoutModel.addView(id, prov.id, prov.label, prov.icon, initialUrl || prov.url || 'about:blank');
 
-    // Webview
     const partition = `persist:teamai_${prov.id}`;
     const webview = document.createElement('webview');
     webview.src = initialUrl || prov.url || 'about:blank';
@@ -130,7 +128,6 @@ const WinManager = {
 
   _bindToolbar(id, entry) {
     const frame = entry.frame;
-    // Combo → switch provider in same frame
     entry.combo?.addEventListener('change', () => {
       const newProvId = entry.combo.value;
       const wv = frame.querySelector('webview');
@@ -144,7 +141,6 @@ const WinManager = {
       if (view) { view.providerId = newProvId; view.label = prov?.label || newProvId; view.url = newUrl; }
       entry.urlBar.value = newUrl;
     });
-    // Nav buttons
     frame.querySelectorAll('.nav-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -163,8 +159,6 @@ const WinManager = {
             frame.style.top = ''; frame.style.left = ''; frame.style.zIndex = '';
             this._applyLayout();
           } else {
-            // Full viewport focus
-            const vp = document.getElementById('viewport');
             frame.classList.add('focused');
             frame.style.position = 'fixed';
             frame.style.top = '0'; frame.style.left = '0';
@@ -174,7 +168,6 @@ const WinManager = {
         }
       });
     });
-    // URL bar: Enter → navigate + Google search fallback
     entry.urlBar.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -190,7 +183,6 @@ const WinManager = {
         wv.src = val;
       }
     });
-    // Close button
     frame.querySelector('.close-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       this._remove(id);
@@ -255,7 +247,6 @@ const WinManager = {
       frame.style.top = ''; frame.style.left = ''; frame.style.zIndex = '';
       this._applyLayout();
     } else {
-      const vp = document.getElementById('viewport');
       frame.classList.add('focused');
       frame.style.position = 'fixed';
       frame.style.top = '0'; frame.style.left = '0';
@@ -290,7 +281,6 @@ const WinManager = {
         entry.frame.style.left = '';
         entry.frame.style.top = '';
       }
-      // Cards/Focus overlay + dimming (ne JAMAIS assombrir les titres)
       const overlay = entry.frame.querySelector('.card-overlay');
       const header = entry.frame.querySelector('.card-header');
       const wvArea = entry.frame.querySelector('.webview-area') || entry.frame.querySelector('webview');
@@ -298,9 +288,7 @@ const WinManager = {
         const idx = Array.from(this.frames.keys()).indexOf(id);
         const isActive = idx === LayoutModel._activeCard;
         if (overlay) overlay.style.display = isActive ? 'none' : 'block';
-        // Bordure blanche UNIQUEMENT sur la carte active, pas de bordure blanche sinon
         entry.frame.style.border = isActive ? '2px solid rgba(255,255,255,0.8)' : '1px solid var(--border)';
-        // Opacité: n'assombrir QUE la zone webview, JAMAIS le header
         if (wvArea) wvArea.style.opacity = isActive ? '1' : '0.6';
         if (header) header.style.opacity = '1';
       } else {
@@ -324,26 +312,27 @@ const WinManager = {
   },
 
   _dispatchToAll(text) {
-    // Fingerprints par hostname → sélecteurs précis
     const PROVIDERS = {
       'chatgpt.com':       { input: '[contenteditable][data-id], [contenteditable="true"]', send: '[data-testid="send-button"]' },
       'gemini.google.com': { input: '[contenteditable][role="textbox"]',                    send: 'button[aria-label*="Send" i], button[aria-label*="Envoyer" i]' },
       'claude.ai':         { input: '[contenteditable][data-placeholder], [contenteditable="true"]', send: 'button[aria-label*="Send" i], button[data-value="send"]' },
-      'chatglm.cn':        { input: '[contenteditable]',                                    send: 'button[class*="send" i], button[aria-label*="Send" i]' },
-      // FIX: kimi.moonshot.cn → kimi.ai (URL réelle du service)
-      'kimi.ai':           { input: '.chat-input [contenteditable], [contenteditable]',     send: 'button[data-testid*="send" i], button[class*="send" i], button[aria-label*="Send" i]' },
-      // FIX: grok.com send selector élargi — pas de type="submit" fiable sur grok.com
-      'grok.com':          { input: 'textarea',                                             send: 'button[data-testid*="send" i], button[class*="send" i], button[aria-label*="Send" i], button[aria-label*="Envoyer" i], button[type="submit"]' },
-      'build.nvidia.com':  { input: 'textarea',                                             send: 'button[type="submit"], button[aria-label*="Send" i]' },
-      'venice.ai':         { input: 'textarea',                                             send: 'button[type="submit"][aria-label*="Send" i], button[type="submit"]' },
+      // GLM: pas de bouton send standard — dispatch via Enter key sur contenteditable
+      'chatglm.cn':        { input: '[contenteditable]', send: null, useEnter: true },
+      // Kimi: dual hostname kimi.ai + kimi.com — même config
+      'kimi.ai':           { input: '.chat-input [contenteditable], #chat-input [contenteditable], [contenteditable]', send: null, useEnter: true },
+      'kimi.com':          { input: '.chat-input [contenteditable], #chat-input [contenteditable], [contenteditable]', send: null, useEnter: true },
+      // Grok: blacklist voice/mic — cibler SVG send uniquement
+      'grok.com':          { input: 'textarea', send: 'button[aria-label*="Send" i]:not([aria-label*="voice" i]):not([aria-label*="mic" i]):not([aria-label*="audio" i]), button[data-testid="send-button"]' },
+      'build.nvidia.com':  { input: 'textarea', send: 'button[type="submit"], button[aria-label*="Send" i]' },
+      'venice.ai':         { input: 'textarea', send: 'button[type="submit"][aria-label*="Send" i], button[type="submit"]' },
     };
 
-    const BLACKLIST = /attach|joindre|model|micro|image|file|photo|clip|gear|param|setting/i;
+    const BLACKLIST = /attach|joindre|model|micro|image|file|photo|clip|gear|param|setting|voice|mic|audio|dict/i;
 
     const escapedText = JSON.stringify(text);
 
     const injectJS = `(function(){
-      var h = location.hostname.replace(/^www\\./, '');
+      var h = location.hostname.replace(/^www\./, '');
       var FP = ${JSON.stringify(PROVIDERS)};
       var fpKey = Object.keys(FP).find(function(k){ return h.endsWith(k); });
       var cfg = fpKey ? FP[fpKey] : {};
@@ -363,13 +352,11 @@ const WinManager = {
 
       ed.focus();
 
-      // 2. Injection compatible React/Vue/Lexical
+      // 2. Injection
       if (ed.isContentEditable) {
-        // execCommand bypass isTrusted
         document.execCommand('selectAll', false, null);
         document.execCommand('delete', false, null);
         document.execCommand('insertText', false, ${escapedText});
-        // Fallback si execCommand désactivé (Firefox/strict)
         if (!ed.textContent.trim()) {
           ed.innerHTML = '';
           var p = document.createElement('p');
@@ -378,7 +365,6 @@ const WinManager = {
           ed.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: ${escapedText} }));
         }
       } else {
-        // textarea/input : native value setter pour React
         var proto = ed.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
         var nv = Object.getOwnPropertyDescriptor(proto, 'value');
         if (nv && nv.set) nv.set.call(ed, ${escapedText});
@@ -387,36 +373,44 @@ const WinManager = {
         ed.dispatchEvent(new Event('change', { bubbles: true }));
       }
 
-      // 3. Trouver le bouton send avec scoring
-      var BLACKLIST = /attach|joindre|model|micro|image|file|photo|clip|gear|param|setting/i;
+      // 3. Submit via Enter (GLM, Kimi) ou bouton send
+      var BLACKLIST = /attach|joindre|model|micro|image|file|photo|clip|gear|param|setting|voice|mic|audio|dict/i;
+
+      if (cfg.useEnter) {
+        // Dispatch Enter key — compatible React synthetic events
+        setTimeout(function() {
+          ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+          ed.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+          ed.dispatchEvent(new KeyboardEvent('keyup',   { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+        }, 300);
+        return 'ENTER_DISPATCHED';
+      }
+
       function findSendBtn() {
-        // Priorité 1 : fingerprint précis
         if (cfg.send) {
           var ss = cfg.send.split(',').map(function(s){ return s.trim(); });
           for (var i = 0; i < ss.length; i++) {
             try {
               var b = document.querySelector(ss[i]);
-              if (b && !b.disabled && b.offsetParent !== null) return b;
+              if (b && !b.disabled && b.offsetParent !== null && !BLACKLIST.test(b.getAttribute('aria-label') || b.className || '')) return b;
             } catch(e) {}
           }
         }
-        // Priorité 2 : data-testid
         var tid = document.querySelector('[data-testid="send-button"],[data-testid="submit-button"]');
-        if (tid && !tid.disabled && tid.offsetParent !== null) return tid;
-        // Priorité 3 : aria-label global
+        if (tid && !tid.disabled && tid.offsetParent !== null && !BLACKLIST.test(tid.getAttribute('aria-label') || '')) return tid;
         var allBtns = Array.prototype.slice.call(document.querySelectorAll('button[aria-label]'));
         for (var j = 0; j < allBtns.length; j++) {
           var lbl = allBtns[j].getAttribute('aria-label').toLowerCase();
           if ((lbl.indexOf('send') !== -1 || lbl.indexOf('envoyer') !== -1 || lbl.indexOf('submit') !== -1)
+              && !BLACKLIST.test(lbl)
               && !allBtns[j].disabled && allBtns[j].offsetParent !== null) return allBtns[j];
         }
-        // Priorité 4 : remonter depuis l'input (max 8 niveaux)
         var node = ed.parentElement;
         for (var d = 0; d < 8 && node; d++, node = node.parentElement) {
           var sub = node.querySelector('button[type="submit"]');
-          if (sub && !sub.disabled && sub.offsetParent !== null) return sub;
+          if (sub && !sub.disabled && sub.offsetParent !== null && !BLACKLIST.test(sub.getAttribute('aria-label') || sub.className || '')) return sub;
           var svgBtns = Array.prototype.slice.call(node.querySelectorAll('button')).filter(function(b){
-            return b.querySelector('svg') && !b.disabled && b.offsetParent !== null;
+            return b.querySelector('svg') && !b.disabled && b.offsetParent !== null && !BLACKLIST.test(b.getAttribute('aria-label') || b.className || '');
           });
           if (svgBtns.length === 1) return svgBtns[0];
           if (svgBtns.length > 1) {
@@ -434,7 +428,6 @@ const WinManager = {
         return null;
       }
 
-      // 4. Poll max 15×200ms
       var attempts = 0;
       function poll() {
         var form = ed.closest('form');
@@ -443,7 +436,7 @@ const WinManager = {
         if (btn) { btn.click(); return 'CLICKED:' + (btn.getAttribute('aria-label') || btn.className); }
         if (++attempts < 15) setTimeout(poll, 200);
       }
-      setTimeout(poll, 250);
+      setTimeout(poll, 300);
       return 'INJECTED';
     })();`;
 

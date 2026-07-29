@@ -5,7 +5,7 @@
   {"id":"raisonnement","label":"ChatGPT Raisonnement","url":"https://chatgpt.com","icon":"🧠"},
   {"id":"claude","label":"Claude Sonnet 5","url":"https://claude.ai","icon":"✨"},
   {"id":"zglm","label":"Z GLM 5.2","url":"https://chatglm.cn","icon":"🔬"},
-  {"id":"kimi","label":"Kimi K2.6","url":"https://kimi.moonshot.cn","icon":"🌙"},
+  {"id":"kimi","label":"Kimi K2.6","url":"https://kimi.ai","icon":"🌙"},
   {"id":"grok","label":"Grok 4.5","url":"https://grok.com","icon":"🚀"},
   {"id":"nemotron","label":"Nemotron 3 Ultra","url":"https://build.nvidia.com/explore/reasoning","icon":"💎"},
   {"id":"venice","label":"Venice.ai","url":"https://venice.ai","icon":"🎭"}
