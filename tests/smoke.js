@@ -45,6 +45,7 @@ t('BUG-004: teamai.loadProviders() dans app.js', () => a(ap.includes('teamai.loa
 t('BUG-005: try/catch global app.js', () => a(ap.includes('try {') && ap.includes('catch (e)')));
 t('BUG-006: WinManager.providers (pas providersList)', () => a(sb.includes('WinManager.providers')));
 t('BUG-007: _renderVersion utilise getVersion', () => a(sb.includes('teamai.getVersion()')));
+t('BUG-007b: get-version renvoie branch', () => a(main.includes('branch')), 'IPC getVersion sans branch');
 
 // Phase 2: IPC handlers
 console.log('\n🔌 IPC handlers');

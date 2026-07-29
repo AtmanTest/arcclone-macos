@@ -210,7 +210,16 @@ function setupIPC() {
   h('get-drive-status',       () => getDriveStatus());
   h('test-drive',             () => testDrive());
   h('export-report-to-drive', (e, opts) => exportReportToDrive(opts));
-  h('get-version',            () => { const v = loadJSON(CFG.VERSION); return { version: v.version || '0.0.0', commit: v.commit || 'dev', url: CFG.GITHUB_URL }; });
+  h('get-version',            () => { 
+    const v = loadJSON(CFG.VERSION); 
+    let branch = 'main';
+    try {
+      const head = fs.readFileSync(path.join(__dirname, '..', '.git', 'HEAD'), 'utf8').trim();
+      const m = head.match(/^ref:\s*refs\/heads\/(.+)$/);
+      if (m) branch = m[1];
+    } catch {}
+    return { version: v.version || '0.0.0', commit: v.commit || 'dev', branch, url: CFG.GITHUB_URL }; 
+  });
   h('open-url',               (e, url) => { if (url) shell.openExternal(url); });
   h('set-zoom',               (e, l) => { zoomLevel = Math.max(-3, Math.min(5, l)); });
 
