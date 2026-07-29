@@ -118,7 +118,7 @@ const ReportManager = {
     // Section 3 — IA consultées
     md += `## 2. IA consultées (${count})
 
-${this._data.map((d,i)=>`${i+1}. ${d.label}`).join('\n|')}
+${this._data.map((d,i)=>`${i+1}. ${d.label}`).join('\n')}
 
 `;
 
