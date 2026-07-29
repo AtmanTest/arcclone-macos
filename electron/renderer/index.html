@@ -35,14 +35,13 @@
         <button class="action-btn primary" id="btn-save-session">💾 Sauvegarder la session</button>
         <button class="action-btn" id="btn-settings" style="margin-top:2px;background:#1a1a2e;border:1px solid #333;">⚙️ Réglages</button>
         <div id="version-badge">v0.0.0</div>
-        <!-- Google profile card injectée par sidebar.js juste après #version-badge -->
       </div>
     </aside>
 
     <div id="main">
       <div id="prompt-bar">
         <div id="prompt-wrap">
-          <textarea id="prompt-input" rows="4" placeholder="Pose ta question \u00e0 TOUTES les IA..."></textarea>
+          <textarea id="prompt-input" rows="4" placeholder="Pose ta question à TOUTES les IA..."></textarea>
           <div id="prompt-actions">
             <button id="btn-attach" title="Joindre un fichier">📎</button>
             <button id="go-btn">SEARCH ALL</button>
@@ -61,18 +60,18 @@
   <div id="login-modal">
     <div id="login-content">
       <div id="login-header">
-        <h2>\ud83d\udd11 Assistant Connexion</h2>
-        <p id="login-progress">\u00c9tape <span id="login-step-num">0</span>/<span id="login-total">0</span></p>
+        <h2>🔑 Assistant Connexion</h2>
+        <p id="login-progress">Étape <span id="login-step-num">0</span>/<span id="login-total">0</span></p>
       </div>
       <div id="login-body">
-        <div id="login-provider-card"><span id="login-icon">\u26a1</span><span id="login-label">IA</span></div>
-        <p id="login-instruction">Connecte-toi via la fen\u00eatre d\u00e9di\u00e9e, puis clique "Suivant".</p>
-        <div id="login-webview-container"><div class="login-placeholder">\ud83d\udd11 Fen\u00eatre de connexion ouverte</div></div>
+        <div id="login-provider-card"><span id="login-icon">⚡</span><span id="login-label">IA</span></div>
+        <p id="login-instruction">Connecte-toi via la fenêtre dédiée, puis clique "Suivant".</p>
+        <div id="login-webview-container"><div class="login-placeholder">🔑 Fenêtre de connexion ouverte</div></div>
       </div>
       <div id="login-footer">
-        <button id="login-prev" disabled>\u25c4 Pr\u00e9c\u00e9dent</button>
+        <button id="login-prev" disabled>◄ Précédent</button>
         <button id="login-skip">Passer</button>
-        <button id="login-done" class="primary">\u2705 Connect\u00e9 \u2014 Suivant \u25ba</button>
+        <button id="login-done" class="primary">✅ Connecté — Suivant ►</button>
       </div>
     </div>
   </div>
@@ -81,14 +80,14 @@
   <div id="report-modal">
     <div id="report-content">
       <div id="report-header">
-        <h2>\ud83d\udccb Rapport IA</h2>
-        <button id="report-close-modal">\u2715</button>
+        <h2>📋 Rapport IA</h2>
+        <button id="report-close-modal">✕</button>
       </div>
       <div id="report-body">Collecte...</div>
       <div id="report-footer">
-        <button class="secondary" id="report-export-md">\ud83d\udcc4 Export .md</button>
+        <button class="secondary" id="report-export-md">📄 Export .md</button>
         <button class="secondary" id="report-export-drive">📂 Sauvegarder sur Drive</button>
-        <button class="secondary" id="report-refresh">\u27f3</button>
+        <button class="secondary" id="report-refresh">⟳</button>
         <button id="report-close-btn">Fermer</button>
       </div>
     </div>
@@ -99,14 +98,13 @@
     <div style="background:#0f0f1a;border:1px solid #2a2a3a;border-radius:16px;width:460px;max-height:82vh;overflow-y:auto;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 10px;border-bottom:1px solid #1e1e2e;">
         <h2 style="color:#fff;margin:0;font-size:13px;font-weight:700;">⚙️ Réglages</h2>
-        <button id="settings-close" style="background:none;border:none;color:#555;font-size:15px;cursor:pointer;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background 0.12s;">✕</button>
+        <button id="settings-close" style="background:none;border:none;color:#555;font-size:15px;cursor:pointer;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;">✕</button>
       </div>
 
       <!-- Google Profile Card -->
       <div style="padding:16px 16px 0;">
-        <div id="settings-google-profile" class="sg-profile-card">
-          <!-- inject\u00e9 par settings.js -->
-          <div style="padding:30px;text-align:center;color:#555;font-size:10px;">\u23f3 Chargement…</div>
+        <div id="settings-google-profile">
+          <div style="padding:30px;text-align:center;color:#555;font-size:10px;">⏳ Chargement…</div>
         </div>
       </div>
 
@@ -122,23 +120,23 @@
         <div id="drive-status-bar" style="background:#111;border:1px solid #1e1e2e;border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:10px;color:#888;"></div>
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
           <input type="checkbox" id="drive-auto-export" style="accent-color:#4ADE80;">
-          <label for="drive-auto-export" style="color:#aaa;font-size:10px;cursor:pointer;">Export automatique \u00e0 chaque rapport</label>
+          <label for="drive-auto-export" style="color:#aaa;font-size:10px;cursor:pointer;">Export automatique à chaque rapport</label>
         </div>
         <button id="btn-drive-test" style="width:100%;background:#1a1a2e;color:#aaa;border:1px solid #2a2a3a;border-radius:7px;padding:8px;font-size:10px;cursor:pointer;" disabled>🧪 Tester Drive</button>
       </div>
 
       <!-- Providers -->
       <div style="padding:12px 16px;border-bottom:1px solid #1e1e2e;">
-        <div style="color:#777;font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Providers</div>
+        <div style="color:#777;font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">📦 Providers</div>
         <div style="display:flex;gap:6px;">
-          <button id="settings-export" style="flex:1;background:#1a1a2e;color:#aaa;border:1px solid #2a2a3a;border-radius:6px;padding:7px;font-size:10px;cursor:pointer;">\u2b07\ufe0f Exporter JSON</button>
-          <button id="settings-import" style="flex:1;background:#1a1a2e;color:#aaa;border:1px solid #2a2a3a;border-radius:6px;padding:7px;font-size:10px;cursor:pointer;">\u2b06\ufe0f Importer JSON</button>
+          <button id="settings-export" style="flex:1;background:#1a1a2e;color:#aaa;border:1px solid #2a2a3a;border-radius:6px;padding:7px;font-size:10px;cursor:pointer;">⬇️ Exporter JSON</button>
+          <button id="settings-import" style="flex:1;background:#1a1a2e;color:#aaa;border:1px solid #2a2a3a;border-radius:6px;padding:7px;font-size:10px;cursor:pointer;">⬆️ Importer JSON</button>
         </div>
       </div>
 
       <!-- App -->
       <div style="padding:12px 16px;">
-        <div style="color:#777;font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Application</div>
+        <div style="color:#777;font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">🖥 Application</div>
         <div style="display:flex;gap:6px;">
           <button id="settings-clear-sessions" style="flex:1;background:#1a1a2e;color:#EF4444;border:1px solid #3a1a1a;border-radius:6px;padding:7px;font-size:10px;cursor:pointer;">🗑 Effacer sessions</button>
           <button id="settings-open-github" style="flex:1;background:#1a1a2e;color:#aaa;border:1px solid #2a2a3a;border-radius:6px;padding:7px;font-size:10px;cursor:pointer;">🔗 GitHub</button>
