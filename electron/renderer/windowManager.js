@@ -343,20 +343,43 @@ const WinManager = {
             ed.dispatchEvent(new Event('input', { bubbles: true }));
             ed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
             setTimeout(() => {
-              const c = ed.closest('form') || ed.closest('[class*="input"],[class*="chat"],[class*="prompt"],[class*="footer"]') || ed.parentElement;
+              const form = ed.closest('form');
+              const cont = form || ed.closest('[class*="input"],[class*="chat"],[class*="prompt"],[class*="footer"]') || ed.parentElement;
               (function poll() {
-                let btns = c ? c.querySelectorAll('button') : [];
+                // 1 - form.requestSubmit()
+                if (form) { try { form.requestSubmit(); return; } catch(e) {} }
+                // 2 - type="submit" dans le conteneur
+                let btns = cont ? cont.querySelectorAll('button[type="submit"]') : [];
+                for (let i = 0; i < btns.length; i++) {
+                  if (!btns[i].disabled && btns[i].offsetParent !== null) { btns[i].click(); return; }
+                }
+                // 3 - data-testid send-button
+                const tid = document.querySelector('[data-testid="send-button"],[data-testid="submit-button"]');
+                if (tid && !tid.disabled && tid.offsetParent !== null) { tid.click(); return; }
+                // 4 - aria-label send/envoyer dans le conteneur
+                btns = cont ? cont.querySelectorAll('[aria-label*="send" i],[aria-label*="envoyer" i],[aria-label*="submit" i]') : [];
+                for (let i = 0; i < btns.length; i++) {
+                  if (btns[i].tagName === 'BUTTON' && !btns[i].disabled && btns[i].offsetParent !== null) { btns[i].click(); return; }
+                }
+                // 5 - dernier SVG visible non-disabled dans le conteneur
+                btns = cont ? cont.querySelectorAll('button') : [];
                 for (let i = btns.length - 1; i >= 0; i--) {
-                  if (btns[i].offsetParent !== null && btns[i].querySelector('svg') && !btns[i].disabled) {
+                  if (btns[i].querySelector('svg') && !btns[i].disabled && btns[i].offsetParent !== null) {
                     btns[i].click(); return;
                   }
                 }
-                const g = document.querySelector('button[type="submit"], [aria-label*="send" i], [aria-label*="envoyer" i]');
-                if (g && g.offsetParent !== null && !g.disabled) { g.click(); return; }
+                // 6 - aria-label global
+                const ga = document.querySelector('[aria-label*="send" i],[aria-label*="envoyer" i],[aria-label*="submit" i],[aria-label*="Ask" i]');
+                if (ga && ga.tagName === 'BUTTON' && !ga.disabled && ga.offsetParent !== null) { ga.click(); return; }
+                // 7 - dernier bouton visible dans le conteneur
+                for (let i = btns.length - 1; i >= 0; i--) {
+                  if (!btns[i].disabled && btns[i].offsetParent !== null) { btns[i].click(); return; }
+                }
+                // Poll retry
                 if (!ed._pc) ed._pc = 0;
                 if (++ed._pc < 15) setTimeout(poll, 200);
               })();
-            }, 150);
+            }, 200);
           }
         })();
       `).then(r => console.log('[DISPATCH ' + entry.id + '] OK')).catch(e => console.error('[DISPATCH ' + entry.id + ']', e));

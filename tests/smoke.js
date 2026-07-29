@@ -83,11 +83,11 @@ t('BUG-047: Enter key → dispatch', () => a(
   pd.includes("e.key === 'Enter'"),
   'Enter handler manquant'
 ));
-t('BUG-048: _dispatchToAll conteneur prioritaire', () => a(
+t('BUG-048: _dispatchToAll 7 stratégies + polling', () => a(
   wm.includes('this.frames.forEach((entry) =>')
-  && wm.includes('ed.closest')
-  && wm.includes('.querySelector(\'svg\')')
-  && wm.includes('offsetParent'),
+  && wm.includes('form.requestSubmit()')
+  && wm.includes('data-testid=\"send-button\"')
+  && wm.includes('aria-label*=\"envoyer\"'),
   '_dispatchToAll modifié'
 ));
 t('BUG-049: prompt-input dans HTML', () => a(
