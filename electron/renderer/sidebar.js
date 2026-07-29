@@ -12,14 +12,13 @@ const Sidebar = {
     this._providers = providers || [];
     this._renderProviders();
     this.renderAll();
-    this._renderVersion();
+    this._renderVersionBadge();
     document.getElementById('btn-new-tab')?.addEventListener('click', () => {
       if (this._providers.length > 0) WinManager.addView(this._providers[0].id);
     });
     document.getElementById('btn-login-assistant')?.addEventListener('click', () => LoginAssistant.start());
     document.getElementById('btn-report')?.addEventListener('click', () => ReportManager.open());
     document.getElementById('btn-save-session')?.addEventListener('click', () => this._saveSession());
-    // Refresh card when PKCE auth completes
 
     // Bug 2 fix — Zoom listeners
     const zoomOut   = document.getElementById('zoom-out');
@@ -38,7 +37,7 @@ const Sidebar = {
     zoomIn    && zoomIn.addEventListener('click',    () => { _zoomLevel = Math.min(5,  _zoomLevel + 1); _applyZoom(_zoomLevel); });
     zoomReset && zoomReset.addEventListener('click', () => { _zoomLevel = 0; _applyZoom(0); });
     zoomResetLayout && zoomResetLayout.addEventListener('click', () => WinManager._resetLayout && WinManager._resetLayout());
-        teamai.onGoogleStatusChanged(() => this.refreshGoogleCard());
+    teamai.onGoogleStatusChanged(() => this.refreshGoogleCard());
   },
 
   renderAll() {
@@ -49,15 +48,24 @@ const Sidebar = {
     Bookmarks.render();
   },
 
-  _renderVersion() {
-    teamai.getVersion().then(v => {
-      const el = document.getElementById('version-badge');
-      if (el && v) {
-        el.textContent = `v${v.version}`;
-        el.title = `v${v.version} \u2014 cliquer pour le changelog`;
-        el.addEventListener('click', () => Changelog.open());
-      }
-    }).catch(() => {});
+  // Badge = branche Git courante (via IPC) + version entre parenthèses
+  async _renderVersionBadge() {
+    const el = document.getElementById('version-badge');
+    if (!el) return;
+
+    try {
+      const info = await teamai.getVersion();
+      const ver  = info?.version  || '';
+      const branch = info?.branch || 'main';
+
+      el.textContent = branch + (ver ? ` (${ver})` : '');
+      el.title = `Branche : ${branch}` + (ver ? ` — v${ver}` : '') + ' — cliquer pour le changelog';
+    } catch {
+      el.textContent = 'main';
+      el.title = 'Branche courante';
+    }
+
+    el.addEventListener('click', () => Changelog.open());
     this.refreshGoogleCard();
   },
 
@@ -75,7 +83,6 @@ const Sidebar = {
     try {
       const s = await teamai.getGoogleStatus();
       if (s && s.connected && s.email && s.email.includes('@')) {
-        // Connected with real email
         card.innerHTML = `
           <div class="g-avatar g-logo">${GOOGLE_SVG}</div>
           <div class="g-info">
@@ -85,7 +92,6 @@ const Sidebar = {
         `;
         card.title = `${s.email} \u2014 R\u00e9glages`;
       } else if (s && s.connected) {
-        // Connected but no email (should not happen with PKCE)
         card.innerHTML = `
           <div class="g-avatar g-logo">${GOOGLE_SVG}</div>
           <div class="g-info">

@@ -12,7 +12,7 @@
     <aside id="sidebar">
       <div id="logo">🧠 TeamAI</div>
       <button id="btn-new-tab" class="action-btn primary">+ Nouvel Onglet IA</button>
-      <button id="btn-add-ia" class="action-btn" style="margin-top:1px;font-size:9px">✚ Ajouter IA</button>
+      <button id="btn-add-ia" class="action-btn" style="margin-top:1px;font-size:11px">✚ Ajouter IA</button>
 
       <div id="zoom-controls">
         <button id="zoom-out">−</button>
@@ -29,13 +29,17 @@
       <div id="providers-list"></div>
 
       <div id="sidebar-bottom">
-        <button id="btn-login-assistant" class="action-btn">🔑 Assistant Connexion</button>
-        <button id="btn-report" class="action-btn">📋 Rapport</button>
-        <button id="btn-update" class="sidebar-btn" style="font-size:7px;color:#666" title="Mise à jour">🔄 Mettre à jour</button>
-        <button id="btn-check-update" class="sidebar-btn" style="font-size:7px;color:#666;margin-left:2px" title="Vérifier">⟳</button>
-        <button class="action-btn primary" id="btn-save-session">💾 Sauvegarder la session</button>
-        <button class="action-btn" id="btn-settings" style="margin-top:2px;background:#1a1a2e;border:1px solid #333;">⚙️ Réglages</button>
-        <div id="version-badge">v0.0.0</div>
+        <button id="btn-login-assistant" class="action-btn sidebar-uniform">🔑 Assistant Connexion</button>
+        <button id="btn-report" class="action-btn sidebar-uniform">📋 Rapport</button>
+
+        <div style="display:flex;align-items:center;gap:4px;margin-top:4px;">
+          <button id="btn-update" class="sidebar-btn sidebar-uniform" style="flex:1;color:#666" title="Mise à jour">✓ À jour</button>
+          <button id="btn-check-update" class="sidebar-btn sidebar-uniform" style="color:#666;padding:4px 8px;" title="Vérifier">⟳</button>
+        </div>
+
+        <button class="action-btn sidebar-uniform" id="btn-save-session" style="margin-top:4px;background:#1a3a5c;border:1px solid #1e5a8a;color:#60b4ff;">💾 Sauvegarder la session</button>
+        <button class="action-btn sidebar-uniform" id="btn-settings" style="margin-top:2px;background:#1a1a2e;border:1px solid #333;">⚙️ Réglages</button>
+        <div id="version-badge">...</div>
       </div>
     </aside>
 
@@ -222,7 +226,6 @@
         }
       }
       cb.addEventListener('change', syncToggle);
-      // Init
       cb.checked = localStorage.getItem('teamai_dispatch_bar_enabled') !== 'false';
       syncToggle();
     });
