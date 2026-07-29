@@ -18,14 +18,13 @@ const ErrorBar = {
 const FOCUS_RELAUNCH_KEY = 'teamai_focus_on_relaunch';
 
 /**
- * Populate #version-number + #branch-pill
+ * Populate #version-number + #branch-link
  * Tries teamai.getAppVersion() / teamai.getGitBranch() from the preload.
- * Falls back to parsing package.json path exposed via IPC, or defaults.
  */
 async function _initVersionBadge() {
   const vEl  = document.getElementById('version-number');
-  const bEl  = document.getElementById('branch-pill');
-  if (!vEl || !bEl) return;
+  const bEl  = document.getElementById('branch-link');
+  if (!vEl && !bEl) return;
 
   // ── Version ──
   let version = 'v?.?.?';
@@ -38,7 +37,7 @@ async function _initVersionBadge() {
       }
     }
   } catch { /* keep default */ }
-  vEl.textContent = version;
+  if (vEl) vEl.textContent = version;
 
   // ── Branch ──
   let branch = 'main';
@@ -46,19 +45,19 @@ async function _initVersionBadge() {
     if (typeof teamai !== 'undefined' && teamai.getGitBranch) {
       branch = (await teamai.getGitBranch()) || 'main';
     } else {
-      // Fallback: infer from update info
       const info = await teamai?.checkUpdate?.();
       if (info && info.branch) branch = info.branch;
     }
   } catch { /* keep default */ }
 
-  bEl.textContent = branch;
-
-  // Couleur selon type de branche
-  let type = 'feature';
-  if (branch === 'main' || branch === 'master') type = 'main';
-  else if (branch === 'develop' || branch === 'dev') type = 'develop';
-  bEl.setAttribute('data-branch-type', type);
+  if (bEl) {
+    bEl.textContent = branch;
+    // Build compare URL: main...{branch}
+    const base = 'main';
+    const escaped = encodeURIComponent(branch);
+    bEl.href = `https://github.com/AtmanTest/arcclone-macos/compare/${base}...${escaped}`;
+    bEl.title = `Voir les commits de ${branch}`;
+  }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -120,15 +119,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!updateBtn) return;
       try {
         const info = await teamai.checkUpdate();
-        // Refresh branch pill si la branche est dans la réponse
+        // Refresh branch link si la branche est dans la réponse
         if (info && info.branch) {
-          const bEl = document.getElementById('branch-pill');
+          const bEl = document.getElementById('branch-link');
           if (bEl) {
             bEl.textContent = info.branch;
-            let type = 'feature';
-            if (info.branch === 'main' || info.branch === 'master') type = 'main';
-            else if (info.branch === 'develop' || info.branch === 'dev') type = 'develop';
-            bEl.setAttribute('data-branch-type', type);
+            const escaped = encodeURIComponent(info.branch);
+            bEl.href = `https://github.com/AtmanTest/arcclone-macos/compare/main...${escaped}`;
           }
         }
         if (info && info.hasUpdate) {

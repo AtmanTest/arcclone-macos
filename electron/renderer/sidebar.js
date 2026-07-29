@@ -17,9 +17,15 @@ const Sidebar = {
       if (this._providers.length > 0) WinManager.addView(this._providers[0].id);
     });
     document.getElementById('btn-login-assistant')?.addEventListener('click', () => LoginAssistant.start());
-    document.getElementById('btn-report')?.addEventListener('click', () => ReportManager.open());
+    document.getElementById('btn-report')?.addEventListener('click', () => {
+      const modal = document.getElementById('report-modal');
+      if (modal) {
+        modal.classList.add('open');
+        modal.style.display = 'flex';
+      }
+      ReportManager.open();
+    });
     document.getElementById('btn-save-session')?.addEventListener('click', () => this._saveSession());
-    // Refresh card when PKCE auth completes
 
     // Bug 2 fix — Zoom listeners
     const zoomOut   = document.getElementById('zoom-out');
@@ -38,7 +44,7 @@ const Sidebar = {
     zoomIn    && zoomIn.addEventListener('click',    () => { _zoomLevel = Math.min(5,  _zoomLevel + 1); _applyZoom(_zoomLevel); });
     zoomReset && zoomReset.addEventListener('click', () => { _zoomLevel = 0; _applyZoom(0); });
     zoomResetLayout && zoomResetLayout.addEventListener('click', () => WinManager._resetLayout && WinManager._resetLayout());
-        teamai.onGoogleStatusChanged(() => this.refreshGoogleCard());
+    teamai.onGoogleStatusChanged(() => this.refreshGoogleCard());
   },
 
   renderAll() {
@@ -51,11 +57,24 @@ const Sidebar = {
 
   _renderVersion() {
     teamai.getVersion().then(v => {
-      const el = document.getElementById('version-badge');
-      if (el && v) {
-        el.textContent = `v${v.version}`;
-        el.title = `v${v.version} \u2014 cliquer pour le changelog`;
-        el.addEventListener('click', () => Changelog.open());
+      // #version-number — version en vert gras centré
+      const vEl = document.getElementById('version-number');
+      if (vEl && v) {
+        vEl.textContent = `v${v.version}`;
+        vEl.title = `v${v.version} \u2014 cliquer pour le changelog`;
+        vEl.addEventListener('click', () => Changelog.open());
+      }
+      // Rétrocompat: ancien id #version-badge si présent
+      const legacyEl = document.getElementById('version-badge');
+      if (legacyEl && v) legacyEl.textContent = `v${v.version}`;
+
+      // #branch-link — nom de branche dynamique avec href compare
+      const bEl = document.getElementById('branch-link');
+      if (bEl && v && v.branch) {
+        bEl.textContent = v.branch;
+        const escaped = encodeURIComponent(v.branch);
+        bEl.href = `https://github.com/AtmanTest/arcclone-macos/compare/main...${escaped}`;
+        bEl.title = `Voir les commits de ${v.branch}`;
       }
     }).catch(() => {});
     this.refreshGoogleCard();
@@ -67,7 +86,7 @@ const Sidebar = {
       card = document.createElement('div');
       card.id = 'google-profile-card';
       card.addEventListener('click', () => Settings.open());
-      const versionBadge = document.getElementById('version-badge');
+      const versionBadge = document.getElementById('version-number') || document.getElementById('version-badge');
       if (versionBadge && versionBadge.parentNode)
         versionBadge.parentNode.insertBefore(card, versionBadge.nextSibling);
     }
@@ -75,7 +94,6 @@ const Sidebar = {
     try {
       const s = await teamai.getGoogleStatus();
       if (s && s.connected && s.email && s.email.includes('@')) {
-        // Connected with real email
         card.innerHTML = `
           <div class="g-avatar g-logo">${GOOGLE_SVG}</div>
           <div class="g-info">
@@ -85,7 +103,6 @@ const Sidebar = {
         `;
         card.title = `${s.email} \u2014 R\u00e9glages`;
       } else if (s && s.connected) {
-        // Connected but no email (should not happen with PKCE)
         card.innerHTML = `
           <div class="g-avatar g-logo">${GOOGLE_SVG}</div>
           <div class="g-info">
