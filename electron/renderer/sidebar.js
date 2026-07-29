@@ -114,7 +114,28 @@ const Sidebar = {
     const connected = JSON.parse(localStorage.getItem('teamai_connected') || '{}');
     el.innerHTML = providers.map(p => `
       <div class="prov-card" data-id="${p.id}">
-        <div class="icon">${p.icon || '\uD83C\uDF10'}</div>
+        <div class="icon">${(()=>{
+          const logos={
+            'chatgpt':'https://cdn.simpleicons.org/openai/ffffff',
+            'openai':'https://cdn.simpleicons.org/openai/ffffff',
+            'gemini':'https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg',
+            'claude':'https://cdn.simpleicons.org/anthropic/d97706',
+            'anthropic':'https://cdn.simpleicons.org/anthropic/d97706',
+            'grok':'https://cdn.simpleicons.org/x/ffffff',
+            'kimi':'https://cdn.simpleicons.org/moonrepo/6366f1',
+            'glm':'https://cdn.simpleicons.org/zhihu/1772f6',
+            'mistral':'https://cdn.simpleicons.org/mistral/ff7000',
+            'perplexity':'https://cdn.simpleicons.org/perplexity/20b2aa',
+            'deepseek':'https://cdn.simpleicons.org/deepseek/4d6bfe',
+            'copilot':'https://cdn.simpleicons.org/microsoftcopilot/0078d4',
+            'meta':'https://cdn.simpleicons.org/meta/0082fb',
+            'llama':'https://cdn.simpleicons.org/meta/0082fb',
+          };
+          const id=(p.id||'').toLowerCase();
+          const key=Object.keys(logos).find(k=>id.includes(k));
+          if(key) return '<img src="'+logos[key]+'" alt="'+p.label+'" onerror="this.style.display=\'none\';this.parentNode.innerHTML=\''+encodeURIComponent(p.icon||'🌐')+'\'">';
+          return p.icon||'🌐';
+        })()}</div>
         <div class="name">${p.label || p.id}</div>
         <div class="prov-actions">
           <div class="status ${connected[p.id] ? 'connected' : ''}">${connected[p.id] ? '\u2713' : '\u00b7\u00b7\u00b7'}</div>
