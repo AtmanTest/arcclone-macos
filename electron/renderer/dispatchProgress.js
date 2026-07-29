@@ -1,135 +1,213 @@
 /**
- * DispatchProgress — barre de progression multi-IA
+ * DispatchProgress v2 — barre de progression multi-IA
+ * Intégrée dans le prompt-bar (pas étrangère à la zone de saisie)
+ * Pas de dismiss automatique — reste visible jusqu'à fermeture manuelle ou nouveau dispatch
+ * Option visible dans les Réglages : teamai_dispatch_bar_enabled
  */
 
 const DP_LOGOS = {
-  raisonnement: { svg: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/1024px-ChatGPT_logo.svg.png" alt="ChatGPT">', color: '#10a37f' },
-  gemini:       { svg: '<img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg" alt="Gemini">', color: '#4285F4' },
-  claude:       { svg: '<img src="https://claude.ai/favicon.ico" alt="Claude">', color: '#D97757' },
-  grok:         { svg: '<img src="https://grok.com/favicon.ico" alt="Grok">', color: '#1DA1F2' },
-  kimi:         { svg: '<img src="https://www.moonshot.cn/favicon.ico" alt="Kimi">', color: '#EC4899' },
-  zglm:         { svg: '<img src="https://chatglm.cn/favicon.ico" alt="GLM">', color: '#06B6D4' },
-  copilot:      { svg: '<img src="https://www.microsoft.com/favicon.ico" alt="Copilot">', color: '#0078D4' },
-  perplexity:   { svg: '<img src="https://www.perplexity.ai/favicon.ico" alt="Perplexity">', color: '#20B2AA' },
-  mistral:      { svg: '<img src="https://chat.mistral.ai/favicon.ico" alt="Mistral">', color: '#FF6B35' },
-  deepseek:     { svg: '<img src="https://chat.deepseek.com/favicon.ico" alt="DeepSeek">', color: '#00CED1' },
-  meta:         { svg: '<img src="https://meta.ai/favicon.ico" alt="Meta">', color: '#0866FF' },
-  qwen:         { svg: '<img src="https://qwenlm.ai/favicon.ico" alt="Qwen">', color: '#FF4500' },
-  huggingchat:  { svg: '<img src="https://huggingface.co/favicon.ico" alt="HuggingChat">', color: '#FF9D00' },
-  phind:        { svg: '<img src="https://www.phind.com/favicon.ico" alt="Phind">', color: '#6366F1' },
-  you:          { svg: '<img src="https://you.com/favicon.ico" alt="You">', color: '#00D4AA' },
-  poe:          { svg: '<img src="https://poe.com/favicon.ico" alt="Poe">', color: '#8B5CF6' },
-  groq:         { svg: '<img src="https://groq.com/favicon.ico" alt="Groq">', color: '#F97316' },
-  cohere:       { svg: '<img src="https://coral.cohere.com/favicon.ico" alt="Cohere">', color: '#39D353' },
-  pi:           { svg: '<img src="https://pi.ai/favicon.ico" alt="Pi">', color: '#E91E8C' },
-  venice:       { svg: '<img src="https://venice.ai/favicon.ico" alt="Venice">', color: '#A855F7' },
-  nemotron:     { svg: '<img src="https://build.nvidia.com/favicon.ico" alt="Nemotron">', color: '#F59E0B' },
-  openrouter:   { svg: '<img src="https://openrouter.ai/favicon.ico" alt="OpenRouter">', color: '#6366F1' },
-  lmsys:        { svg: '<img src="https://chat.lmsys.org/favicon.ico" alt="LMSYS">', color: '#EF4444' },
-  together:     { svg: '<img src="https://api.together.ai/favicon.ico" alt="Together">', color: '#FF6B6B' },
-  default:      { svg: '<span>\ud83e\udd16</span>', color: '#555' },
+  raisonnement: { url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/1024px-ChatGPT_logo.svg.png', color: '#10a37f' },
+  gemini:       { url: 'https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg',                   color: '#4285F4' },
+  claude:       { url: 'https://claude.ai/favicon.ico',           color: '#D97757' },
+  grok:         { url: 'https://grok.com/favicon.ico',            color: '#1DA1F2' },
+  kimi:         { url: 'https://www.moonshot.cn/favicon.ico',     color: '#EC4899' },
+  zglm:         { url: 'https://chatglm.cn/favicon.ico',          color: '#06B6D4' },
+  copilot:      { url: 'https://www.microsoft.com/favicon.ico',   color: '#0078D4' },
+  perplexity:   { url: 'https://www.perplexity.ai/favicon.ico',   color: '#20B2AA' },
+  mistral:      { url: 'https://chat.mistral.ai/favicon.ico',     color: '#FF6B35' },
+  deepseek:     { url: 'https://chat.deepseek.com/favicon.ico',   color: '#00CED1' },
+  meta:         { url: 'https://meta.ai/favicon.ico',             color: '#0866FF' },
+  qwen:         { url: 'https://qwenlm.ai/favicon.ico',           color: '#FF4500' },
+  huggingchat:  { url: 'https://huggingface.co/favicon.ico',      color: '#FF9D00' },
+  phind:        { url: 'https://www.phind.com/favicon.ico',       color: '#6366F1' },
+  you:          { url: 'https://you.com/favicon.ico',             color: '#00D4AA' },
+  poe:          { url: 'https://poe.com/favicon.ico',             color: '#8B5CF6' },
+  groq:         { url: 'https://groq.com/favicon.ico',            color: '#F97316' },
+  cohere:       { url: 'https://coral.cohere.com/favicon.ico',    color: '#39D353' },
+  pi:           { url: 'https://pi.ai/favicon.ico',               color: '#E91E8C' },
+  venice:       { url: 'https://venice.ai/favicon.ico',           color: '#A855F7' },
+  nemotron:     { url: 'https://build.nvidia.com/favicon.ico',    color: '#F59E0B' },
+  openrouter:   { url: 'https://openrouter.ai/favicon.ico',       color: '#6366F1' },
+  lmsys:        { url: 'https://chat.lmsys.org/favicon.ico',      color: '#EF4444' },
+  together:     { url: 'https://api.together.ai/favicon.ico',     color: '#FF6B6B' },
 };
 
 const DispatchProgress = {
-  _container: null,
+  _zone: null,      // le conteneur .dp-zone injecté dans le prompt-bar
   _entries: [],
   _states: {},
-  _timer: null,
 
+  /** Retourne true si la barre est activée dans les réglages */
+  isEnabled() {
+    return localStorage.getItem('teamai_dispatch_bar_enabled') !== 'false';
+  },
+
+  /**
+   * Lance un nouveau dispatch — reconstruit les items, passe tout en idle
+   * @param {Array<{id, label, icon, providerId}>} entries
+   */
   start(entries) {
+    if (!this.isEnabled()) return;
     this._entries = entries;
     this._states = {};
     for (const e of entries) this._states[e.id] = 'idle';
-    this._render();
+    this._ensureZone();
+    this._buildItems();
   },
 
+  /** Met à jour l'état d'un item */
   tick(id, status) {
-    if (!this._states.hasOwnProperty(id)) return;
+    if (!this.isEnabled()) return;
+    if (!Object.prototype.hasOwnProperty.call(this._states, id)) return;
     this._states[id] = status;
-    this._update(id);
+    this._updateItem(id);
   },
 
+  /** Appelé quand tous les dispatches sont terminés — PAS de dismiss auto */
   finish() {
-    if (this._timer) clearTimeout(this._timer);
-    this._timer = setTimeout(() => this.dismiss(), 4000);
+    // intentionnellement vide — la barre reste visible
   },
 
+  /** Ferme et détruit la zone */
   dismiss() {
-    if (!this._container) return;
-    this._container.classList.add('dp-exit');
+    if (!this._zone) return;
+    this._zone.classList.add('dp-exit');
     setTimeout(() => {
-      if (this._container) { this._container.remove(); this._container = null; }
-    }, 400);
+      if (this._zone) { this._zone.remove(); this._zone = null; }
+    }, 300);
   },
 
-  _render() {
-    if (this._container) { this._container.remove(); this._container = null; }
+  // ── Private ─────────────────────────────────────────────────────────────
 
-    const bar = document.createElement('div');
-    bar.className = 'dp-bar';
-    bar.id = 'dispatch-progress-bar';
+  /** Crée ou réutilise la zone dans le prompt-bar */
+  _ensureZone() {
+    const promptBar = document.getElementById('prompt-bar');
+    if (!promptBar) return;
 
+    // Réutilise si déjà là
+    if (this._zone && promptBar.contains(this._zone)) return;
+
+    // Nettoie un éventuel orphelin
+    const old = document.getElementById('dp-zone');
+    if (old) old.remove();
+
+    const zone = document.createElement('div');
+    zone.id = 'dp-zone';
+    zone.className = 'dp-zone';
+
+    // Barre de progression linéaire (ligne fine en haut du prompt-bar)
+    const progressLine = document.createElement('div');
+    progressLine.className = 'dp-progress-line';
+    zone.appendChild(progressLine);
+
+    // Ligne d'items
+    const row = document.createElement('div');
+    row.className = 'dp-row';
+
+    // Label
     const label = document.createElement('span');
     label.className = 'dp-label';
-    label.textContent = 'Dispatch';
-    bar.appendChild(label);
+    label.textContent = 'En cours';
+    row.appendChild(label);
 
+    // Track scrollable
     const track = document.createElement('div');
     track.className = 'dp-track';
+    track.id = 'dp-track';
+    row.appendChild(track);
+
+    // Bouton fermer
+    const close = document.createElement('button');
+    close.className = 'dp-close';
+    close.innerHTML = '✕';
+    close.title = 'Masquer';
+    close.onclick = () => this.dismiss();
+    row.appendChild(close);
+
+    zone.appendChild(row);
+    promptBar.appendChild(zone);
+    this._zone = zone;
+
+    // Animation d'entrée
+    requestAnimationFrame(() => zone.classList.add('dp-visible'));
+  },
+
+  /** Reconstruit tous les items dans le track */
+  _buildItems() {
+    const track = this._zone && this._zone.querySelector('#dp-track');
+    if (!track) return;
+    track.innerHTML = '';
 
     for (const e of this._entries) {
-      const info = DP_LOGOS[e.providerId] || DP_LOGOS.default;
+      const info = DP_LOGOS[e.providerId];
       const item = document.createElement('div');
       item.className = 'dp-item dp-idle';
       item.dataset.id = e.id;
       item.title = e.label;
 
+      // Logo
       const logo = document.createElement('div');
       logo.className = 'dp-logo';
-      logo.innerHTML = info.svg;
-      const img = logo.querySelector('img');
-      if (img) img.onerror = () => { logo.innerHTML = `<span>${e.icon || '\ud83e\udd16'}</span>`; };
+      if (info) {
+        const img = document.createElement('img');
+        img.src = info.url;
+        img.alt = e.label;
+        img.onerror = () => { logo.innerHTML = `<span class="dp-emoji">${e.icon || '🤖'}</span>`; };
+        logo.appendChild(img);
+      } else {
+        logo.innerHTML = `<span class="dp-emoji">${e.icon || '🤖'}</span>`;
+      }
 
-      const statusIcon = document.createElement('div');
-      statusIcon.className = 'dp-status';
-      statusIcon.innerHTML = '<span class="dp-dot"></span>';
+      // Indicateur de statut
+      const status = document.createElement('div');
+      status.className = 'dp-status-icon';
+      status.innerHTML = '<span class="dp-dot"></span>';
 
       item.appendChild(logo);
-      item.appendChild(statusIcon);
+      item.appendChild(status);
       track.appendChild(item);
     }
 
-    const dismiss = document.createElement('button');
-    dismiss.className = 'dp-dismiss';
-    dismiss.innerHTML = '\u2715';
-    dismiss.title = 'Fermer';
-    dismiss.onclick = () => this.dismiss();
-
-    bar.appendChild(track);
-    bar.appendChild(dismiss);
-
-    const promptBar = document.getElementById('prompt-bar');
-    if (promptBar && promptBar.parentNode) {
-      promptBar.parentNode.insertBefore(bar, promptBar.nextSibling);
-    } else {
-      document.body.appendChild(bar);
-    }
-
-    this._container = bar;
-    requestAnimationFrame(() => bar.classList.add('dp-visible'));
+    // Anime la barre de progression
+    this._animateProgressLine();
   },
 
-  _update(id) {
-    if (!this._container) return;
-    const item = this._container.querySelector(`.dp-item[data-id="${id}"]`);
+  /** Met à jour visuellement un item */
+  _updateItem(id) {
+    if (!this._zone) return;
+    const item = this._zone.querySelector(`.dp-item[data-id="${id}"]`);
     if (!item) return;
-    const status = this._states[id];
-    item.className = `dp-item dp-${status}`;
-    const si = item.querySelector('.dp-status');
+    const st = this._states[id];
+    item.className = `dp-item dp-${st}`;
+    const si = item.querySelector('.dp-status-icon');
     if (!si) return;
-    if (status === 'idle')    si.innerHTML = '<span class="dp-dot"></span>';
-    if (status === 'loading') si.innerHTML = '<span class="dp-spinner"></span>';
-    if (status === 'ok')      si.innerHTML = '<span class="dp-check">\u2713</span>';
-    if (status === 'error')   si.innerHTML = '<span class="dp-cross">\u2717</span>';
+    switch (st) {
+      case 'idle':    si.innerHTML = '<span class="dp-dot"></span>'; break;
+      case 'loading': si.innerHTML = '<span class="dp-spinner"></span>'; break;
+      case 'ok':      si.innerHTML = '<span class="dp-check">✓</span>'; break;
+      case 'error':   si.innerHTML = '<span class="dp-cross">✗</span>'; break;
+    }
+  },
+
+  /** Anime la ligne fine de progression */
+  _animateProgressLine() {
+    const line = this._zone && this._zone.querySelector('.dp-progress-line');
+    if (!line) return;
+    line.style.width = '0%';
+    line.classList.remove('dp-line-done');
+    // Force reflow
+    void line.offsetWidth;
+    line.style.transition = 'width 0.6s cubic-bezier(0.16,1,0.3,1)';
+    line.style.width = '60%';
+
+    // Quand tout est fini, la complète à 100 %
+    const checkDone = setInterval(() => {
+      const all = Object.values(this._states);
+      if (all.length && all.every(s => s === 'ok' || s === 'error')) {
+        line.style.width = '100%';
+        line.classList.add('dp-line-done');
+        clearInterval(checkDone);
+      }
+    }, 300);
   },
 };
