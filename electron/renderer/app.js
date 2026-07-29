@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!providers || providers.length === 0) throw new Error('Aucun provider charg\u00e9');
     PromptDispatcher.init();
     await WinManager.init(providers);
-    await Sidebar.init(providers);
+    await Sidebar.init(providers); // ✓ restored — was accidentally removed
 
     // ── Post-update: force focus layout ──
     if (localStorage.getItem(FOCUS_RELAUNCH_KEY) === '1') {
