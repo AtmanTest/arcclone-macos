@@ -18,6 +18,10 @@ const WinManager = {
     LayoutModel.views = [];
     this._idCounter = 0;
 
+    // Apply saved startup mode preference
+    const defaultMode = localStorage.getItem('teamai_default_mode') || 'focus';
+    LayoutModel.setMode(defaultMode);
+
     const saved = localStorage.getItem('teamai_session');
     if (saved) {
       try {

@@ -3,7 +3,7 @@
  * No DOM queries for geometry. All layout state here.
  */
 const LayoutModel = {
-  mode: 'grid',       // grid | split-h | focus | manual | cards
+  mode: 'focus',      // grid | split-h | focus | manual | cards
   _activeCard: 0,
   views: [],          // [{id, providerId, label, icon, url, x, y, w, h, minW, minH}]
   viewportW: 0,       // available width (minus sidebar)
@@ -159,7 +159,7 @@ const LayoutModel = {
 
   deserialize(data) {
     if (!data) return;
-    this.mode = data.mode || 'grid';
+    this.mode = data.mode || 'focus';
     this.cols = data.cols || 2;
     this.rows = data.rows || 2;
   },
