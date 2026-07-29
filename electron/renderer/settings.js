@@ -29,54 +29,64 @@ const Settings = {
     if (!profileEl) return;
     try {
       const s = await teamai.getGoogleStatus();
-      if (s && s.connected) {
-        const email = s.email || 'Compte Google';
-        const namePart = email.includes('@') ? email.split('@')[0] : email;
-        const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-        const domain = email.includes('@') ? email.split('@')[1] : '';
+      if (s && s.connected && s.email && s.email.includes('@')) {
         profileEl.innerHTML = `
           <div class="sg-banner"></div>
           <div class="sg-avatar-wrap">${GOOGLE_SVG_LG}</div>
           <div class="sg-body">
-            <div class="sg-displayname">${displayName}</div>
-            <div class="sg-email">${email}</div>
+            <div class="sg-email" style="font-size:13px;font-weight:700;color:#fff;margin-bottom:4px;">${s.email}</div>
             <div class="sg-pills">
               <div class="sg-pill"><div class="dot green"></div> Session active</div>
-              ${domain ? `<div class="sg-pill"><div class="dot blue"></div> ${domain}</div>` : ''}
-              <div class="sg-pill" id="sg-drive-pill"><div class="dot orange"></div> Drive…</div>
+              <div class="sg-pill" id="sg-drive-pill"><div class="dot orange"></div> Drive\u2026</div>
             </div>
-            <button id="btn-google-login" style="margin-top:12px;width:100%;background:#1a1a2e;color:#aaa;border:1px solid #2a2a3a;border-radius:8px;padding:8px;font-size:10px;cursor:pointer;">🔄 Changer de compte</button>
+            <button id="btn-google-signout" style="margin-top:12px;width:100%;background:#1a1a2e;color:#EF4444;border:1px solid #3a1a1a;border-radius:8px;padding:8px;font-size:10px;cursor:pointer;">\uD83D\uDEAA D\u00e9connexion</button>
+            <button id="btn-google-login" style="margin-top:6px;width:100%;background:#1a1a2e;color:#aaa;border:1px solid #2a2a3a;border-radius:8px;padding:8px;font-size:10px;cursor:pointer;">\uD83D\uDD04 Changer de compte</button>
           </div>
         `;
         setTimeout(() => {
           const pill = document.getElementById('sg-drive-pill');
           if (pill) pill.innerHTML = '<div class="dot green"></div> Drive accessible';
-        }, 400);
+        }, 300);
+        document.getElementById('btn-google-signout')?.addEventListener('click', async () => {
+          await teamai.googleSignOutPKCE();
+          this._refreshProfile();
+          this._refreshDriveStatus();
+          Sidebar.refreshGoogleCard();
+        });
+        document.getElementById('btn-google-login')?.addEventListener('click', () => this._startPKCELogin());
       } else {
         profileEl.innerHTML = `
           <div class="sg-banner" style="background:linear-gradient(135deg,#1a1a2e,#2a2a3a);"></div>
           <div class="sg-avatar-wrap" style="background:#1a1a2e;opacity:0.4;">${GOOGLE_SVG_LG}</div>
           <div class="sg-body">
-            <div class="sg-displayname" style="color:#888;">Non connecté</div>
-            <div class="sg-email">Connecte-toi pour activer toutes les IA Google</div>
-            <button id="btn-google-login" style="margin-top:12px;width:100%;background:#fff;color:#222;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-              ${GOOGLE_SVG_LG} Se connecter avec Google
+            <div style="color:#888;font-size:12px;font-weight:600;margin-bottom:6px;">Non connect\u00e9</div>
+            <div style="color:#555;font-size:10px;margin-bottom:12px;">Connecte-toi pour activer Drive et les IA Google</div>
+            <button id="btn-google-login" style="width:100%;background:#fff;color:#222;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+              ${GOOGLE_SVG_LG} <span>Se connecter avec Google</span>
             </button>
           </div>
         `;
+        document.getElementById('btn-google-login')?.addEventListener('click', () => this._startPKCELogin());
       }
-      document.getElementById('btn-google-login')?.addEventListener('click', async () => {
-        await teamai.openGoogleAccount();
-        let checks = 0;
-        const iv = setInterval(async () => {
-          await this._refreshProfile();
-          await this._refreshDriveStatus();
-          Sidebar.refreshGoogleCard();
-          if (++checks >= 24) clearInterval(iv);
-        }, 5000);
-      });
     } catch(e) {
-      if (profileEl) profileEl.innerHTML = '<div style="padding:12px;color:#EF4444;font-size:10px;">❌ Erreur</div>';
+      if (profileEl) profileEl.innerHTML = '<div style="padding:12px;color:#EF4444;font-size:10px;">\u274c Erreur</div>';
+    }
+  },
+
+  async _startPKCELogin() {
+    const profileEl = document.getElementById('settings-google-profile');
+    if (profileEl) profileEl.innerHTML = `<div style="padding:20px;text-align:center;color:#aaa;font-size:11px;">\uD83D\uDD10 Ouverture du navigateur...<br><span style="font-size:9px;color:#555;">Connecte-toi dans ton navigateur, l\'app se mettra \u00e0 jour automatiquement.</span></div>`;
+    try {
+      const result = await teamai.googleSignInPKCE();
+      if (result && result.success) {
+        Sidebar.refreshGoogleCard();
+        this._refreshProfile();
+        this._refreshDriveStatus();
+      } else {
+        if (profileEl) profileEl.innerHTML = `<div style="padding:12px;color:#EF4444;font-size:10px;">\u274c ${result?.error || 'Erreur inconnue'}<br><button onclick="Settings._refreshProfile()" style="margin-top:8px;background:#1a1a2e;color:#aaa;border:1px solid #333;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:10px;">R\u00e9essayer</button></div>`;
+      }
+    } catch(e) {
+      if (profileEl) profileEl.innerHTML = `<div style="padding:12px;color:#EF4444;font-size:10px;">\u274c ${e.message}<br><button onclick="Settings._refreshProfile()" style="margin-top:8px;background:#1a1a2e;color:#aaa;border:1px solid #333;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:10px;">R\u00e9essayer</button></div>`;
     }
   },
 
@@ -85,11 +95,11 @@ const Settings = {
     if (!bar) return;
     try {
       const s = await teamai.getGoogleStatus();
-      if (s && s.connected) {
-        bar.innerHTML = '<span style="color:#4ADE80;">✅ Drive accessible</span> <span style="color:#555;font-size:9px;">— export dans <code>TeamAI Reports/</code></span>';
+      if (s && s.connected && s.email && s.email.includes('@')) {
+        bar.innerHTML = '<span style="color:#4ADE80;">\u2705 Drive accessible</span> <span style="color:#555;font-size:9px;">\u2014 export dans <code style="color:#06B6D4;">TeamAI Reports/</code></span>';
         document.getElementById('btn-drive-test')?.removeAttribute('disabled');
       } else {
-        bar.textContent = "Connecte-toi à Google d'abord";
+        bar.textContent = "Connecte-toi \u00e0 Google d'abord";
         document.getElementById('btn-drive-test')?.setAttribute('disabled', 'true');
       }
     } catch { bar.textContent = ''; }
@@ -104,21 +114,21 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('btn-drive-test')?.addEventListener('click', async () => {
     const btn = document.getElementById('btn-drive-test');
-    btn.textContent = '⏳ Ouverture...';
+    btn.textContent = '\u23f3 Ouverture...';
     try {
       await teamai.openUrl('https://drive.google.com/drive/my-drive');
-      btn.textContent = '📂 Drive ouvert';
-      setTimeout(() => { btn.textContent = '🧪 Tester Drive'; }, 3000);
-    } catch { btn.textContent = '❌ Erreur'; }
+      btn.textContent = '\uD83D\uDCC2 Drive ouvert';
+      setTimeout(() => { btn.textContent = '\uD83E\uDDEA Tester Drive'; }, 3000);
+    } catch { btn.textContent = '\u274c Erreur'; }
   });
   document.getElementById('settings-export')?.addEventListener('click', () => window._exportProviders?.());
   document.getElementById('settings-import')?.addEventListener('click', () => window._importProviders?.());
   document.getElementById('settings-clear-sessions')?.addEventListener('click', () => {
-    if (!confirm('⚠️ Effacer TOUTES les sessions ?')) return;
+    if (!confirm('\u26a0\ufe0f Effacer TOUTES les sessions ?')) return;
     localStorage.removeItem('teamai_connected');
     localStorage.removeItem('teamai_session');
     localStorage.removeItem('teamai_custom_providers');
-    alert('✅ Sessions effacées.');
+    alert('\u2705 Sessions effac\u00e9es.');
   });
   document.getElementById('settings-open-github')?.addEventListener('click', () => teamai.openUrl('https://github.com/AtmanTest/arcclone-macos'));
 });

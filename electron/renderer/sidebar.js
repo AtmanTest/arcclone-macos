@@ -19,11 +19,13 @@ const Sidebar = {
     document.getElementById('btn-login-assistant')?.addEventListener('click', () => LoginAssistant.start());
     document.getElementById('btn-report')?.addEventListener('click', () => ReportManager.open());
     document.getElementById('btn-save-session')?.addEventListener('click', () => this._saveSession());
+    // Refresh card when PKCE auth completes
+    teamai.onGoogleStatusChanged(() => this.refreshGoogleCard());
   },
 
   renderAll() {
     const total = WinManager.count;
-    document.getElementById('stats').textContent = `🧫 ${total} fenêtres actives`;
+    document.getElementById('stats').textContent = `\uD83E\uDDEB ${total} fen\u00eatres actives`;
     this._renderWindowList();
     this._updateProviderStatuses();
     Bookmarks.render();
@@ -34,7 +36,7 @@ const Sidebar = {
       const el = document.getElementById('version-badge');
       if (el && v) {
         el.textContent = `v${v.version}`;
-        el.title = `v${v.version} — cliquer pour le changelog`;
+        el.title = `v${v.version} \u2014 cliquer pour le changelog`;
         el.addEventListener('click', () => Changelog.open());
       }
     }).catch(() => {});
@@ -54,29 +56,35 @@ const Sidebar = {
 
     try {
       const s = await teamai.getGoogleStatus();
-      if (s && s.connected) {
-        const email = s.email || 'Compte Google';
-        const namePart = email.includes('@') ? email.split('@')[0] : email;
-        const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+      if (s && s.connected && s.email && s.email.includes('@')) {
+        // Connected with real email
         card.innerHTML = `
           <div class="g-avatar g-logo">${GOOGLE_SVG}</div>
           <div class="g-info">
-            <div class="g-name">${displayName}</div>
-            <div class="g-email">${email}</div>
+            <div class="g-email" style="font-weight:600;color:#ddd;">${s.email}</div>
           </div>
           <div class="g-status-dot online"></div>
         `;
-        card.title = `Connecté : ${email} — Réglages`;
+        card.title = `${s.email} \u2014 R\u00e9glages`;
+      } else if (s && s.connected) {
+        // Connected but no email (should not happen with PKCE)
+        card.innerHTML = `
+          <div class="g-avatar g-logo">${GOOGLE_SVG}</div>
+          <div class="g-info">
+            <div class="g-email" style="color:#aaa;">Connect\u00e9</div>
+          </div>
+          <div class="g-status-dot online"></div>
+        `;
+        card.title = 'Compte Google connect\u00e9 \u2014 R\u00e9glages';
       } else {
         card.innerHTML = `
           <div class="g-avatar g-logo g-logo-dim">${GOOGLE_SVG}</div>
           <div class="g-info">
-            <div class="g-name" style="color:#666;">Google</div>
-            <div class="g-email">Non connecté — cliquer</div>
+            <div class="g-email" style="color:#666;">Non connect\u00e9 \u2014 cliquer</div>
           </div>
           <div class="g-status-dot offline"></div>
         `;
-        card.title = 'Se connecter à Google';
+        card.title = 'Se connecter \u00e0 Google';
       }
     } catch {}
   },
@@ -92,7 +100,7 @@ const Sidebar = {
       const combo = entry.combo;
       const lbl = combo?.options[combo.selectedIndex]?.text || 'IA';
       const idx = Array.from(WinManager.frames.keys()).indexOf(id) + 1;
-      div.innerHTML = `<span class="num">${idx}</span><span class="label">${lbl}</span><span class="close-btn">✕</span>`;
+      div.innerHTML = `<span class="num">${idx}</span><span class="label">${lbl}</span><span class="close-btn">\u2715</span>`;
       div.querySelector('.close-btn').addEventListener('click', (e) => { e.stopPropagation(); WinManager._remove(id); });
       div.addEventListener('click', () => entry.frame.scrollIntoView({ behavior: 'smooth', block: 'center' }));
       el.appendChild(div);
@@ -106,11 +114,11 @@ const Sidebar = {
     const connected = JSON.parse(localStorage.getItem('teamai_connected') || '{}');
     el.innerHTML = providers.map(p => `
       <div class="prov-card" data-id="${p.id}">
-        <div class="icon">${p.icon || '🌐'}</div>
+        <div class="icon">${p.icon || '\uD83C\uDF10'}</div>
         <div class="name">${p.label || p.id}</div>
         <div class="prov-actions">
-          <div class="status ${connected[p.id] ? 'connected' : ''}">${connected[p.id] ? '✓' : '···'}</div>
-          <div class="prov-delete" data-id="${p.id}" title="Supprimer">✕</div>
+          <div class="status ${connected[p.id] ? 'connected' : ''}">${connected[p.id] ? '\u2713' : '\u00b7\u00b7\u00b7'}</div>
+          <div class="prov-delete" data-id="${p.id}" title="Supprimer">\u2715</div>
         </div>
       </div>
     `).join('');
@@ -130,9 +138,9 @@ const Sidebar = {
         cm.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
         cm.innerHTML = `
           <div style="background:#1a1a2e;border:1px solid #EF4444;border-radius:12px;padding:24px;width:320px;text-align:center;">
-            <div style="font-size:28px;margin-bottom:10px;">⚠️</div>
+            <div style="font-size:28px;margin-bottom:10px;">\u26a0\ufe0f</div>
             <div style="color:#fff;font-size:13px;font-weight:700;margin-bottom:8px;">Supprimer ${prov.icon} ${prov.label} ?</div>
-            <div style="color:#888;font-size:11px;margin-bottom:18px;">Cette IA sera retirée de ta liste.</div>
+            <div style="color:#888;font-size:11px;margin-bottom:18px;">Cette IA sera retir\u00e9e de ta liste.</div>
             <div style="display:flex;gap:8px;">
               <button id="del-confirm" style="flex:1;background:#EF4444;color:#fff;border:none;border-radius:6px;padding:9px;font-weight:700;cursor:pointer;">Supprimer</button>
               <button id="del-cancel" style="flex:1;background:#222;color:#aaa;border:none;border-radius:6px;padding:9px;cursor:pointer;">Annuler</button>
@@ -157,7 +165,7 @@ const Sidebar = {
     document.querySelectorAll('.prov-card').forEach(card => {
       const s = card.querySelector('.status');
       if (!s) return;
-      s.textContent = connected[card.dataset.id] ? '✓' : '···';
+      s.textContent = connected[card.dataset.id] ? '\u2713' : '\u00b7\u00b7\u00b7';
       s.className = 'status' + (connected[card.dataset.id] ? ' connected' : '');
     });
   },
@@ -166,6 +174,6 @@ const Sidebar = {
     const list = WinManager.list;
     localStorage.setItem('teamai_session', JSON.stringify({ views: list, saved: new Date().toISOString() }));
     const btn = document.getElementById('btn-save-session');
-    if (btn) { const old = btn.textContent; btn.textContent = '✅ Sauvegardé'; setTimeout(() => btn.textContent = old, 1500); }
+    if (btn) { const old = btn.textContent; btn.textContent = '\u2705 Sauvegard\u00e9'; setTimeout(() => btn.textContent = old, 1500); }
   },
 };
