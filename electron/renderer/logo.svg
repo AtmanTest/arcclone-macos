@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="32" y1="32" x2="224" y2="224">
+      <stop offset="0%" stop-color="#1A1A2E"/>
+      <stop offset="50%" stop-color="#16213E"/>
+      <stop offset="100%" stop-color="#0F3460"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="80" y1="80" x2="176" y2="176">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#A855F7"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="128" y1="48" x2="128" y2="208">
+      <stop offset="0%" stop-color="#C084FC" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#7C3AED" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Cercle de fond subtil -->
+  <circle cx="128" cy="128" r="112" fill="url(#bg)" stroke="url(#accent)" stroke-width="2" opacity="0.15"/>
+
+  <!-- Glow central -->
+  <circle cx="128" cy="128" r="64" fill="url(#glow)" filter="url(#blur)"/>
+
+  <!-- Icône T stylisé -->
+  <g transform="translate(64, 64)">
+    <!-- Barre horizontale -->
+    <rect x="0" y="0" width="128" height="16" rx="8" fill="url(#accent)"/>
+    <!-- Branche verticale -->
+    <rect x="56" y="16" width="16" height="112" rx="8" fill="url(#accent)"/>
+  </g>
+
+  <!-- Nodes réseaux (multi-AI) -->
+  <g opacity="0.6">
+    <!-- Point haut -->
+    <circle cx="128" cy="48" r="6" fill="#A855F7" stroke="none"/>
+    <line x1="128" y1="54" x2="128" y2="80" stroke="#A855F7" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.4"/>
+    
+    <!-- Point gauche -->
+    <circle cx="48" cy="128" r="6" fill="#7C3AED" stroke="none"/>
+    <line x1="54" y1="128" x2="80" y2="128" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.4"/>
+    
+    <!-- Point droite -->
+    <circle cx="208" cy="128" r="6" fill="#A855F7" stroke="none"/>
+    <line x1="202" y1="128" x2="176" y2="128" stroke="#A855F7" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.4"/>
+    
+    <!-- Point bas -->
+    <circle cx="128" cy="208" r="6" fill="#7C3AED" stroke="none"/>
+    <line x1="128" y1="202" x2="128" y2="176" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.4"/>
+
+    <!-- Points diagonaux -->
+    <circle cx="72" cy="72" r="4" fill="#C084FC" stroke="none" opacity="0.5"/>
+    <circle cx="184" cy="72" r="4" fill="#C084FC" stroke="none" opacity="0.5"/>
+    <circle cx="72" cy="184" r="4" fill="#C084FC" stroke="none" opacity="0.5"/>
+    <circle cx="184" cy="184" r="4" fill="#C084FC" stroke="none" opacity="0.5"/>
+  </g>
+
+  <!-- Connexions diagonales légères entre nodes -->
+  <g opacity="0.15" stroke="#A855F7" stroke-width="1">
+    <line x1="48" y1="128" x2="72" y2="72"/>
+    <line x1="72" y1="72" x2="128" y2="48"/>
+    <line x1="128" y1="48" x2="184" y2="72"/>
+    <line x1="184" y1="72" x2="208" y2="128"/>
+    <line x1="208" y1="128" x2="184" y2="184"/>
+    <line x1="184" y1="184" x2="128" y2="208"/>
+    <line x1="128" y1="208" x2="72" y2="184"/>
+    <line x1="72" y1="184" x2="48" y2="128"/>
+  </g>
+</svg>

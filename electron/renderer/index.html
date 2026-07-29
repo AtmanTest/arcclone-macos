@@ -9,7 +9,32 @@
 <body>
   <div id="app">
     <aside id="sidebar">
-      <div id="logo">🧠 TeamAI</div>
+      <div id="logo"><svg viewBox="0 0 256 256" fill="none" style="width:28px;height:28px;vertical-align:middle;margin-right:8px">
+  <defs>
+    <linearGradient id="lg" x1="32" y1="32" x2="224" y2="224">
+      <stop offset="0%" stop-color="#1A1A2E"/>
+      <stop offset="50%" stop-color="#16213E"/>
+      <stop offset="100%" stop-color="#0F3460"/>
+    </linearGradient>
+    <linearGradient id="ac" x1="80" y1="80" x2="176" y2="176">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#A855F7"/>
+    </linearGradient>
+  </defs>
+  <circle cx="128" cy="128" r="112" fill="url(#lg)" stroke="url(#ac)" stroke-width="2" opacity="0.15"/>
+  <rect x="64" y="64" width="128" height="16" rx="8" fill="url(#ac)"/>
+  <rect x="120" y="80" width="16" height="112" rx="8" fill="url(#ac)"/>
+  <g opacity="0.5">
+    <circle cx="128" cy="48" r="5" fill="#A855F7"/>
+    <circle cx="48" cy="128" r="5" fill="#7C3AED"/>
+    <circle cx="208" cy="128" r="5" fill="#A855F7"/>
+    <circle cx="128" cy="208" r="5" fill="#7C3AED"/>
+    <circle cx="72" cy="72" r="3" fill="#C084FC" opacity="0.4"/>
+    <circle cx="184" cy="72" r="3" fill="#C084FC" opacity="0.4"/>
+    <circle cx="72" cy="184" r="3" fill="#C084FC" opacity="0.4"/>
+    <circle cx="184" cy="184" r="3" fill="#C084FC" opacity="0.4"/>
+  </g>
+</svg>TeamAI</div>
       <button id="btn-new-tab" class="action-btn primary">+ Nouvel Onglet IA</button>
       <button id="btn-add-ia" class="action-btn" style="margin-top:1px;font-size:9px">✚ Ajouter IA</button>
 
