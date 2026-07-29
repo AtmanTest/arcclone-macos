@@ -1,4 +1,4 @@
-/* ── TeamAI v7 ────────────────────────────────────────────────────────── */
+/* ── TeamAI v8 ───────────────────────────────────────────────── */
 :root {
   --bg: #0B0B0F;
   --sidebar-bg: #111118;
@@ -22,7 +22,7 @@ input, select, button, textarea { font-family: var(--font); }
 
 #app { display: flex; height: 100vh; width: 100vw; }
 
-/* ── Sidebar ──────────────────────────────────────────────────────────── */
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
 #sidebar {
   width: var(--sidebar-w); min-width: var(--sidebar-w);
   background: var(--sidebar-bg); border-right: 1px solid var(--border);
@@ -50,14 +50,12 @@ input, select, button, textarea { font-family: var(--font); }
 
 #stats { font-size: 8px; color: var(--accent); padding: 1px 0; }
 
-/* ── Bookmarks section ─────────────────────────────────────────────────── */
+/* ── Bookmarks ─────────────────────────────────────────────────────────── */
 .bookmark-section-title {
   font-size: 8px; font-weight: 600; color: var(--muted); letter-spacing: 0.3px;
   padding: 3px 0 1px; cursor: pointer; display: flex; align-items: center; gap: 4px;
 }
-.bookmark-folder {
-  margin-left: 6px; border-left: 1px solid var(--border); padding-left: 4px;
-}
+.bookmark-folder { margin-left: 6px; border-left: 1px solid var(--border); padding-left: 4px; }
 .bookmark-item {
   display: flex; align-items: center; gap: 2px; padding: 2px 4px;
   border-radius: 3px; cursor: pointer; font-size: 8px;
@@ -70,7 +68,7 @@ input, select, button, textarea { font-family: var(--font); }
 .bookmark-button .sidebar-btn { flex: 1; }
 #bookmark-add-folder { font-size: 7px; }
 
-/* ── Window List ─────────────────────────────────────────────────────── */
+/* ── Window List ─────────────────────────────────────────────────────────── */
 #window-list { flex: 1; overflow-y: auto; font-size: 8px; min-height: 0; max-height: 150px; }
 .win-item {
   display: flex; align-items: center; gap: 2px; padding: 2px 4px; border-radius: 3px; cursor: pointer;
@@ -83,7 +81,7 @@ input, select, button, textarea { font-family: var(--font); }
 
 .section-title { font-size: 8px; font-weight: 600; color: var(--muted); letter-spacing: 0.3px; padding: 3px 0 1px; }
 
-/* ── Provider Cards ─────────────────────────────────────────────────── */
+/* ── Provider Cards ───────────────────────────────────────────────────────── */
 #providers-list {
   display: grid; grid-template-columns: 1fr 1fr; gap: 2px;
   max-height: 160px; overflow-y: auto; padding: 1px 0;
@@ -97,20 +95,120 @@ input, select, button, textarea { font-family: var(--font); }
 .prov-card:hover { border-color: var(--accent); background: #1a1a28; }
 .prov-card .icon { font-size: 14px; }
 .prov-card .name { font-size: 7px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.prov-card .status {
-  font-size: 6px; padding: 1px 3px; border-radius: 3px;
-  background: #1a1a24; color: var(--muted);
-}
+.prov-card .prov-actions { display: flex; align-items: center; gap: 3px; }
+.prov-card .status { font-size: 6px; padding: 1px 3px; border-radius: 3px; background: #1a1a24; color: var(--muted); }
 .prov-card .status.connected { background: #0a3d1a; color: #4ADE80; }
+.prov-card .prov-delete { font-size: 7px; color: #333; cursor: pointer; padding: 1px 2px; border-radius: 2px; }
+.prov-card .prov-delete:hover { color: #EF4444; background: #2a1010; }
 
 #sidebar-bottom { border-top: 1px solid var(--border); padding-top: 3px; display: flex; flex-direction: column; gap: 2px; }
-#version-badge { font-size: 6px; color: #444; text-align: center; padding: 2px 0; cursor: pointer; }
+#version-badge { font-size: 6px; color: #444; text-align: center; padding: 1px 0; cursor: pointer; }
 #version-badge:hover { color: var(--accent); }
 
-/* ── Main ─────────────────────────────────────────────────────────────── */
+/* ── Google Profile Card (sidebar) ─────────────────────────────────────── */
+#google-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  border: 1px solid transparent;
+  margin-top: 2px;
+  background: var(--card-bg);
+}
+#google-profile-card:hover {
+  background: #1a1a2e;
+  border-color: var(--accent);
+}
+#google-profile-card .g-avatar {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  flex-shrink: 0;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+#google-profile-card .g-avatar.not-connected {
+  background: #1e1e2e;
+  color: #555;
+  border: 1px dashed #333;
+}
+#google-profile-card .g-info {
+  flex: 1; min-width: 0;
+}
+#google-profile-card .g-name {
+  font-size: 9px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#google-profile-card .g-email {
+  font-size: 7.5px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 1px;
+}
+#google-profile-card .g-status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 4px currentColor;
+}
+#google-profile-card .g-status-dot.online  { background: #4ADE80; color: #4ADE80; }
+#google-profile-card .g-status-dot.offline { background: #555;    color: #555; }
+
+/* ── Settings — Google Profile card ───────────────────────────────────── */
+#settings-google-profile {
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.sg-banner {
+  height: 48px;
+  background: linear-gradient(135deg, #4285F4 0%, #7C3AED 50%, #06B6D4 100%);
+  position: relative;
+}
+.sg-avatar-wrap {
+  position: absolute;
+  bottom: -18px; left: 16px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 2.5px solid #0f0f1a;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700;
+  text-transform: uppercase;
+}
+.sg-body {
+  background: #111;
+  padding: 24px 16px 14px;
+  border: 1px solid #1e1e2e;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+}
+.sg-displayname {
+  font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 2px;
+}
+.sg-email {
+  font-size: 10px; color: var(--muted); margin-bottom: 10px;
+}
+.sg-pills {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.sg-pill {
+  display: flex; align-items: center; gap: 4px;
+  background: #1a1a2e; border: 1px solid #2a2a3a;
+  border-radius: 20px; padding: 3px 8px;
+  font-size: 9px; color: #aaa;
+}
+.sg-pill .dot { width: 5px; height: 5px; border-radius: 50%; }
+.sg-pill .dot.green { background: #4ADE80; box-shadow: 0 0 4px #4ADE80; }
+.sg-pill .dot.orange { background: #F59E0B; }
+.sg-pill .dot.blue { background: #06B6D4; }
+
+/* ── Main ────────────────────────────────────────────────────────────── */
 #main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 
-/* ── Prompt bar (couleurs demandées) ──────────────────────────────────── */
+/* ── Prompt bar ─────────────────────────────────────────────────────── */
 #prompt-bar {
   background: #2E2E2E;
   padding: 8px 10px 6px;
@@ -118,9 +216,7 @@ input, select, button, textarea { font-family: var(--font); }
   margin: 0 6px 20px;
   border: 1.5px solid #5A5A5A;
 }
-#prompt-wrap {
-  position: relative; display: flex; align-items: flex-start;
-}
+#prompt-wrap { position: relative; display: flex; align-items: flex-start; }
 #prompt-input {
   flex: 1; resize: none; min-height: 40px; max-height: 90px;
   background: #1F1F1F; border: none;
@@ -128,10 +224,7 @@ input, select, button, textarea { font-family: var(--font); }
   color: #FFFFFF; font-size: 13px; outline: none; line-height: 1.5; width: 100%;
 }
 #prompt-input::placeholder { color: #888; font-weight: 500; }
-#prompt-actions {
-  position: absolute; bottom: 6px; right: 6px;
-  display: flex; gap: 4px; align-items: center;
-}
+#prompt-actions { position: absolute; bottom: 6px; right: 6px; display: flex; gap: 4px; align-items: center; }
 #btn-attach {
   background: transparent; border: none;
   color: #888; font-size: 16px; width: 28px; height: 28px;
@@ -147,7 +240,7 @@ input, select, button, textarea { font-family: var(--font); }
 }
 #go-btn:hover { background: #6D28D9; transform: scale(1.02); }
 
-/* ── Viewport ─────────────────────────────────────────────────────────── */
+/* ── Viewport ───────────────────────────────────────────────────────────── */
 #viewport { flex: 1; overflow: auto; background: #08080c; padding: 3px; position: relative; }
 #error-bar {
   display: none; position: absolute; top: 3px; left: 3px; right: 3px;
@@ -158,7 +251,7 @@ input, select, button, textarea { font-family: var(--font); }
 #error-bar.show { display: block; }
 #grid-container { display: flex; flex-wrap: wrap; gap: 3px; align-content: flex-start; min-height: calc(100% - 6px); position: relative; }
 
-/* ── Window Frame ─────────────────────────────────────────────────────── */
+/* ── Window Frame ──────────────────────────────────────────────────────── */
 .window-frame {
   border: 1px solid var(--border); border-radius: var(--radius);
   overflow: hidden; display: flex; flex-direction: column;
@@ -193,7 +286,6 @@ input, select, button, textarea { font-family: var(--font); }
   padding: 1px 3px; height: 18px; outline: none;
   min-width: 80px; max-width: 120px; cursor: pointer;
 }
-/* ── Navigation buttons ──────────────────────────────────────────────── */
 .window-frame .toolbar .nav-btn {
   background: #1a1a28; border: 1px solid var(--border);
   color: #aaa; font-size: 10px; width: 20px; height: 20px;
@@ -202,7 +294,6 @@ input, select, button, textarea { font-family: var(--font); }
   transition: all 0.1s;
 }
 .window-frame .toolbar .nav-btn:hover { background: var(--accent); border-color: var(--accent); color: white; }
-
 .window-frame .toolbar .url-bar {
   flex: 1; height: 18px; min-width: 20px;
   background: #09090f; border: 1px solid var(--border);
@@ -210,7 +301,6 @@ input, select, button, textarea { font-family: var(--font); }
   color: var(--text); font-size: 7px; outline: none;
 }
 .window-frame .toolbar .url-bar:focus { border-color: var(--accent); }
-
 .window-frame .toolbar .close-btn {
   background: transparent; border: none;
   color: #555; font-size: 10px; width: 18px; height: 18px;
@@ -226,7 +316,7 @@ input, select, button, textarea { font-family: var(--font); }
 }
 .window-frame .card-overlay:hover { background: rgba(0,0,0,0.35); }
 
-/* ── Resize handle ───────────────────────────────────────────────────── */
+/* ── Resize handle ────────────────────────────────────────────────────────── */
 .resize-handle {
   position: absolute; bottom: 0; right: 0;
   width: 12px; height: 12px; cursor: nwse-resize; z-index: 10;
@@ -235,17 +325,10 @@ input, select, button, textarea { font-family: var(--font); }
 }
 .resize-handle:hover { background: linear-gradient(135deg, transparent 50%, var(--accent) 50%); }
 
-/* ── Login Wizard ─────────────────────────────────────────────────────── */
-#login-modal {
-  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-  z-index: 2000; align-items: center; justify-content: center;
-}
+/* ── Login Wizard ────────────────────────────────────────────────────────── */
+#login-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; }
 #login-modal.open { display: flex; }
-#login-content {
-  background: var(--sidebar-bg); border: 1px solid var(--border);
-  border-radius: 10px; width: 90%; max-width: 500px;
-  display: flex; flex-direction: column;
-}
+#login-content { background: var(--sidebar-bg); border: 1px solid var(--border); border-radius: 10px; width: 90%; max-width: 500px; display: flex; flex-direction: column; }
 #login-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); }
 #login-header h2 { font-size: 13px; }
 #login-progress { font-size: 10px; color: var(--muted); }
@@ -264,11 +347,8 @@ input, select, button, textarea { font-family: var(--font); }
 #login-footer button.primary:hover { background: #6D28D9; }
 #login-skip { background: transparent !important; color: #555 !important; }
 
-/* ── Report Modal ─────────────────────────────────────────────────────── */
-#report-modal {
-  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
-  z-index: 2000; align-items: center; justify-content: center;
-}
+/* ── Report Modal ─────────────────────────────────────────────────────────── */
+#report-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 2000; align-items: center; justify-content: center; }
 #report-modal.open { display: flex; }
 #report-content { background: var(--sidebar-bg); border: 1px solid var(--border); border-radius: 10px; width: 85%; max-width: 950px; max-height: 85vh; display: flex; flex-direction: column; }
 #report-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); }
@@ -278,11 +358,8 @@ input, select, button, textarea { font-family: var(--font); }
 #report-footer button { background: var(--accent); border: none; border-radius: 5px; color: white; font-size: 9px; padding: 5px 14px; cursor: pointer; }
 #report-footer .secondary { background: var(--border); color: var(--text); }
 
-/* Changelog modal */
-#changelog-modal {
-  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
-  z-index: 2000; align-items: center; justify-content: center;
-}
+/* ── Changelog modal ──────────────────────────────────────────────────────────── */
+#changelog-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 2000; align-items: center; justify-content: center; }
 #changelog-modal.open { display: flex; }
 #changelog-content { background: var(--sidebar-bg); border: 1px solid var(--border); border-radius: 10px; width: 80%; max-width: 700px; max-height: 80vh; display: flex; flex-direction: column; }
 #changelog-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); }

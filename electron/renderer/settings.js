@@ -1,6 +1,6 @@
 /**
- * TeamAI v2 — Settings Manager
- * Compte Google partag\u00e9 + Drive export
+ * TeamAI v3 — Settings Manager
+ * Google profile card d\u00e9taill\u00e9e + Drive
  */
 const Settings = {
   _open: false,
@@ -10,7 +10,7 @@ const Settings = {
     if (!modal) return;
     modal.style.display = 'flex';
     this._open = true;
-    this._refreshGoogleStatus();
+    this._refreshProfile();
     this._refreshDriveStatus();
   },
 
@@ -20,23 +20,84 @@ const Settings = {
     this._open = false;
   },
 
-  async _refreshGoogleStatus() {
-    const bar = document.getElementById('google-status-bar');
-    if (!bar) return;
-    bar.textContent = '\u23f3 V\u00e9rification...';
+  _avatarStyle(email) {
+    const initial = (email || 'G').charAt(0).toUpperCase();
+    const colors = [
+      ['#4285F4','#fff'],['#EA4335','#fff'],['#34A853','#fff'],
+      ['#7C3AED','#fff'],['#06B6D4','#fff'],['#F59E0B','#000'],
+      ['#EC4899','#fff'],['#10B981','#fff'],
+    ];
+    const [bg, fg] = colors[initial.charCodeAt(0) % colors.length];
+    return { initial, bg, fg };
+  },
+
+  async _refreshProfile() {
     try {
-      const status = await teamai.getGoogleStatus();
-      if (status && status.connected) {
-        bar.innerHTML = `<span style="color:#4ADE80;font-weight:700;">\u2705 Connect\u00e9</span> \u2014 <span style="color:#ccc">${status.email || 'Compte Google'}</span>`;
-        document.getElementById('btn-google-login').textContent = '\ud83d\udd04 Changer de compte';
-        // Rafra\u00eechir le badge sidebar
-        Sidebar._renderGoogleBadge();
+      const s = await teamai.getGoogleStatus();
+      const profileEl = document.getElementById('settings-google-profile');
+      if (!profileEl) return;
+
+      if (s && s.connected) {
+        const email = s.email || 'Compte Google';
+        const { initial, bg, fg } = this._avatarStyle(email);
+        const displayName = email.includes('@')
+          ? (email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1))
+          : email;
+        const domain = email.includes('@') ? email.split('@')[1] : '';
+
+        profileEl.innerHTML = `
+          <div class="sg-banner"></div>
+          <div class="sg-avatar-wrap" style="background:${bg};color:${fg};">${initial}</div>
+          <div class="sg-body">
+            <div class="sg-displayname">${displayName}</div>
+            <div class="sg-email">${email}</div>
+            <div class="sg-pills">
+              <div class="sg-pill"><div class="dot green"></div> Session active</div>
+              ${domain ? `<div class="sg-pill"><div class="dot blue"></div> ${domain}</div>` : ''}
+              <div class="sg-pill" id="sg-drive-pill"><div class="dot orange"></div> Drive: v\u00e9rification…</div>
+            </div>
+            <button id="btn-google-login" style="margin-top:12px;width:100%;background:#1a1a2e;color:#aaa;border:1px solid #2a2a3a;border-radius:8px;padding:8px;font-size:10px;cursor:pointer;">
+              \ud83d\udd04 Changer de compte
+            </button>
+          </div>
+        `;
+        // Pill Drive async
+        teamai.getGoogleStatus().then(st => {
+          const pill = document.getElementById('sg-drive-pill');
+          if (pill) {
+            pill.innerHTML = st.connected
+              ? '<div class="dot green"></div> Drive accessible'
+              : '<div class="dot orange"></div> Drive: connect\u00e9 requis';
+          }
+        });
       } else {
-        bar.innerHTML = '<span style="color:#EF4444;">\u26a0\ufe0f Non connect\u00e9</span>';
-        document.getElementById('btn-google-login').textContent = 'Se connecter avec Google';
+        profileEl.innerHTML = `
+          <div class="sg-banner" style="background:linear-gradient(135deg,#1a1a2e,#2a2a3a);"></div>
+          <div class="sg-avatar-wrap" style="background:#1a1a2e;color:#555;border:1.5px dashed #333;">G</div>
+          <div class="sg-body">
+            <div class="sg-displayname" style="color:#888;">Non connect\u00e9</div>
+            <div class="sg-email">Connecte-toi pour activer toutes les IA Google</div>
+            <button id="btn-google-login" style="margin-top:12px;width:100%;background:#fff;color:#222;border:none;border-radius:8px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;">
+              <span style="color:#4285F4">G</span><span style="color:#EA4335">o</span><span style="color:#F59E0B">o</span><span style="color:#4285F4">g</span><span style="color:#34A853">l</span><span style="color:#EA4335">e</span>
+              &nbsp; Se connecter
+            </button>
+          </div>
+        `;
       }
-    } catch {
-      bar.textContent = '\u26a0\ufe0f Impossible de v\u00e9rifier.';
+
+      document.getElementById('btn-google-login')?.addEventListener('click', async () => {
+        await teamai.openGoogleAccount();
+        let checks = 0;
+        const iv = setInterval(async () => {
+          await this._refreshProfile();
+          await this._refreshDriveStatus();
+          Sidebar.refreshGoogleCard();
+          if (++checks >= 24) clearInterval(iv);
+        }, 5000);
+      });
+    } catch(e) {
+      const profileEl = document.getElementById('settings-google-profile');
+      if (profileEl) profileEl.innerHTML = '<div style="padding:12px;color:#EF4444;font-size:10px;">❌ Erreur</div>';
     }
   },
 
@@ -44,9 +105,9 @@ const Settings = {
     const bar = document.getElementById('drive-status-bar');
     if (!bar) return;
     try {
-      const status = await teamai.getGoogleStatus();
-      if (status && status.connected) {
-        bar.innerHTML = `<span style="color:#4ADE80;">\u2705 Drive accessible</span> \u2014 <span style="color:#888;font-size:10px;">Les rapports seront export\u00e9s dans <strong>TeamAI Reports/</strong></span>`;
+      const s = await teamai.getGoogleStatus();
+      if (s && s.connected) {
+        bar.innerHTML = `<span style="color:#4ADE80;">\u2705 Drive accessible</span> <span style="color:#555;font-size:9px;">\u2014 export dans <code>TeamAI Reports/</code></span>`;
         document.getElementById('btn-drive-test')?.removeAttribute('disabled');
       } else {
         bar.innerHTML = '<span style="color:#888;">Connecte-toi \u00e0 Google d\'abord</span>';
@@ -63,26 +124,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === document.getElementById('settings-modal')) Settings.close();
   });
 
-  document.getElementById('btn-google-login')?.addEventListener('click', async () => {
-    await teamai.openGoogleAccount();
-    let checks = 0;
-    const iv = setInterval(() => {
-      Settings._refreshGoogleStatus();
-      Settings._refreshDriveStatus();
-      Sidebar._renderGoogleBadge();
-      if (++checks >= 24) clearInterval(iv);
-    }, 5000);
-  });
-
-  // Drive test
   document.getElementById('btn-drive-test')?.addEventListener('click', async () => {
     const btn = document.getElementById('btn-drive-test');
-    btn.textContent = '\u23f3 Test en cours...';
+    btn.textContent = '\u23f3 Ouverture...';
     try {
       await teamai.openUrl('https://drive.google.com/drive/my-drive');
       btn.textContent = '\ud83d\udcc2 Drive ouvert';
       setTimeout(() => { btn.textContent = '\ud83e\uddea Tester Drive'; }, 3000);
-    } catch(e) { btn.textContent = '\u274c Erreur'; }
+    } catch { btn.textContent = '\u274c Erreur'; }
   });
 
   document.getElementById('settings-export')?.addEventListener('click', () => window._exportProviders?.());

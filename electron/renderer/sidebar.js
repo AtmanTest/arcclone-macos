@@ -1,6 +1,3 @@
-/**
- * TeamAI v10 — Sidebar
- */
 const Sidebar = {
   _providers: [],
   async init(providers) {
@@ -30,42 +27,74 @@ const Sidebar = {
     teamai.getVersion().then(v => {
       const el = document.getElementById('version-badge');
       if (el && v) {
-        el.textContent = `\u2736 v${v.version} \u2736`;
-        el.title = `${v.version} \u2014 ${(v.commit||'').slice(0,7)}`;
-        el.style.cssText = 'color:#4ADE80;font-weight:700;font-size:11px;letter-spacing:0.5px;cursor:pointer;display:block;text-align:center;margin-bottom:2px;';
+        el.textContent = `v${v.version}`;
+        el.title = `v${v.version} \u2014 cliquer pour le changelog`;
         el.addEventListener('click', () => Changelog.open());
       }
     }).catch(() => {});
-
-    // Badge Google sous la version
-    this._renderGoogleBadge();
+    this.refreshGoogleCard();
   },
 
-  async _renderGoogleBadge() {
-    let badge = document.getElementById('google-account-badge');
-    if (!badge) {
-      badge = document.createElement('div');
-      badge.id = 'google-account-badge';
-      badge.style.cssText = 'text-align:center;font-size:9px;color:#888;padding:2px 4px;cursor:pointer;';
+  // ── Google Profile Card (sidebar bottom) ──
+  async refreshGoogleCard() {
+    // Cr\u00e9e la carte si absente
+    let card = document.getElementById('google-profile-card');
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'google-profile-card';
+      card.innerHTML = `
+        <div class="g-avatar not-connected">G</div>
+        <div class="g-info">
+          <div class="g-name">Google</div>
+          <div class="g-email">Non connect\u00e9</div>
+        </div>
+        <div class="g-status-dot offline"></div>
+      `;
+      card.addEventListener('click', () => Settings.open());
       const versionBadge = document.getElementById('version-badge');
-      if (versionBadge && versionBadge.parentNode) {
-        versionBadge.parentNode.insertBefore(badge, versionBadge.nextSibling);
-      }
-      badge.addEventListener('click', () => Settings.open());
+      if (versionBadge && versionBadge.parentNode)
+        versionBadge.parentNode.insertBefore(card, versionBadge.nextSibling);
     }
+
     try {
-      const status = await teamai.getGoogleStatus();
-      if (status && status.connected && status.email) {
-        badge.innerHTML = `<span style="color:#4ADE80;">\u2022</span> ${status.email}`;
-        badge.title = 'Compte Google connect\u00e9 \u2014 Cliquer pour les r\u00e9glages';
-      } else if (status && status.connected) {
-        badge.innerHTML = `<span style="color:#4ADE80;">\u2022</span> Google connect\u00e9`;
+      const s = await teamai.getGoogleStatus();
+      const avatar = card.querySelector('.g-avatar');
+      const gName  = card.querySelector('.g-name');
+      const gEmail = card.querySelector('.g-email');
+      const dot    = card.querySelector('.g-status-dot');
+
+      if (s && s.connected) {
+        const email   = s.email || 'Compte Google';
+        const initial = email.charAt(0).toUpperCase();
+        // Couleur d\u00e9terministique bas\u00e9e sur l'initiale
+        const colors = [
+          ['#4285F4','#fff'],['#EA4335','#fff'],['#34A853','#fff'],
+          ['#7C3AED','#fff'],['#06B6D4','#fff'],['#F59E0B','#000'],
+          ['#EC4899','#fff'],['#10B981','#fff'],
+        ];
+        const [bg, fg] = colors[initial.charCodeAt(0) % colors.length];
+        avatar.className = 'g-avatar';
+        avatar.style.cssText = `background:${bg};color:${fg};`;
+        avatar.textContent = initial;
+
+        // Nom = partie avant @ si c'est un email, sinon afficher tel quel
+        const displayName = email.includes('@') ? email.split('@')[0] : email;
+        gName.textContent  = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+        gEmail.textContent = email.includes('@') ? email : '';
+        dot.className = 'g-status-dot online';
+        card.title = `Connect\u00e9 : ${email} \u2014 Cliquer pour les R\u00e9glages`;
       } else {
-        badge.innerHTML = `<span style="color:#EF4444;">\u2022</span> Google non connect\u00e9`;
-        badge.title = 'Cliquer pour se connecter';
+        avatar.className = 'g-avatar not-connected';
+        avatar.style.cssText = '';
+        avatar.textContent = 'G';
+        gName.textContent  = 'Google';
+        gEmail.textContent = 'Non connect\u00e9 \u2014 cliquer';
+        dot.className = 'g-status-dot offline';
+        card.title = 'Se connecter \u00e0 Google';
       }
     } catch {
-      badge.innerHTML = '';
+      const gEmail = card.querySelector('.g-email');
+      if (gEmail) gEmail.textContent = '';
     }
   },
 
@@ -147,11 +176,6 @@ const Sidebar = {
       s.textContent = connected[card.dataset.id] ? '\u2713' : '\u00b7\u00b7\u00b7';
       s.className = 'status' + (connected[card.dataset.id] ? ' connected' : '');
     });
-  },
-
-  updateWindowTitle(id, title) {
-    const entry = WinManager.frames.get(id);
-    if (entry) entry._lastTitle = title;
   },
 
   _saveSession() {
