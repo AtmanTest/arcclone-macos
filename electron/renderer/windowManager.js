@@ -18,10 +18,6 @@ const WinManager = {
     LayoutModel.views = [];
     this._idCounter = 0;
 
-    // Apply saved startup mode preference
-    const defaultMode = localStorage.getItem('teamai_default_mode') || 'focus';
-    LayoutModel.setMode(defaultMode);
-
     const saved = localStorage.getItem('teamai_session');
     if (saved) {
       try {
@@ -38,6 +34,11 @@ const WinManager = {
 
     this._applyLayout();
     PersistenceManager.restore();
+
+    // Apply startup mode preference AFTER restore() so it isn't overwritten by saved session
+    const defaultMode = localStorage.getItem('teamai_default_mode') || 'focus';
+    LayoutModel.setMode(defaultMode);
+
     PresetLayouts.init();
     this._initDone = true;
   },
@@ -334,7 +335,7 @@ const WinManager = {
     const escapedText = JSON.stringify(text);
 
     const injectJS = `(function(){
-      var h = location.hostname.replace(/^www\./, '');
+      var h = location.hostname.replace(/^www\\./, '');
       var FP = ${JSON.stringify(PROVIDERS)};
       var fpKey = Object.keys(FP).find(function(k){ return h.endsWith(k); });
       var cfg = fpKey ? FP[fpKey] : {};
