@@ -84,8 +84,9 @@ input, select, button, textarea { font-family: var(--font); }
 .prov-card .prov-delete:hover { color: #EF4444; background: #2a1010; }
 
 #sidebar-bottom { border-top: 1px solid var(--border); padding-top: 3px; display: flex; flex-direction: column; gap: 2px; }
-#version-badge { font-size: 6px; color: #444; text-align: center; padding: 1px 0; cursor: pointer; }
-#version-badge:hover { color: var(--accent); }
+#version-badge { display: flex; align-items: center; gap: 5px; padding: 3px 2px; cursor: pointer; }
+#version-number { font-size: 10px; font-weight: 700; color: #4ADE80; }
+#branch-pill { font-size: 9px; color: #aaa; background: #1a1a2e; border: 1px solid #2a2a3a; border-radius: 4px; padding: 1px 5px; }
 
 /* ── Google Profile Card (sidebar) ─────────────────────────────────────── */
 #google-profile-card {
