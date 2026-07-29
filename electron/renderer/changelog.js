@@ -1,5 +1,5 @@
 const ChangelogData = [
-  {v:'0.24.0', date:'2026-07-29', commit:'b762f90', author:'Hermes', items:['Logo SVG TeamAI (T stylisé violet + nodes réseau multi-AI)','Fix 5 régressions reportManager.js (multiline strings)','Tests adaptés (colors, CSS, focus) — 182 ✅']},
+  {v:'0.24.0', date:'2026-07-29 14:00', commit:'b762f90', author:'Hermes', items:['Logo SVG TeamAI (T stylisé violet + nodes réseau multi-AI)','Fix 5 régressions reportManager.js (multiline strings)','Tests adaptés (colors, CSS, focus) — 182 ✅']},
   {v:'0.23.2', date:'2026-07-29', commit:'', author:'Kimi3', items:['fix: caractères Unicode affichés correctement (plus de \\uXXXX)']},
   {v:'0.23.1', date:'2026-07-29', commit:'602d9cf', author:'Kimi3', items:['Google profile card dans la sidebar (avatar + email + dot)','Réglages: carte profil avec bannière dégradée + pills de statut']},
   {v:'0.23.0', date:'2026-07-29', commit:'9b6d197', author:'Kimi3', items:['Badge Google sous la version','Google Drive: export rapports + auto-export']},
