@@ -2,12 +2,13 @@
  * Google OAuth 2.0 + PKCE — External Browser Flow
  * Client ID: 856166874168-1phb3bnnejio3o96g45km0j2kll709gr.apps.googleusercontent.com
  */
-const { app, BrowserWindow, shell, ipcMain, net } = require('electron');
+const { shell, net } = require('electron');
 const crypto = require('crypto');
 const http   = require('http');
 const url    = require('url');
 
 const GOOGLE_CLIENT_ID     = '856166874168-1phb3bnnejio3o96g45km0j2kll709gr.apps.googleusercontent.com';
+const GOOGLE_CLIENT_SECRET = 'REPLACE_WITH_YOUR_CLIENT_SECRET'; // ← colle ton secret ici
 const REDIRECT_URI         = 'http://127.0.0.1:4242/oauth/callback';
 const AUTH_ENDPOINT        = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT       = 'https://oauth2.googleapis.com/token';
@@ -37,7 +38,6 @@ exports.startGooglePKCE = function startGooglePKCE() {
     const challenge = generateCodeChallenge(verifier);
     const state     = generateState();
 
-    // Spin up local HTTP server for redirect callback
     const server = http.createServer();
     server.listen(4242, '127.0.0.1', () => {
       const authUrl = new URL(AUTH_ENDPOINT);
@@ -50,8 +50,6 @@ exports.startGooglePKCE = function startGooglePKCE() {
       authUrl.searchParams.set('code_challenge_method', 'S256');
       authUrl.searchParams.set('access_type',           'offline');
       authUrl.searchParams.set('prompt',                'consent');
-
-      // Open in system browser (external)
       shell.openExternal(authUrl.toString());
     });
 
@@ -65,15 +63,14 @@ exports.startGooglePKCE = function startGooglePKCE() {
       if (!parsed.pathname.startsWith('/oauth/callback')) {
         res.end('Not found'); return;
       }
-
       clearTimeout(timeout);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end('<html><body style="font-family:sans-serif;background:#0D0D0F;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh"><h2>✅ Connecté — Retournez dans TeamAI</h2></body></html>');
+      res.end('<html><body style="font-family:sans-serif;background:#0D0D0F;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh"><h2>\u2705 Connect\u00e9 \u2014 Retournez dans TeamAI</h2></body></html>');
       server.close();
 
       const { code, state: retState, error } = parsed.query;
       if (error) { reject(new Error(`Google OAuth error: ${error}`)); return; }
-      if (retState !== state) { reject(new Error('State mismatch — possible CSRF')); return; }
+      if (retState !== state) { reject(new Error('State mismatch \u2014 possible CSRF')); return; }
 
       try {
         const tokens = await exchangeCode(code, verifier);
@@ -90,6 +87,7 @@ exports.startGooglePKCE = function startGooglePKCE() {
 async function exchangeCode(code, verifier) {
   const body = new URLSearchParams({
     client_id:     GOOGLE_CLIENT_ID,
+    client_secret: GOOGLE_CLIENT_SECRET,
     redirect_uri:  REDIRECT_URI,
     grant_type:    'authorization_code',
     code,
@@ -138,6 +136,7 @@ exports.fetchGoogleUserInfo = async function fetchGoogleUserInfo(accessToken) {
 exports.refreshAccessToken = async function refreshAccessToken(refreshToken) {
   const body = new URLSearchParams({
     client_id:     GOOGLE_CLIENT_ID,
+    client_secret: GOOGLE_CLIENT_SECRET,
     grant_type:    'refresh_token',
     refresh_token: refreshToken,
   });
