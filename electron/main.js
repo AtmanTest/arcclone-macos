@@ -58,7 +58,7 @@ async function getGoogleStatus() {
 // ── Drive Export — Bearer token only ──
 async function exportReportToDrive({ filename, content, mimeType }) {
   const tokens = getStoredTokens();
-  if (!tokens || !tokens.access_token) throw new Error('Non connect\u00e9 \u00e0 Google. Connecte-toi via R\u00e9glages d\'abord.');
+  if (!tokens || !tokens.access_token) throw new Error('Non connecté à Google. Connecte-toi via Réglages d\'abord.');
 
   const boundary = 'teamai_boundary_' + Date.now();
   const metadata = JSON.stringify({ name: filename, parents: [], mimeType });
@@ -86,12 +86,12 @@ async function exportReportToDrive({ filename, content, mimeType }) {
                 .then(resolve).catch(reject);
             } else {
               clearTokens();
-              reject(new Error('Session expir\u00e9e. Reconnecte-toi via R\u00e9glages.'));
+              reject(new Error('Session expirée. Reconnecte-toi via Réglages.'));
             }
           } else {
-            reject(new Error(json.error?.message || 'Upload \u00e9chou\u00e9'));
+            reject(new Error(json.error?.message || 'Upload échoué'));
           }
-        } catch { reject(new Error('R\u00e9ponse invalide Drive')); }
+        } catch { reject(new Error('Réponse invalide Drive')); }
       });
     });
     req.on('error', reject);
@@ -178,13 +178,16 @@ ipcMain.on('do-update-backup', () => backupGooglePartition());
     const { execSync } = require('child_process');
     try {
       const cwd = __dirname.replace('/electron', '');
-      execSync('git fetch origin', { cwd, timeout: 10000 });
-      const behind = parseInt(execSync('git rev-list --count HEAD..origin/main', { cwd, encoding: 'utf8' }).trim()) || 0;
+      // Resolve current branch dynamically — avoids false positives when on a feature branch
+      const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { cwd, encoding: 'utf8' }).trim();
+      const remoteBranch  = `origin/${currentBranch}`;
+      execSync(`git fetch origin ${currentBranch}`, { cwd, timeout: 10000 });
+      const behind = parseInt(execSync(`git rev-list --count HEAD..${remoteBranch}`, { cwd, encoding: 'utf8' }).trim()) || 0;
       let lastCommit = '', lastAuthor = '', lastMessage = '';
       if (behind > 0) {
-        lastCommit  = execSync('git log origin/main -1 --format=%H',  { cwd, encoding: 'utf8' }).trim();
-        lastAuthor  = execSync('git log origin/main -1 --format=%an', { cwd, encoding: 'utf8' }).trim();
-        lastMessage = execSync('git log origin/main -1 --format=%s',  { cwd, encoding: 'utf8' }).trim();
+        lastCommit  = execSync(`git log ${remoteBranch} -1 --format=%H`,  { cwd, encoding: 'utf8' }).trim();
+        lastAuthor  = execSync(`git log ${remoteBranch} -1 --format=%an`, { cwd, encoding: 'utf8' }).trim();
+        lastMessage = execSync(`git log ${remoteBranch} -1 --format=%s`,  { cwd, encoding: 'utf8' }).trim();
       }
       return { hasUpdate: behind > 0, behind, lastCommit, lastAuthor, lastMessage };
     } catch { return { hasUpdate: false, behind: 0, error: true }; }
@@ -194,7 +197,7 @@ ipcMain.on('do-update-backup', () => backupGooglePartition());
     try {
       execSync('git pull', { cwd: __dirname.replace('/electron', ''), timeout: 30000 });
       execSync('npm install --no-audit --no-fund', { cwd: __dirname.replace('/electron', ''), timeout: 120000 });
-    } catch(e) { return `\u274c ${e.message}`; }
+    } catch(e) { return `❌ ${e.message}`; }
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('set-focus-on-relaunch');
       await new Promise(r => setTimeout(r, 300));
