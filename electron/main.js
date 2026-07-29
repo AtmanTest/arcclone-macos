@@ -1,3 +1,4 @@
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 /**
  * TeamAI v6 — Main Process
  * OAuth PKCE (external browser) + Drive Bearer token
@@ -19,6 +20,18 @@ const CFG = {
 };
 const GOOGLE_PARTITION = 'persist:google_shared';
 
+
+// Bug 3 fix — Sauvegarde session Google avant mise a jour
+function backupGooglePartition() {
+  try {
+    const { app } = require('electron');
+    const src  = path.join(app.getPath('userData'), 'Partitions', 'persist_google_shared');
+    const dest = path.join(app.getPath('userData'), 'google_session_backup');
+    if (fs.existsSync(src)) {
+      fs.cpSync(src, dest, { recursive: true });
+    }
+  } catch(e) { console.warn('backupGooglePartition:', e.message); }
+}
 function loadJSON(p) { try { return JSON.parse(fs.readFileSync(p, 'utf-8')); } catch { return {}; } }
 function loadProviders() { const d = loadJSON(CFG.PROVIDERS); return Array.isArray(d) ? d : []; }
 
@@ -139,6 +152,8 @@ function setupIPC() {
   h('get-version',            () => { const v = loadJSON(CFG.VERSION); return { version: v.version || '0.0.0', commit: v.commit || 'dev', url: CFG.GITHUB_URL }; });
   h('open-url',               (e, url) => { if (url) shell.openExternal(url); });
   h('set-zoom',               (e, l) => { zoomLevel = Math.max(-3, Math.min(5, l)); });
+  
+ipcMain.on('do-update-backup', () => backupGooglePartition());
   h('get-zoom',               () => zoomLevel);
   h('load-providers',         () => { const p = loadJSON(CFG.PROVIDERS); return Array.isArray(p) ? p : []; });
   // ── PKCE OAuth ──

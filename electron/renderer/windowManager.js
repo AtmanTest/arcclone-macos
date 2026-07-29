@@ -41,6 +41,7 @@ const WinManager = {
   addView(providerId, url) {
     this._createView(providerId, url);
     this._applyLayout();
+    if (typeof Sidebar !== 'undefined') Sidebar.renderAll();
   },
 
   _createView(providerId, initialUrl) {
@@ -207,6 +208,7 @@ const WinManager = {
     LayoutModel.removeView(id);
     this._applyLayout();
     PersistenceManager.save();
+    if (typeof Sidebar !== 'undefined') Sidebar.renderAll();
   },
 
   _resetLayout() {

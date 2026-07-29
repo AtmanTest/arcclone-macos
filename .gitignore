@@ -22,3 +22,4 @@ out/
 # TeamAI data
 .teamai_data/
 .teamai_profiles/
+.env

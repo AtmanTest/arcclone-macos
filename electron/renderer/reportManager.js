@@ -55,10 +55,147 @@ const ReportManager = {
   },
 
   _toMarkdown() {
-    const date = new Date().toLocaleString('fr-FR');
-    const prompt = document.getElementById('prompt-input')?.value || '';
-    return `# Rapport TeamAI\n_${date}_\n\n**Prompt:** ${prompt}\n\n---\n\n`
-      + this._data.map(d => `## ${d.label}\n\n${d.text}`).join('\n\n---\n\n');
+    // 14 sections
+    const now   = new Date();
+    const date  = now.toLocaleString('fr-FR');
+    const iso   = now.toISOString().slice(0,10);
+    const prompt = document.getElementById('prompt-input')?.value || '(aucun prompt)';
+    const count = this._data.length;
+    const providers = this._data.map(d => d.label).join(', ');
+
+    // Section 1 — En-tête
+    let md = `# 📋 Rapport TeamAI
+`;
+    md += `> Généré le **${date}** — ${count} IA consultée${count>1?'s':''}
+
+`;
+    md += `---
+
+`;
+
+    // Section 2 — Prompt
+    md += `## 1. Prompt soumis
+
+> ${prompt.replace(/
+/g,'
+> ')}
+
+`;
+
+    // Section 3 — IA consultées
+    md += `## 2. IA consultées (${count})
+
+${this._data.map((d,i)=>`${i+1}. ${d.label}`).join('
+')}
+
+`;
+
+    // Section 4 — Résumé exécutif
+    const firstText = this._data[0]?.text?.substring(0,300) || '';
+    md += `## 3. Résumé exécutif
+
+_Première réponse reçue (${this._data[0]?.label || '—'}) :_
+
+${firstText}…
+
+`;
+
+    // Section 5-N — Réponses individuelles
+    md += `## 4. Réponses détaillées
+
+`;
+    this._data.forEach((d, i) => {
+      md += `### ${i+1}. ${d.label}
+
+${d.text}
+
+---
+
+`;
+    });
+
+    // Section — Points communs
+    md += `## 5. Points communs
+
+_À remplir manuellement ou via analyse._
+
+`;
+
+    // Section — Divergences
+    md += `## 6. Divergences notables
+
+_À remplir manuellement ou via analyse._
+
+`;
+
+    // Section — Meilleure réponse
+    md += `## 7. Meilleure réponse (subjective)
+
+_À déterminer selon le contexte._
+
+`;
+
+    // Section — Sources citées
+    const urls = this._data.flatMap(d => [...d.text.matchAll(/https?:\/\/[^\s)"]+/g)].map(m=>m[0]));
+    md += `## 8. URLs / Sources citées (${urls.length})
+
+${urls.length ? urls.map(u=>`- ${u}`).join('
+') : '_Aucune URL détectée._'}
+
+`;
+
+    // Section — Code détecté
+    const hasCode = this._data.some(d => d.text.includes('```'));
+    md += `## 9. Blocs de code détectés
+
+${hasCode ? '_Des blocs de code ont été trouvés dans les réponses ci-dessus._' : '_Aucun bloc de code détecté._'}
+
+`;
+
+    // Section — Statistiques
+    md += `## 10. Statistiques
+
+`;
+    this._data.forEach(d => {
+      const words = d.text.split(/\s+/).filter(Boolean).length;
+      md += `- **${d.label}** : ~${words} mots, ${d.text.length} caractères
+`;
+    });
+    md += '
+';
+
+    // Section — Temps de session
+    md += `## 11. Contexte session
+
+- Date : ${date}
+- Providers : ${providers}
+- Fenêtres actives : ${count}
+
+`;
+
+    // Section — Tags
+    md += `## 12. Tags suggérés
+
+_#teamai #ia #${iso}_
+
+`;
+
+    // Section — Actions suivantes
+    md += `## 13. Actions suivantes
+
+- [ ] Vérifier les sources
+- [ ] Comparer les divergences
+- [ ] Sauvegarder sur Drive
+
+`;
+
+    // Section — Pied de page
+    md += `## 14. Pied de page
+
+_Rapport généré automatiquement par [TeamAI](https://github.com/AtmanTest/arcclone-macos) v${document.getElementById("version-badge")?.textContent || "?"}_
+`;
+
+    return md;
   },
 
   exportMd() {

@@ -20,7 +20,25 @@ const Sidebar = {
     document.getElementById('btn-report')?.addEventListener('click', () => ReportManager.open());
     document.getElementById('btn-save-session')?.addEventListener('click', () => this._saveSession());
     // Refresh card when PKCE auth completes
-    teamai.onGoogleStatusChanged(() => this.refreshGoogleCard());
+
+    // Bug 2 fix — Zoom listeners
+    const zoomOut   = document.getElementById('zoom-out');
+    const zoomIn    = document.getElementById('zoom-in');
+    const zoomReset = document.getElementById('zoom-reset');
+    const zoomResetLayout = document.getElementById('btn-reset-layout');
+    const zoomLabel = document.getElementById('zoom-level');
+    function _applyZoom(level) {
+      const pct = 100 + level * 10;
+      if (zoomLabel) zoomLabel.textContent = pct + '%';
+      document.querySelectorAll('webview').forEach(wv => { try { wv.setZoomLevel(level); } catch(e){} });
+      teamai.send && teamai.send('set-zoom', level);
+    }
+    let _zoomLevel = 0;
+    zoomOut   && zoomOut.addEventListener('click',   () => { _zoomLevel = Math.max(-3, _zoomLevel - 1); _applyZoom(_zoomLevel); });
+    zoomIn    && zoomIn.addEventListener('click',    () => { _zoomLevel = Math.min(5,  _zoomLevel + 1); _applyZoom(_zoomLevel); });
+    zoomReset && zoomReset.addEventListener('click', () => { _zoomLevel = 0; _applyZoom(0); });
+    zoomResetLayout && zoomResetLayout.addEventListener('click', () => WinManager._resetLayout && WinManager._resetLayout());
+        teamai.onGoogleStatusChanged(() => this.refreshGoogleCard());
   },
 
   renderAll() {

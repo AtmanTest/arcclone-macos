@@ -7,11 +7,24 @@ const crypto = require('crypto');
 const http   = require('http');
 const url    = require('url');
 
-const GOOGLE_CLIENT_ID     = '856166874168-1phb3bnnejio3o96g45km0j2kll709gr.apps.googleusercontent.com';
-const GOOGLE_CLIENT_SECRET = 'REPLACE_WITH_YOUR_CLIENT_SECRET'; // ← colle ton secret ici
+const GOOGLE_CLIENT_ID     = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const REDIRECT_URI         = 'http://127.0.0.1:4242/oauth/callback';
 const AUTH_ENDPOINT        = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT       = 'https://oauth2.googleapis.com/token';
+
+// ── Token persistence (disk) ──
+const { app } = require('electron');
+const TOKEN_FILE = require('path').join(app.getPath('userData'), 'google_tokens.json');
+function _saveTokensToDisk(t) {
+  try { require('fs').writeFileSync(TOKEN_FILE, JSON.stringify(t), 'utf-8'); } catch(e) {}
+}
+function _loadTokensFromDisk() {
+  try {
+    const raw = require('fs').readFileSync(TOKEN_FILE, 'utf-8');
+    return JSON.parse(raw);
+  } catch { return null; }
+}
 const USERINFO_ENDPOINT    = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const SCOPES               = 'openid email profile https://www.googleapis.com/auth/drive.file';
 
@@ -26,10 +39,10 @@ function generateState() {
   return crypto.randomBytes(16).toString('hex');
 }
 
-// ── Token store (in-memory) ──
-let _tokens = null;
+// ── Token store (mémoire + disque) ──
+let _tokens = _loadTokensFromDisk();
 exports.getStoredTokens = () => _tokens;
-exports.clearTokens     = () => { _tokens = null; };
+exports.clearTokens     = () => { _tokens = null; try { require('fs').unlinkSync(TOKEN_FILE); } catch {} };
 
 // ── Start PKCE flow ──
 exports.startGooglePKCE = function startGooglePKCE() {
@@ -75,6 +88,7 @@ exports.startGooglePKCE = function startGooglePKCE() {
       try {
         const tokens = await exchangeCode(code, verifier);
         _tokens = tokens;
+        _saveTokensToDisk(tokens);
         resolve(tokens);
       } catch (e) { reject(e); }
     });
@@ -151,7 +165,7 @@ exports.refreshAccessToken = async function refreshAccessToken(refreshToken) {
           const json = JSON.parse(data);
           if (json.error) reject(new Error(json.error_description || json.error));
           else {
-            if (_tokens) _tokens.access_token = json.access_token;
+            if (_tokens) { _tokens.access_token = json.access_token; _saveTokensToDisk(_tokens); }
             resolve(json);
           }
         } catch { reject(new Error('Refresh parse error')); }
