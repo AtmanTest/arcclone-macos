@@ -39,4 +39,8 @@ Chaque agent lit et écrit ici pour se synchroniser sans endpoint ni webhook.
 [2026-07-29 09:12 CEST] [KIMI3] CHORE — Création AGENT_LOG.md + définition workflow. Commit: 4f6a851
 [2026-07-29 10:15 CEST] [HERMES] TEST — 169/169 ✅. version -> v0.19.1 (commit 4f6a851). Log ajouté.
 [2026-07-29 22:58 CEST] [HERMES] CONFIG — AtmanTest/arcclone-macos ajouté au watchdog multi-repo + tnr_handler.py. Fichiers: watchdog_github.sh (REPOS+case), tnr_handler.py (REPO_PATHS).
+[2026-07-29 10:00 CEST] [KIMI3] FIX — providers.json: kimi.moonshot.cn → kimi.ai. Commit: 831ed2d
+[2026-07-29 10:00 CEST] [KIMI3] FIX — GLM + Kimi: submit via Enter React-compatible. Grok: blacklist voice/mic/audio. Commit: 831ed2d
+[2026-07-29 10:15 CEST] [KIMI3] FIX — v0.20.0: Grok contenteditable fix + send selector exact 'Send message' + injection fallback curseur. Popup update: commit/auteur/correctifs + Valider/Annuler. Commit: 7da9089
+[2026-07-29 10:16 CEST] [KIMI3] VALIDATED — Taz confirme: tous providers OK ✅ (GPT, Gemini, Claude, GLM, Kimi, Grok, Venice, Nemotron)
 ```
