@@ -71,13 +71,33 @@ const Sidebar = {
 
   async refreshGoogleCard() {
     let card = document.getElementById('google-profile-card');
+    let branchEl = document.getElementById('branch-indicator');
     if (!card) {
       card = document.createElement('div');
       card.id = 'google-profile-card';
       card.addEventListener('click', () => Settings.open());
-      const versionBadge = document.getElementById('version-badge');
-      if (versionBadge && versionBadge.parentNode)
-        versionBadge.parentNode.insertBefore(card, versionBadge.nextSibling);
+      const settingsBtn = document.getElementById('btn-settings');
+      if (settingsBtn && settingsBtn.parentNode)
+        settingsBtn.parentNode.insertBefore(card, settingsBtn.nextSibling);
+    }
+    if (!branchEl) {
+      branchEl = document.createElement('div');
+      branchEl.id = 'branch-indicator';
+      branchEl.style.cssText = 'color:#666;font-size:9px;text-align:center;padding:4px 0 2px;cursor:pointer;';
+      branchEl.title = 'Branche courante — cliquer pour le changelog';
+      branchEl.addEventListener('click', () => Changelog.open());
+      if (card && card.parentNode)
+        card.parentNode.insertBefore(branchEl, card.nextSibling);
+    }
+
+    // Update branch display
+    try {
+      const info = await teamai.getVersion();
+      const branch = info?.branch || 'main';
+      branchEl.textContent = `🌿 ${branch}`;
+      branchEl.title = `Branche : ${branch} — cliquer pour le changelog`;
+    } catch {
+      branchEl.textContent = '🌿 main';
     }
 
     try {
