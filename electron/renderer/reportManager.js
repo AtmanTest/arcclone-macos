@@ -87,7 +87,7 @@ const ReportManager = {
         + '<div class="resp-header">'
         + '<div class="resp-badge" style="background:' + color + '15;color:' + color + ';">' + d.label + '</div>'
         + '<div class="resp-meta">' + s.words + ' mots · ' + s.chars.toLocaleString() + ' car.</div>'
-        + '<button class="toggle-btn" onclick="this.parentElement.nextElementSibling.classList.toggle(\'collapsed\');this.textContent=this.textContent===\'▲\'?\'▼\':\'▲\'">▲</button>'
+        + '<button class="toggle-btn" onclick="this.parentElement.nextElementSibling.classList.toggle(\'open\');this.textContent=this.textContent===\'▼\'?\'▲\':\'▼\'">▼</button>'
         + '</div>'
         + '<div class="resp-body">' + body + '</div>'
         + '</div>';
@@ -144,7 +144,7 @@ const ReportManager = {
   /* ── CSS Grid pour les cartes IA ── */
   .responses-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    grid-template-columns: 1fr 1fr;
     gap: 12px;
   }
   .resp-card {
@@ -169,9 +169,9 @@ const ReportManager = {
   .toggle-btn:hover { background: #1E1E2E; }
   .resp-body {
     padding: 14px; font-size: 12.5px; line-height: 1.7; color: #CBD5E1;
-    max-height: none; overflow-y: auto; transition: max-height 0.3s;
+    max-height: 0; overflow: hidden; transition: max-height 0.35s ease;
   }
-  .resp-body.collapsed { max-height: 180px; overflow-y: hidden; }
+  .resp-body.open { max-height: none; }
   .resp-body pre {
     background: #0A0A12; border: 1px solid #1E1E2E; border-radius: 6px;
     padding: 12px; overflow-x: auto; font-size: 11px; line-height: 1.5;
@@ -242,8 +242,7 @@ ${responsesHTML}
 </table>
 
 <h2>📌 Notes</h2>
-<p class="dim">Les réponses ont été collectées depuis les fenêtres ouvertes au moment du rapport.
-Le bouton ▲/▼ permet de réduire les longues réponses.</p>
+<p class="dim">Les réponses sont réduites par défaut. Cliquez sur ▼ pour développer chaque IA.</p>
 
 <div class="footer">
   Généré par <strong>TeamAI</strong> ${version} · ${date}
