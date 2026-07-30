@@ -28,50 +28,10 @@ const ReportManager = {
       const providerId = entry.combo?.value || id;
       promises.push(
         wv.executeJavaScript(`(function(){
-          var providerId = ${JSON.stringify(providerId)};
-          var el = null;
-          // Selecteurs par provider pour attraper la VRAIE réponse IA
-          var selectors = {
-            'chatgpt': '[data-message-author-role="assistant"]:last-child',
-            'openai':   '[data-message-author-role="assistant"]:last-child',
-            'gemini':   '.response-content, .model-response, [data-message-author-role="assistant"]',
-            'claude':   '.prose:last-child, .font-claude-message, [class*="assistant-message"]',
-            'anthropi': '.prose:last-child, .font-claude-message, [class*="assistant-message"]',
-            'grok':     '[data-testid="message"]:last-child, .message-content:last-child',
-            'kimi':     '.chat-content, [class*="message"]:last-child, [class*="chat"]:last-child',
-            'perplexi': '.prose:last-child, [class*="response-content"], [class*="answer"]',
-            'mistral':  '.message:last-child, [class*="chat-message"]:last-child',
-            'deepseek': '[class*="message"]:last-child, [class*="response"]:last-child',
-            'meta':     '[class*="message"]:last-child, [class*="response"]:last-child',
-            'qwen':     '[class*="message"]:last-child, [class*="response"]:last-child',
-            'you':      '.prose:last-child, [class*="result"]:last-child',
-            'pi':       '[class*="message"]:last-child, [class*="chat"]:last-child',
-            'poe':      '.message_content, [class*="message"]:last-child',
-            'venice':   '[class*="message"]:last-child, [class*="response"]:last-child',
-            'groq':     '.prose:last-child, [class*="message"]:last-child',
-            'cohere':   '[class*="message"]:last-child',
-          };
-          // Chercher par provider
-          var pid = providerId.toLowerCase();
-          for (var key in selectors) {
-            if (pid.includes(key)) {
-              el = document.querySelector(selectors[key]);
-              if (el && el.innerText.trim().length > 10) break;
-              el = null;
-            }
-          }
-          // Fallback générique : dernier élément non-input, non-body
-          if (!el || el.innerText.trim().length < 5) {
-            var all = document.querySelectorAll('[class*="message"], [class*="response"], [class*="answer"], article, .prose, [class*="content"]');
-            for (var i = all.length - 1; i >= 0; i--) {
-              var txt = all[i].innerText.trim();
-              if (txt.length > 20 && !all[i].matches('input, textarea, [contenteditable]')) {
-                el = all[i]; break;
-              }
-            }
-          }
-          if (!el || el === document.body) el = null;
-          var text = el ? el.innerText : '(pas de réponse)';
+          var sel = '.message:last-child, [data-message-author-role="assistant"]:last-child, .response:last-child, article:last-child, [class*="response"]:last-child, .prose:last-child, [class*="answer"]:last-child';
+          var el = document.querySelector(sel);
+          if (!el) el = document.body;
+          var text = el ? el.innerText : '';
           var html = el ? el.innerHTML : '';
           return JSON.stringify({ text: text.substring(0, 30000), html: html.substring(0, 5000) });
         })()`)
@@ -102,106 +62,55 @@ const ReportManager = {
     const count = this._data.length;
     const providers = this._data.map(d => d.label);
 
+    // Stats
     const stats = this._data.map(d => ({
       label: d.label,
       words: d.text.split(/\s+/).filter(Boolean).length,
       chars: d.text.length,
     }));
 
+    // URLs détectées
     const allUrls = [...new Set(this._data.flatMap(d => [...d.text.matchAll(/https?:\/\/[^\s)"'\]]+/g)].map(m => m[0])))];
-    md += `## 1. Prompt soumis
-
-> ${prompt.replace(/\n/g, '\n> ')}
-
-`;
-
-    // Section 3 — IA consultées
-    md += `## 2. IA consultées (${count})
-
-${this._data.map((d,i)=>`${i+1}. ${d.label}`).join('\n')}
-
-`;
-
-    // Section 4 — Résumé exécutif
-    const firstText = this._data[0]?.text?.substring(0,300) || '';
-    md += `## 3. Résumé exécutif
-
-_Première réponse reçue (${this._data[0]?.label || '—'}) :_
-
-${firstText}…
-
-`;
-
-    // Section 5-N — Réponses individuelles
-    md += `## 4. Réponses détaillées
-
-`;
-    this._data.forEach((d, i) => {
-      md += `### ${i+1}. ${d.label}
-
-${d.text}
-
----
-
-`;
-    });
-
-    // Section — Points communs
-    md += `## 5. Points communs
-
-_À remplir manuellement ou via analyse._
-
-`;
-
-    // Section — Divergences
-    md += `## 6. Divergences notables
-
-_À remplir manuellement ou via analyse._
-
-`;
-
-    // Section — Meilleure réponse
-    md += `## 7. Meilleure réponse (subjective)
-
-_À déterminer selon le contexte._
-
-`;
-
+    
+    // Code blocks
     const hasCode = this._data.some(d => d.text.includes('```'));
 
-    // Construire les cartes IA en évitant les template literals imbriqués
-    const cardColors = ['#7C3AED', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#8B5CF6', '#14B8A6'];
-    let cardsHtml = '';
-    this._data.forEach((d, i) => {
+    // Lines de réponse par IA
+    const responsesHTML = this._data.map((d, i) => {
       const s = stats[i];
-      const color = cardColors[i % cardColors.length];
-      let body = d.text
+      const codeFormatted = d.text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code class="lang-$1">$2</code></pre>')
         .replace(/\n/g, '<br>');
-      cardsHtml += '<div class="resp-card" style="border-left:3px solid ' + color + ';">'
-        + '<div class="resp-header">'
-        + '<div class="resp-badge" style="background:' + color + '15;color:' + color + ';">' + d.label + '</div>'
-        + '<div class="resp-meta">' + s.words + ' mots · ' + s.chars.toLocaleString() + ' car.</div>'
-        + '<button class="toggle-btn" onclick="this.parentElement.nextElementSibling.classList.toggle(\'open\');this.textContent=this.textContent===\'▼\'?\'▲\':\'▼\'">▼</button>'
-        + '</div>'
-        + '<div class="resp-body">' + body + '</div>'
-        + '</div>';
-    });
-    const responsesHTML = '<div class="responses-grid">' + cardsHtml + '</div>';
 
-    const urlsHTML = allUrls.length
-      ? allUrls.map(u => '<a href="' + u + '" target="_blank" class="url-link">' + (u.length > 80 ? u.slice(0,80) + '…' : u) + '</a>').join('\n')
-      : '<span class="dim">Aucune URL détectée.</span>';
+      const colors = ['#7C3AED', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#8B5CF6', '#14B8A6'];
+      const color = colors[i % colors.length];
 
-    const bars = ['#7C3AED', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
-    const maxWords = Math.max(...stats.map(x => x.words), 1);
+      return `
+      <div class="resp-card" style="border-left: 3px solid ${color};">
+        <div class="resp-header">
+          <div class="resp-badge" style="background:${color}15; color:${color};">${d.label}</div>
+          <div class="resp-meta">${s.words} mots · ${s.chars.toLocaleString()} car.</div>
+          <button class="toggle-btn" onclick="this.parentElement.nextElementSibling.classList.toggle('collapsed');this.textContent=this.textContent==='▲'?'▼':'▲'">▲</button>
+        </div>
+        <div class="resp-body">${codeFormatted}</div>
+      </div>`;
+    }).join('\n');
+
+    // URLs
+    const urlsHTML = allUrls.length ? allUrls.map(u => 
+      `<a href="${u}" target="_blank" class="url-link">${u.length > 80 ? u.slice(0,80)+'…' : u}</a>`
+    ).join('\n') : '<span class="dim">Aucune URL détectée.</span>';
+
+    // Tableau comparatif
     const tableRows = stats.map((s, i) => {
+      const bars = ['#7C3AED', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
       const c = bars[i % bars.length];
+      const maxWords = Math.max(...stats.map(x => x.words), 1);
       const pct = (s.words / maxWords * 100).toFixed(0);
-      return '<tr><td style="color:' + c + ';">' + s.label + '</td><td>' + s.words.toLocaleString() + '</td><td>' + s.chars.toLocaleString() + '</td><td><div class="bar" style="width:' + pct + '%;background:' + c + ';"></div></td></tr>';
+      return `<tr><td style="color:${c};">${s.label}</td><td>${s.words.toLocaleString()}</td><td>${s.chars.toLocaleString()}</td><td><div class="bar" style="width:${pct}%;background:${c};"></div></td></tr>`;
     }).join('\n');
 
     // Version depuis le badge
@@ -238,18 +147,10 @@ _À déterminer selon le contexte._
   .prompt-box .text {
     font-size: 13px; color: #E2E8F0; line-height: 1.7; white-space: pre-wrap;
   }
-
-  /* ── CSS Grid pour les cartes IA ── */
-  .responses-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
   .resp-card {
     background: #111118; border: 1px solid #1E1E2E; border-radius: 10px;
-    overflow: hidden; break-inside: avoid;
+    margin-bottom: 16px; overflow: hidden;
   }
-  .resp-card:hover { border-color: #2A2A3E; }
   .resp-header {
     display: flex; align-items: center; gap: 10px;
     padding: 10px 14px; border-bottom: 1px solid #1A1A28;
@@ -267,9 +168,9 @@ _À déterminer selon le contexte._
   .toggle-btn:hover { background: #1E1E2E; }
   .resp-body {
     padding: 14px; font-size: 12.5px; line-height: 1.7; color: #CBD5E1;
-    max-height: 0; overflow: hidden; transition: max-height 0.35s ease;
+    max-height: none; overflow-y: auto; transition: max-height 0.3s;
   }
-  .resp-body.open { max-height: none; }
+  .resp-body.collapsed { max-height: 180px; overflow-y: hidden; }
   .resp-body pre {
     background: #0A0A12; border: 1px solid #1E1E2E; border-radius: 6px;
     padding: 12px; overflow-x: auto; font-size: 11px; line-height: 1.5;
@@ -340,7 +241,8 @@ ${responsesHTML}
 </table>
 
 <h2>📌 Notes</h2>
-<p class="dim">Les réponses sont réduites par défaut. Cliquez sur ▼ pour développer chaque IA.</p>
+<p class="dim">Les réponses ont été collectées depuis les fenêtres ouvertes au moment du rapport.
+Le bouton ▲/▼ permet de réduire les longues réponses.</p>
 
 <div class="footer">
   Généré par <strong>TeamAI</strong> ${version} · ${date}
