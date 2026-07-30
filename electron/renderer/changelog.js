@@ -1,4 +1,9 @@
 const ChangelogData = [
+  {v:'0.25.0', date:'2026-07-30', commit:'', author:'Hermes', items:[
+    'Rapport HTML autonome et lisible : carte par IA, prompt en-tête, stats, URLs, code',
+    'Ouverture automatique dans le navigateur par défaut',
+    'Export .md et Drive conservés',
+  ]},
   {v:'0.24.0', date:'2026-07-30', commit:'0efe019', author:'Hermes', items:[
     'ProfileManager: profils indépendants avec providers + layouts parallélisables',
     'Widget RAM/CPU process (Electron uniquement, refresh 30s)',
