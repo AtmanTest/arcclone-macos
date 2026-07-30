@@ -380,14 +380,28 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.disabled = true;
     try {
       const md = await LogExporter.build();
+      const filename = `teamai-logs-${new Date().toISOString().slice(0, 10)}.md`;
+
+      // Local download
       const blob = new Blob([md], { type: 'text/markdown' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-      a.download = `teamai-logs-${new Date().toISOString().slice(0, 10)}.md`; a.click();
-      btn.textContent = '✅ Exporté !';
-      setTimeout(() => { btn.textContent = '📥 Export Logs (.md)'; btn.disabled = false; }, 2000);
+      a.download = filename; a.click();
+
+      // Drive upload
+      const v = await teamai.getVersion();
+      const result = await teamai.exportLogToDrive({
+        filename,
+        content: md,
+        version: v.version,
+        branch: v.branch,
+        commit: v.commit,
+      });
+
+      btn.innerHTML = `✅ Validé — <a href="${result.link}" target="_blank" style="color:#7C3AED;text-decoration:underline;">📎 Lien Drive</a>`;
+      setTimeout(() => { btn.innerHTML = '📥 Export Logs (.md) (Gdrive)'; btn.disabled = false; }, 8000);
     } catch (e) {
       btn.textContent = `❌ ${e.message}`;
-      setTimeout(() => { btn.textContent = '📥 Export Logs (.md)'; btn.disabled = false; }, 3000);
+      setTimeout(() => { btn.textContent = '📥 Export Logs (.md) (Gdrive)'; btn.disabled = false; }, 4000);
     }
   });
 });

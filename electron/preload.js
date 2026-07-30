@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('teamai', {
   getGoogleProfile:      () => ipcRenderer.invoke('get-google-profile'),
   getDriveStatus:        () => ipcRenderer.invoke('get-drive-status'),
   exportReportToDrive:   (opts) => ipcRenderer.invoke('export-report-to-drive', opts),
+  exportLogToDrive:      (opts) => ipcRenderer.invoke('export-log-to-drive', opts),
   testDrive:             () => ipcRenderer.invoke('test-drive'),
   getSysInfo:            () => ipcRenderer.invoke('get-sysinfo'),
   // PKCE OAuth

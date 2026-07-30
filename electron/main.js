@@ -159,6 +159,85 @@ async function exportReportToDrive({ filename, content, mimeType }) {
   });
 }
 
+// ── Drive folder helpers ──────────────────────────────────────────────
+async function ensureDriveFolder(name, parentId) {
+  const tokens = getStoredTokens();
+  if (!tokens || !tokens.access_token) throw new Error('Google non connecté');
+  const query = `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  const qs = parentId ? `q=${encodeURIComponent(query)}&spaces=drive` : `q=${encodeURIComponent(query)}&spaces=drive`;
+
+  // Try to find existing
+  const findRes = await new Promise((resolve, reject) => {
+    const r2 = net.request({ method: 'GET', url: `https://www.googleapis.com/drive/v3/files?${qs}` });
+    r2.setHeader('Authorization', `Bearer ${tokens.access_token}`);
+    let d = '';
+    r2.on('response', res => { res.on('data', c => { d += c; }); res.on('end', () => { try { resolve(JSON.parse(d)); } catch { resolve({}); } }); });
+    r2.on('error', reject);
+    r2.end();
+  });
+
+  if (findRes.files && findRes.files.length > 0) return findRes.files[0].id;
+
+  // Create folder
+  const meta = JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: parentId ? [parentId] : [] });
+  return new Promise((resolve, reject) => {
+    const r3 = net.request({ method: 'POST', url: 'https://www.googleapis.com/drive/v3/files' });
+    r3.setHeader('Authorization', `Bearer ${tokens.access_token}`);
+    r3.setHeader('Content-Type', 'application/json');
+    let d = '';
+    r3.on('response', res => { res.on('data', c => { d += c; }); res.on('end', () => { try { const j = JSON.parse(d); if (j.id) resolve(j.id); else reject(new Error(j.error?.message || 'Création dossier échouée')); } catch { reject(new Error('Réponse invalide')); } }); });
+    r3.on('error', reject);
+    r3.write(meta);
+    r3.end();
+  });
+}
+
+async function exportLogToDrive({ filename, content, version, branch, commit }) {
+  const rootId = await ensureDriveFolder('TeamAI');
+  const branchId = await ensureDriveFolder(branch || 'main', rootId);
+  const verLabel = `${version || '0.0.0'}-${(commit || 'dev').slice(0, 12)}`;
+  const verId = await ensureDriveFolder(verLabel, branchId);
+  // Upload file into version folder
+  const tokens = getStoredTokens();
+  const boundary = 'teamai_log_' + Date.now();
+  const metadata = JSON.stringify({ name: filename, parents: [verId], mimeType: 'text/markdown' });
+  const body = [
+    `--${boundary}`, 'Content-Type: application/json; charset=UTF-8', '', metadata,
+    `--${boundary}`, 'Content-Type: text/markdown', '', content, `--${boundary}--`,
+  ].join('\r\n');
+
+  return new Promise((resolve, reject) => {
+    const req = net.request({ method: 'POST', url: 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink' });
+    req.setHeader('Authorization', `Bearer ${tokens.access_token}`);
+    req.setHeader('Content-Type', `multipart/related; boundary=${boundary}`);
+    let data = '';
+    req.on('response', (res) => {
+      res.on('data', c => { data += c; });
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          if (json.id) resolve({ id: json.id, name: json.name, link: json.webViewLink, path: `${verLabel}/${filename}` });
+          else if (json.error?.status === 'UNAUTHENTICATED' || res.statusCode === 401) {
+            if (tokens.refresh_token) {
+              refreshAccessToken(tokens.refresh_token)
+                .then(r => exportLogToDrive({ filename, content, version, branch, commit }))
+                .then(resolve).catch(reject);
+            } else {
+              clearTokens();
+              reject(new Error('Session expirée. Reconnecte-toi.'));
+            }
+          } else {
+            reject(new Error(json.error?.message || 'Upload échoué'));
+          }
+        } catch { reject(new Error('Réponse invalide Drive')); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 // ── Auth Window (for non-Google providers) ──
 function openAuthWindow(url, _partition) {
   const effectivePartition = _partition || GOOGLE_PARTITION;
@@ -211,6 +290,7 @@ function setupIPC() {
   h('get-drive-status',       () => getDriveStatus());
   h('test-drive',             () => testDrive());
   h('export-report-to-drive', (e, opts) => exportReportToDrive(opts));
+  h('export-log-to-drive',    (e, opts) => exportLogToDrive(opts));
   h('get-version',            () => { 
     const v = loadJSON(CFG.VERSION); 
     let branch = 'main';
