@@ -18,24 +18,20 @@ const WinManager = {
     LayoutModel.views = [];
     this._idCounter = 0;
 
-    const saved = localStorage.getItem('teamai_session');
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        if (data.views?.length > 0) {
-          for (const v of data.views) this._createView(v.providerId || 'default', v.url);
-        }
-      } catch { /* ignore */ }
-    }
-    if (this.frames.size === 0) {
-      for (const p of this.providers.slice(0, 6)) this._createView(p.id);
+    // Init ProfileManager and show first profile
+    const activeProfile = ProfileManager.init();
+    if (activeProfile) {
+      this._showProfileFrames(activeProfile.id, activeProfile.providers, activeProfile.layout);
     }
 
-    this._applyLayout();
     PersistenceManager.restore();
 
-    const defaultMode = localStorage.getItem('teamai_default_mode') || 'focus';
-    LayoutModel.setMode(defaultMode);
+    if (!localStorage.getItem('teamai_default_mode')) {
+      LayoutModel.setMode('focus');
+    } else {
+      const defaultMode = localStorage.getItem('teamai_default_mode') || 'focus';
+      LayoutModel.setMode(defaultMode);
+    }
 
     PresetLayouts.init();
     this._initDone = true;
@@ -275,6 +271,58 @@ const WinManager = {
     } else {
       grid.style.display = 'block'; grid.style.position = 'relative';
     }
+  },
+
+  // ── Profile support ──
+  _profileFrames: {},  // { profileId: Map(id → entry) }
+
+  _hideProfileFrames(profileId) {
+    const frames = this._profileFrames[profileId];
+    if (!frames) return;
+    frames.forEach((entry) => {
+      if (entry.frame && entry.frame.parentNode) entry.frame.style.display = 'none';
+    });
+  },
+
+  _showProfileFrames(profileId, providerIds, savedLayout) {
+    // Hide all frames first
+    Object.keys(this._profileFrames).forEach(pid => this._hideProfileFrames(pid));
+
+    let frames = this._profileFrames[profileId];
+    if (!frames || frames.size === 0) {
+      frames = new Map();
+      this._profileFrames[profileId] = frames;
+      // Create frames for each provider in this profile
+      this.frames = frames;
+      LayoutModel.views = [];
+      this._idCounter = 0;
+      if (savedLayout?.views?.length > 0) {
+        for (const v of savedLayout.views) this._createView(v.providerId, v.url);
+      } else {
+        for (const pid of providerIds) this._createView(pid);
+      }
+      if (savedLayout?.mode) LayoutModel.setMode(savedLayout.mode);
+    } else {
+      this.frames = frames;
+      // Restore LayoutModel views
+      LayoutModel.views = [];
+      frames.forEach((entry, id) => {
+        const view = LayoutModel.views.find(v => v.id === id);
+        if (!view) {
+          const combo = entry.combo;
+          const pid = combo?.value || 'default';
+          const label = combo?.options[combo.selectedIndex]?.text || pid;
+          LayoutModel.addView(id, pid, label, '', entry.urlBar?.value || '');
+        }
+      });
+      if (savedLayout?.mode) LayoutModel.setMode(savedLayout.mode);
+    }
+
+    // Show frames
+    frames.forEach((entry) => {
+      if (entry.frame) entry.frame.style.display = '';
+    });
+    this._applyLayout();
   },
 
   // ── Dispatch + Progress Bar ─────────────────────────────────────────────

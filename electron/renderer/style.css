@@ -266,3 +266,29 @@ input, select, button, textarea { font-family: var(--font); }
 #changelog-body .item { padding: 1px 0 1px 12px; color: var(--text); }
 #changelog-footer { padding: 6px 14px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
 #changelog-footer button { background: var(--accent); border: none; border-radius: 5px; color: white; font-size: 9px; padding: 5px 14px; cursor: pointer; }
+
+/* ── Profile tabs ── */
+#profile-tabs {
+  display: flex; gap: 2px; flex-wrap: wrap;
+  padding: 4px 6px; margin-bottom: 4px;
+  border-bottom: 1px solid #1a1a28;
+}
+.prof-tab {
+  background: #151522; color: #666; cursor: pointer;
+  font-size: 9px; font-weight: 600; padding: 3px 8px;
+  border-radius: 5px; border: 1px solid #1e1e2e;
+  transition: all 0.15s; white-space: nowrap;
+}
+.prof-tab:hover { background: #1e1e30; color: #aaa; }
+.prof-tab.active { background: #2a1a3e; color: #c084fc; border-color: #5b21b6; }
+.prof-tab-add {
+  background: transparent; color: #555; cursor: pointer;
+  font-size: 12px; font-weight: 700; padding: 3px 6px;
+  border-radius: 5px; border: 1px dashed #2a2a3a;
+  transition: all 0.15s;
+}
+.prof-tab-add:hover { background: #1a1a2e; color: #aaa; border-color: #555; }
+
+/* ── System widget ── */
+#sys-widget span { transition: color 0.3s; }
+#sys-widget span:hover { color: #888; }

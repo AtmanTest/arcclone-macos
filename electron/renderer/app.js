@@ -174,6 +174,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
+    // ── System info widget ──
+    async function _refreshSysInfo() {
+      try {
+        const info = await teamai.getSysInfo();
+        const cpuEl = document.getElementById('sys-cpu');
+        const ramEl = document.getElementById('sys-ram');
+        if (cpuEl) cpuEl.textContent = `\ud83d\udcbb CPU ${info.cpu}%`;
+        if (ramEl) ramEl.textContent = `\ud83e\udde0 RAM ${info.ram}%`;
+      } catch {}
+    }
+    _refreshSysInfo();
+    setInterval(_refreshSysInfo, 3000);
+
     // ── Ajouter IA ──
     document.getElementById('btn-add-ia')?.addEventListener('click', () => _openAddIAModal());
 
@@ -239,7 +252,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     window.addEventListener('beforeunload', () => {
-      if (WinManager.count > 0) localStorage.setItem('teamai_session', JSON.stringify({ views: WinManager.list }));
+      if (ProfileManager.active) {
+        ProfileManager.active.layout = { mode: LayoutModel.mode, views: WinManager.list };
+        ProfileManager._save();
+      }
     });
 
   } catch (e) {

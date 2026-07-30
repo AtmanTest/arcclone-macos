@@ -10,6 +10,7 @@ const Sidebar = {
   _providers: [],
   async init(providers) {
     this._providers = providers || [];
+    this._renderProfileTabs();
     this._renderProviders();
     this.renderAll();
     this._renderVersionBadge();
@@ -156,7 +157,9 @@ const Sidebar = {
     if (!el) return;
     const providers = this._providers.length > 0 ? this._providers : (WinManager.providers || []);
     const connected = JSON.parse(localStorage.getItem('teamai_connected') || '{}');
-    el.innerHTML = providers.map(p => `
+    const activeProfile = ProfileManager.active;
+    const filtered = activeProfile ? providers.filter(p => activeProfile.providers.includes(p.id)) : providers;
+    el.innerHTML = filtered.map(p => `
       <div class="prov-card" data-id="${p.id}">
         <div class="icon">${(()=>{
           const logos={
@@ -240,5 +243,39 @@ const Sidebar = {
     localStorage.setItem('teamai_session', JSON.stringify({ views: list, saved: new Date().toISOString() }));
     const btn = document.getElementById('btn-save-session');
     if (btn) { const old = btn.textContent; btn.textContent = '\u2705 Sauvegard\u00e9'; setTimeout(() => btn.textContent = old, 1500); }
+  },
+
+  // ── Profile tabs ──
+  _renderProfileTabs() {
+    const el = document.getElementById('profile-tabs');
+    if (!el) return;
+    const profiles = ProfileManager.all;
+    const activeId = ProfileManager._activeId;
+    el.innerHTML = profiles.map(p => `
+      <span class="prof-tab ${p.id === activeId ? 'active' : ''}"
+            data-id="${p.id}"
+            title="Cliquer pour switch, double-clic pour renommer">${p.name}</span>
+    `).join('') + '<span class="prof-tab-add" title="Nouveau profil">+</span>';
+
+    el.querySelectorAll('.prof-tab').forEach(tab => {
+      tab.addEventListener('click', () => ProfileManager.switch(tab.dataset.id));
+      tab.addEventListener('dblclick', () => {
+        const name = prompt('Nouveau nom :', tab.textContent);
+        if (name && name.trim()) { ProfileManager.rename(tab.dataset.id, name.trim()); this._renderProfileTabs(); }
+      });
+    });
+    el.querySelector('.prof-tab-add')?.addEventListener('click', () => {
+      const name = prompt('Nom du nouveau profil :', `Profil ${profiles.length + 1}`);
+      if (name && name.trim()) {
+        ProfileManager.create(name.trim());
+        ProfileManager.switch(ProfileManager._profiles[ProfileManager._profiles.length - 1].id);
+      }
+    });
+  },
+
+  // ── Provider toggle per profile ──
+  _toggleProviderForProfile(providerId) {
+    ProfileManager.toggleProvider(providerId);
+    this._renderProviders();
   },
 };

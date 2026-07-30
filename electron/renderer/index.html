@@ -11,6 +11,10 @@
   <div id="app">
     <aside id="sidebar">
       <div id="logo">🧠 TeamAI</div>
+
+      <!-- Profile tabs -->
+      <div id="profile-tabs"></div>
+
       <button id="btn-new-tab" class="action-btn primary">+ Nouvel Onglet IA</button>
       <button id="btn-add-ia" class="action-btn" style="margin-top:1px;font-size:11px">✚ Ajouter IA</button>
 
@@ -40,6 +44,12 @@
 
         <button class="action-btn sidebar-uniform" id="btn-save-session" style="margin-top:4px;background:#1a3a5c;border:1px solid #1e5a8a;color:#60b4ff;">💾 Sauvegarder la session</button>
         <button class="action-btn sidebar-uniform" id="btn-settings" style="margin-top:2px;background:#1a1a2e;border:1px solid #333;">⚙️ Réglages</button>
+
+        <!-- System widget -->
+        <div id="sys-widget" style="display:flex;gap:8px;justify-content:center;margin-top:6px;font-size:9px;color:#555;">
+          <span id="sys-cpu">💻 CPU —%</span>
+          <span id="sys-ram">🧠 RAM —%</span>
+        </div>
       </div>
     </aside>
 
@@ -236,6 +246,7 @@
   <script src="resizeController.js"></script>
   <script src="persistenceManager.js"></script>
   <script src="presetLayouts.js"></script>
+  <script src="profileManager.js"></script>
   <script src="sidebar.js"></script>
   <script src="bookmarks.js"></script>
   <script src="dispatchProgress.js"></script>

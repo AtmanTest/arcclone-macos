@@ -6,6 +6,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 const { app, BrowserWindow, ipcMain, session, shell, net } = require('electron');
 const path = require('path');
 const fs   = require('fs');
+const os   = require('os');
 const { startGooglePKCE, fetchGoogleUserInfo, refreshAccessToken, getStoredTokens, clearTokens } = require('./auth/google-pkce');
 
 let mainWindow = null;
@@ -219,6 +220,16 @@ function setupIPC() {
       if (m) branch = m[1];
     } catch {}
     return { version: v.version || '0.0.0', commit: v.commit || 'dev', branch, url: CFG.GITHUB_URL }; 
+  });
+  h('get-sysinfo',            () => {
+    const total = os.totalmem();
+    const free = os.freemem();
+    const cpus = os.cpus().length;
+    const load = os.loadavg()[0];
+    return {
+      ram: ((total - free) / total * 100).toFixed(0),
+      cpu: (load / cpus * 100).toFixed(0)
+    };
   });
   h('open-url',               (e, url) => { if (url) shell.openExternal(url); });
   h('set-zoom',               (e, l) => { zoomLevel = Math.max(-3, Math.min(5, l)); });

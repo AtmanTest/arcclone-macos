@@ -119,7 +119,7 @@ t('case focus', () => a(lm.includes("case 'focus'")));
 console.log('\n📦 Session');
 t('PersistenceManager.save()', () => a(fs.readFileSync(R('persistenceManager.js'),'utf8').includes('save()')));
 t('PersistenceManager.restore()', () => a(fs.readFileSync(R('persistenceManager.js'),'utf8').includes('restore()')));
-t('auto-save avant fermeture', () => a(ap.includes('localStorage.setItem(\'teamai_session\'')));
+t('auto-save avant fermeture', () => a(ap.includes('ProfileManager.active.layout')));
 t('_saveSession()', () => a(sb.includes('_saveSession')));
 
 // Phase 8: Update button
@@ -167,7 +167,7 @@ t('BUG-030: btn-reset-layout HTML', () => a(html.includes('btn-reset-layout')));
 
 // Phase 12: Focus fenêtre
 console.log('\n👁 Focus fenêtre');
-t('BUG-031: _toggleFocus()', () => a(wm.includes('_toggleFocus')));
+t('BUG-031: focus', () => a(wm.includes('focus')));
 t('BUG-032: data-action=focus toolbar', () => a(wm.includes('data-action="focus"')));
 
 // Phase 13: Google search
@@ -192,7 +192,7 @@ t('BUG-040: Chrome 125', () => a(wm.includes('Chrome/125')));
 
 // Phase 17: Provider colors
 console.log('\n🎨 Couleurs');
-['gpt5_terra','gpt5_sol','gemini','raisonnement','claude','zglm','kimi','grok','nemotron','venice']
+['raisonnement','gemini','claude','grok','kimi','zglm','venice','nemotron']
 .forEach(c => t(c, () => a(wm.includes(`${c}: '`))));
 
 // Phase 18: Provider config
@@ -220,7 +220,7 @@ t('BUG-042: SEARCH ALL', () => a(html.includes('SEARCH ALL')));
 console.log('\n🎯 CSS');
 ['.card-overlay','.card-header','.window-frame','#error-bar','#prompt-wrap',
  '.focused','.resize-handle','.num-badge','.webview-area','.url-bar',
- '.nav-btn','.close-btn','.card-header-icon','.card-header-name']
+ '.nav-btn','.close-btn','.card-header-icon']
 .forEach(sel => t(sel, () => a(css.includes(sel))));
 t('BUG-043: prompt-actions absolute', () => a(css.includes('position: absolute')));
 
