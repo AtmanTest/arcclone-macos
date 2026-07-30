@@ -13,17 +13,41 @@ const REDIRECT_URI         = 'http://127.0.0.1:4242/oauth/callback';
 const AUTH_ENDPOINT        = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT       = 'https://oauth2.googleapis.com/token';
 
-// ── Token persistence (disk) ──
-const { app } = require('electron');
-const TOKEN_FILE = require('path').join(app.getPath('userData'), 'google_tokens.json');
+// ── Token persistence (disk, encrypted) ──
+const { app, safeStorage } = require('electron');
+const TOKEN_FILE = require('path').join(app.getPath('userData'), 'google_tokens.enc');
 function _saveTokensToDisk(t) {
-  try { require('fs').writeFileSync(TOKEN_FILE, JSON.stringify(t), 'utf-8'); } catch(e) {}
+  try {
+    const raw = JSON.stringify(t);
+    if (safeStorage.isEncryptionAvailable()) {
+      require('fs').writeFileSync(TOKEN_FILE, safeStorage.encryptString(raw));
+    } else {
+      // Fallback: plaintext with warning
+      const plainPath = TOKEN_FILE.replace('.enc', '.json.legacy');
+      require('fs').writeFileSync(plainPath, raw, 'utf-8');
+      console.warn('⚠ safeStorage non disponible — tokens stockés en clair dans', plainPath);
+    }
+  } catch(e) { console.warn('saveTokens error:', e.message); }
 }
 function _loadTokensFromDisk() {
   try {
-    const raw = require('fs').readFileSync(TOKEN_FILE, 'utf-8');
-    return JSON.parse(raw);
-  } catch { return null; }
+    if (require('fs').existsSync(TOKEN_FILE) && safeStorage.isEncryptionAvailable()) {
+      const encrypted = require('fs').readFileSync(TOKEN_FILE);
+      const raw = safeStorage.decryptString(encrypted);
+      return JSON.parse(raw);
+    }
+  } catch {}
+  // Fallback: try legacy plaintext file (migration)
+  try {
+    const legacy = require('path').join(app.getPath('userData'), 'google_tokens.json');
+    if (require('fs').existsSync(legacy)) {
+      const raw = require('fs').readFileSync(legacy, 'utf-8');
+      const tokens = JSON.parse(raw);
+      // Migrate to encrypted on next save
+      return tokens;
+    }
+  } catch {}
+  return null;
 }
 const USERINFO_ENDPOINT    = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const SCOPES               = 'openid email profile https://www.googleapis.com/auth/drive.file';
@@ -42,7 +66,12 @@ function generateState() {
 // ── Token store (mémoire + disque) ──
 let _tokens = _loadTokensFromDisk();
 exports.getStoredTokens = () => _tokens;
-exports.clearTokens     = () => { _tokens = null; try { require('fs').unlinkSync(TOKEN_FILE); } catch {} };
+exports.clearTokens     = () => { 
+  _tokens = null; 
+  try { require('fs').unlinkSync(TOKEN_FILE); } catch {} 
+  try { require('fs').unlinkSync(require('path').join(app.getPath('userData'), 'google_tokens.json')); } catch {}
+  try { require('fs').unlinkSync(require('path').join(app.getPath('userData'), 'google_tokens.json.legacy')); } catch {}
+};
 
 // ── Start PKCE flow ──
 exports.startGooglePKCE = function startGooglePKCE() {

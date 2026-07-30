@@ -315,6 +315,27 @@ function setupIPC() {
       req.end();
     });
   });
+  h('drive-get-access-token', async () => {
+    const tokens = getStoredTokens();
+    if (!tokens || !tokens.access_token) throw new Error('Google non connecté');
+    // Refresh if needed
+    let token = tokens.access_token;
+    if (tokens.refresh_token) {
+      try {
+        const fresh = await refreshAccessToken(tokens.refresh_token);
+        if (fresh && fresh.access_token) token = fresh.access_token;
+      } catch {}
+    }
+    // Write to temp file for Hermes
+    const tmpPath = require('path').join(require('os').tmpdir(), 'teamai_drive_token.json');
+    require('fs').writeFileSync(tmpPath, JSON.stringify({
+      access_token: token,
+      client_id: GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+      ts: Date.now(),
+    }));
+    return { token: token.slice(0, 20) + '…', tmpPath };
+  });
   h('get-version',            () => { 
     const v = loadJSON(CFG.VERSION); 
     let branch = 'main';
