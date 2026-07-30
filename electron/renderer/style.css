@@ -47,6 +47,32 @@ input, select, button, textarea { font-family: var(--font); }
 
 #stats { font-size: 11px; color: var(--accent); padding: 2px 0; font-weight: 500; }
 
+/* ── Accordion sidebar (CSS Grid 0fr→1fr) ── */
+details.nav-group > summary {
+  list-style: none; display: flex; align-items: center; gap: 4px;
+  padding: 6px 2px; cursor: pointer; font-size: 10px; font-weight: 700;
+  color: var(--muted); letter-spacing: 0.3px; user-select: none;
+  border-bottom: 1px solid var(--border); transition: color 0.15s;
+}
+details.nav-group > summary::-webkit-details-marker { display: none; }
+details.nav-group > summary::after {
+  content: '▶'; font-size: 6px; color: #444; margin-left: auto;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+details.nav-group[open] > summary::after { transform: rotate(90deg); }
+details.nav-group > summary:hover { color: var(--text); }
+
+details.nav-group .accordion-body {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+details.nav-group[open] .accordion-body { grid-template-rows: 1fr; }
+details.nav-group .accordion-body > div { overflow: hidden; }
+
+/* Bookmark details shouldn't add extra bottom border */
+.bookmarks-details { border: none !important; }
+.bookmarks-details > summary { border-bottom: 1px solid var(--border) !important; }
+
 /* ── Bookmarks ─────────────────────────────────────────────────────────── */
 .bookmark-section-title { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: 0.4px; text-transform: uppercase; padding: 5px 0 2px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
 .bookmark-folder { margin-left: 6px; border-left: 1px solid var(--border); padding-left: 4px; }

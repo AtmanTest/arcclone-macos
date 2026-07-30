@@ -56,9 +56,11 @@ const Bookmarks = {
     const div = document.createElement('div');
     div.id = 'bookmarks-section';
 
-    let html = `<div class="bookmark-section-title" onclick="document.getElementById('bookmarks-container').classList.toggle('hidden')">🔖 Favoris ▾</div>`;
+    let html = `<details class="nav-group bookmarks-details" open>
+      <summary>🔖 FAVORIS</summary>
+      <div class="accordion-body"><div>
+        <div class="bookmark-button"><button class="sidebar-btn" id="bookmark-add-folder">+ Dossier</button></div>`;
     html += `<div id="bookmarks-container">`;
-    html += `<div class="bookmark-button"><button class="sidebar-btn" id="bookmark-add-folder">+ Dossier</button></div>`;
 
     for (const [folder, items] of Object.entries(data.folders)) {
       html += `<div class="bookmark-folder"><div class="bookmark-section-title">📁 ${folder}</div>`;
@@ -71,7 +73,7 @@ const Bookmarks = {
       }
       html += `</div>`;
     }
-    html += `</div>`;
+    html += `</div></div></div></details>`;
     div.innerHTML = html;
 
     // Insert after providers-list
