@@ -181,11 +181,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const cpuEl = document.getElementById('sys-cpu');
         const ramEl = document.getElementById('sys-ram');
         if (cpuEl) cpuEl.textContent = `\ud83d\udcbb CPU ${info.cpu}%`;
-        if (ramEl) ramEl.textContent = `\ud83e\udde0 RAM ${info.ram}%`;
+        if (ramEl) ramEl.textContent = `\ud83e\udde0 RAM ${info.ram} Mo`;
       } catch {}
     }
     _refreshSysInfo();
-    setInterval(_refreshSysInfo, 3000);
+    setInterval(_refreshSysInfo, 30000);
 
     // ── Ajouter IA ──
     document.getElementById('btn-add-ia')?.addEventListener('click', () => _openAddIAModal());

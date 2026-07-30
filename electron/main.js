@@ -222,14 +222,8 @@ function setupIPC() {
     return { version: v.version || '0.0.0', commit: v.commit || 'dev', branch, url: CFG.GITHUB_URL }; 
   });
   h('get-sysinfo',            () => {
-    const total = os.totalmem();
-    const free = os.freemem();
-    const cpus = os.cpus().length;
-    const load = os.loadavg()[0];
-    return {
-      ram: ((total - free) / total * 100).toFixed(0),
-      cpu: (load / cpus * 100).toFixed(0)
-    };
+    const mem = process.memoryUsage();
+    return { ram: Math.round(mem.rss / 1024 / 1024), cpu: 0 };
   });
   h('open-url',               (e, url) => { if (url) shell.openExternal(url); });
   h('set-zoom',               (e, l) => { zoomLevel = Math.max(-3, Math.min(5, l)); });

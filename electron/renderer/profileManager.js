@@ -28,7 +28,8 @@ const ProfileManager = {
 
   // ── CRUD ──
   create(name) {
-    const p = { id: this._genId(), name: name || `Profil ${this._profiles.length + 1}`, providers: [] };
+    const src = this.active;
+    const p = { id: this._genId(), name: name || `Profil ${this._profiles.length + 1}`, providers: src ? [...src.providers] : [] };
     this._profiles.push(p);
     this._save();
     return p;
