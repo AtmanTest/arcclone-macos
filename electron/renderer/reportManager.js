@@ -28,10 +28,50 @@ const ReportManager = {
       const providerId = entry.combo?.value || id;
       promises.push(
         wv.executeJavaScript(`(function(){
-          var sel = '.message:last-child, [data-message-author-role="assistant"]:last-child, .response:last-child, article:last-child, [class*="response"]:last-child, .prose:last-child, [class*="answer"]:last-child';
-          var el = document.querySelector(sel);
-          if (!el) el = document.body;
-          var text = el ? el.innerText : '';
+          var providerId = ${JSON.stringify(providerId)};
+          var el = null;
+          // Selecteurs par provider pour attraper la VRAIE réponse IA
+          var selectors = {
+            'chatgpt': '[data-message-author-role="assistant"]:last-child',
+            'openai':   '[data-message-author-role="assistant"]:last-child',
+            'gemini':   '.response-content, .model-response, [data-message-author-role="assistant"]',
+            'claude':   '.prose:last-child, .font-claude-message, [class*="assistant-message"]',
+            'anthropi': '.prose:last-child, .font-claude-message, [class*="assistant-message"]',
+            'grok':     '[data-testid="message"]:last-child, .message-content:last-child',
+            'kimi':     '.chat-content, [class*="message"]:last-child, [class*="chat"]:last-child',
+            'perplexi': '.prose:last-child, [class*="response-content"], [class*="answer"]',
+            'mistral':  '.message:last-child, [class*="chat-message"]:last-child',
+            'deepseek': '[class*="message"]:last-child, [class*="response"]:last-child',
+            'meta':     '[class*="message"]:last-child, [class*="response"]:last-child',
+            'qwen':     '[class*="message"]:last-child, [class*="response"]:last-child',
+            'you':      '.prose:last-child, [class*="result"]:last-child',
+            'pi':       '[class*="message"]:last-child, [class*="chat"]:last-child',
+            'poe':      '.message_content, [class*="message"]:last-child',
+            'venice':   '[class*="message"]:last-child, [class*="response"]:last-child',
+            'groq':     '.prose:last-child, [class*="message"]:last-child',
+            'cohere':   '[class*="message"]:last-child',
+          };
+          // Chercher par provider
+          var pid = providerId.toLowerCase();
+          for (var key in selectors) {
+            if (pid.includes(key)) {
+              el = document.querySelector(selectors[key]);
+              if (el && el.innerText.trim().length > 10) break;
+              el = null;
+            }
+          }
+          // Fallback générique : dernier élément non-input, non-body
+          if (!el || el.innerText.trim().length < 5) {
+            var all = document.querySelectorAll('[class*="message"], [class*="response"], [class*="answer"], article, .prose, [class*="content"]');
+            for (var i = all.length - 1; i >= 0; i--) {
+              var txt = all[i].innerText.trim();
+              if (txt.length > 20 && !all[i].matches('input, textarea, [contenteditable]')) {
+                el = all[i]; break;
+              }
+            }
+          }
+          if (!el || el === document.body) el = null;
+          var text = el ? el.innerText : '(pas de réponse)';
           var html = el ? el.innerHTML : '';
           return JSON.stringify({ text: text.substring(0, 30000), html: html.substring(0, 5000) });
         })()`)
