@@ -291,53 +291,8 @@ function setupIPC() {
   h('test-drive',             () => testDrive());
   h('export-report-to-drive', (e, opts) => exportReportToDrive(opts));
   h('export-log-to-drive',    (e, opts) => exportLogToDrive(opts));
-  h('drive-api',              async (e, { method, path, body, type }) => {
-    const tokens = getStoredTokens();
-    if (!tokens || !tokens.access_token) throw new Error('Google non connecté');
-    const url = `https://www.googleapis.com/drive/v3/${path}`;
-    return new Promise((resolve, reject) => {
-      const req = net.request({ method: method || 'GET', url });
-      req.setHeader('Authorization', `Bearer ${tokens.access_token}`);
-      if (type) req.setHeader('Content-Type', type);
-      let data = '';
-      req.on('response', (res) => {
-        res.on('data', c => { data += c; });
-        res.on('end', () => {
-          try {
-            const json = JSON.parse(data);
-            if (res.statusCode >= 400) reject(new Error(json.error?.message || `HTTP ${res.statusCode}`));
-            else resolve(json);
-          } catch { resolve(data); }
-        });
-      });
-      req.on('error', reject);
-      if (body) req.write(typeof body === 'string' ? body : JSON.stringify(body));
-      req.end();
-    });
-  });
-  h('drive-get-access-token', async () => {
-    const tokens = getStoredTokens();
-    if (!tokens || !tokens.access_token) throw new Error('Google non connecté');
-    // Refresh if needed
-    let token = tokens.access_token;
-    if (tokens.refresh_token) {
-      try {
-        const fresh = await refreshAccessToken(tokens.refresh_token);
-        if (fresh && fresh.access_token) token = fresh.access_token;
-      } catch {}
-    }
-    // Write to temp file for Hermes
-    const tmpPath = require('path').join(require('os').tmpdir(), 'teamai_drive_token.json');
-    require('fs').writeFileSync(tmpPath, JSON.stringify({
-      access_token: token,
-      client_id: GOOGLE_CLIENT_ID,
-      client_secret: GOOGLE_CLIENT_SECRET,
-      ts: Date.now(),
-    }));
-    return { token: token.slice(0, 20) + '…', tmpPath };
-  });
   h('get-version',            () => { 
-    const v = loadJSON(CFG.VERSION); 
+    const v = loadJSON(CFG.VERSION);
     let branch = 'main';
     try {
       const head = fs.readFileSync(path.join(__dirname, '..', '.git', 'HEAD'), 'utf8').trim();
