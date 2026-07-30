@@ -62,55 +62,48 @@ const ReportManager = {
     const count = this._data.length;
     const providers = this._data.map(d => d.label);
 
-    // Stats
     const stats = this._data.map(d => ({
       label: d.label,
       words: d.text.split(/\s+/).filter(Boolean).length,
       chars: d.text.length,
     }));
 
-    // URLs détectées
     const allUrls = [...new Set(this._data.flatMap(d => [...d.text.matchAll(/https?:\/\/[^\s)"'\]]+/g)].map(m => m[0])))];
-    
-    // Code blocks
     const hasCode = this._data.some(d => d.text.includes('```'));
 
-    // Lines de réponse par IA
-    const responsesHTML = this._data.map((d, i) => {
+    // Construire les cartes IA en évitant les template literals imbriqués
+    const cardColors = ['#7C3AED', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#8B5CF6', '#14B8A6'];
+    let cardsHtml = '';
+    this._data.forEach((d, i) => {
       const s = stats[i];
-      const codeFormatted = d.text
+      const color = cardColors[i % cardColors.length];
+      let body = d.text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code class="lang-$1">$2</code></pre>')
         .replace(/\n/g, '<br>');
+      cardsHtml += '<div class="resp-card" style="border-left:3px solid ' + color + ';">'
+        + '<div class="resp-header">'
+        + '<div class="resp-badge" style="background:' + color + '15;color:' + color + ';">' + d.label + '</div>'
+        + '<div class="resp-meta">' + s.words + ' mots · ' + s.chars.toLocaleString() + ' car.</div>'
+        + '<button class="toggle-btn" onclick="this.parentElement.nextElementSibling.classList.toggle(\'collapsed\');this.textContent=this.textContent===\'▲\'?\'▼\':\'▲\'">▲</button>'
+        + '</div>'
+        + '<div class="resp-body">' + body + '</div>'
+        + '</div>';
+    });
+    const responsesHTML = '<div class="responses-grid">' + cardsHtml + '</div>';
 
-      const colors = ['#7C3AED', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#8B5CF6', '#14B8A6'];
-      const color = colors[i % colors.length];
+    const urlsHTML = allUrls.length
+      ? allUrls.map(u => '<a href="' + u + '" target="_blank" class="url-link">' + (u.length > 80 ? u.slice(0,80) + '…' : u) + '</a>').join('\n')
+      : '<span class="dim">Aucune URL détectée.</span>';
 
-      return `
-      <div class="resp-card" style="border-left: 3px solid ${color};">
-        <div class="resp-header">
-          <div class="resp-badge" style="background:${color}15; color:${color};">${d.label}</div>
-          <div class="resp-meta">${s.words} mots · ${s.chars.toLocaleString()} car.</div>
-          <button class="toggle-btn" onclick="this.parentElement.nextElementSibling.classList.toggle('collapsed');this.textContent=this.textContent==='▲'?'▼':'▲'">▲</button>
-        </div>
-        <div class="resp-body">${codeFormatted}</div>
-      </div>`;
-    }).join('\n');
-
-    // URLs
-    const urlsHTML = allUrls.length ? allUrls.map(u => 
-      `<a href="${u}" target="_blank" class="url-link">${u.length > 80 ? u.slice(0,80)+'…' : u}</a>`
-    ).join('\n') : '<span class="dim">Aucune URL détectée.</span>';
-
-    // Tableau comparatif
+    const bars = ['#7C3AED', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
+    const maxWords = Math.max(...stats.map(x => x.words), 1);
     const tableRows = stats.map((s, i) => {
-      const bars = ['#7C3AED', '#06B6D4', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
       const c = bars[i % bars.length];
-      const maxWords = Math.max(...stats.map(x => x.words), 1);
       const pct = (s.words / maxWords * 100).toFixed(0);
-      return `<tr><td style="color:${c};">${s.label}</td><td>${s.words.toLocaleString()}</td><td>${s.chars.toLocaleString()}</td><td><div class="bar" style="width:${pct}%;background:${c};"></div></td></tr>`;
+      return '<tr><td style="color:' + c + ';">' + s.label + '</td><td>' + s.words.toLocaleString() + '</td><td>' + s.chars.toLocaleString() + '</td><td><div class="bar" style="width:' + pct + '%;background:' + c + ';"></div></td></tr>';
     }).join('\n');
 
     // Version depuis le badge
@@ -147,10 +140,18 @@ const ReportManager = {
   .prompt-box .text {
     font-size: 13px; color: #E2E8F0; line-height: 1.7; white-space: pre-wrap;
   }
+
+  /* ── CSS Grid pour les cartes IA ── */
+  .responses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 12px;
+  }
   .resp-card {
     background: #111118; border: 1px solid #1E1E2E; border-radius: 10px;
-    margin-bottom: 16px; overflow: hidden;
+    overflow: hidden; break-inside: avoid;
   }
+  .resp-card:hover { border-color: #2A2A3E; }
   .resp-header {
     display: flex; align-items: center; gap: 10px;
     padding: 10px 14px; border-bottom: 1px solid #1A1A28;
