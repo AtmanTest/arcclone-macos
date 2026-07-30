@@ -12,19 +12,12 @@ const Sidebar = {
     this._providers = providers || [];
     this._renderProviders();
     this.renderAll();
-    this._renderVersion();
+    this._renderVersionBadge();
     document.getElementById('btn-new-tab')?.addEventListener('click', () => {
       if (this._providers.length > 0) WinManager.addView(this._providers[0].id);
     });
     document.getElementById('btn-login-assistant')?.addEventListener('click', () => LoginAssistant.start());
-    document.getElementById('btn-report')?.addEventListener('click', () => {
-      const modal = document.getElementById('report-modal');
-      if (modal) {
-        modal.classList.add('open');
-        modal.style.display = 'flex';
-      }
-      ReportManager.open();
-    });
+    document.getElementById('btn-report')?.addEventListener('click', () => ReportManager.open());
     document.getElementById('btn-save-session')?.addEventListener('click', () => this._saveSession());
 
     // Bug 2 fix — Zoom listeners
@@ -55,40 +48,56 @@ const Sidebar = {
     Bookmarks.render();
   },
 
-  _renderVersion() {
-    teamai.getVersion().then(v => {
-      // #version-number — version en vert gras centré
-      const vEl = document.getElementById('version-number');
-      if (vEl && v) {
-        vEl.textContent = `v${v.version}`;
-        vEl.title = `v${v.version} \u2014 cliquer pour le changelog`;
-        vEl.addEventListener('click', () => Changelog.open());
-      }
-      // Rétrocompat: ancien id #version-badge si présent
-      const legacyEl = document.getElementById('version-badge');
-      if (legacyEl && v) legacyEl.textContent = `v${v.version}`;
+  // Badge = branche Git courante (via IPC) + version entre parenthèses
+  async _renderVersionBadge() {
+    const el = document.getElementById('version-badge');
+    if (!el) return;
 
-      // #branch-link — nom de branche dynamique avec href compare
-      const bEl = document.getElementById('branch-link');
-      if (bEl && v && v.branch) {
-        bEl.textContent = v.branch;
-        const escaped = encodeURIComponent(v.branch);
-        bEl.href = `https://github.com/AtmanTest/arcclone-macos/compare/main...${escaped}`;
-        bEl.title = `Voir les commits de ${v.branch}`;
-      }
-    }).catch(() => {});
+    try {
+      const info = await teamai.getVersion();
+      const ver  = info?.version  || '';
+      const branch = info?.branch || 'main';
+
+      el.textContent = branch + (ver ? ` (${ver})` : '');
+      el.title = `Branche : ${branch}` + (ver ? ` — v${ver}` : '') + ' — cliquer pour le changelog';
+    } catch {
+      el.textContent = 'main';
+      el.title = 'Branche courante';
+    }
+
+    el.addEventListener('click', () => Changelog.open());
     this.refreshGoogleCard();
   },
 
   async refreshGoogleCard() {
     let card = document.getElementById('google-profile-card');
+    let branchEl = document.getElementById('branch-indicator');
     if (!card) {
       card = document.createElement('div');
       card.id = 'google-profile-card';
       card.addEventListener('click', () => Settings.open());
-      const versionBadge = document.getElementById('version-number') || document.getElementById('version-badge');
-      if (versionBadge && versionBadge.parentNode)
-        versionBadge.parentNode.insertBefore(card, versionBadge.nextSibling);
+      const settingsBtn = document.getElementById('btn-settings');
+      if (settingsBtn && settingsBtn.parentNode)
+        settingsBtn.parentNode.insertBefore(card, settingsBtn.nextSibling);
+    }
+    if (!branchEl) {
+      branchEl = document.createElement('div');
+      branchEl.id = 'branch-indicator';
+      branchEl.style.cssText = 'color:#666;font-size:9px;text-align:center;padding:4px 0 2px;cursor:pointer;';
+      branchEl.title = 'Branche courante — cliquer pour le changelog';
+      branchEl.addEventListener('click', () => Changelog.open());
+      if (card && card.parentNode)
+        card.parentNode.insertBefore(branchEl, card.nextSibling);
+    }
+
+    // Update branch display
+    try {
+      const info = await teamai.getVersion();
+      const branch = info?.branch || 'main';
+      branchEl.textContent = `🌿 ${branch}`;
+      branchEl.title = `Branche : ${branch} — cliquer pour le changelog`;
+    } catch {
+      branchEl.textContent = '🌿 main';
     }
 
     try {

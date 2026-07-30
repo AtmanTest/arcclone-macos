@@ -15,7 +15,10 @@ contextBridge.exposeInMainWorld('teamai', {
   getZoom:               () => ipcRenderer.invoke('get-zoom'),
   openGoogleAccount:     () => ipcRenderer.invoke('open-google-account'),
   getGoogleStatus:       () => ipcRenderer.invoke('get-google-status'),
+  getGoogleProfile:      () => ipcRenderer.invoke('get-google-profile'),
+  getDriveStatus:        () => ipcRenderer.invoke('get-drive-status'),
   exportReportToDrive:   (opts) => ipcRenderer.invoke('export-report-to-drive', opts),
+  testDrive:             () => ipcRenderer.invoke('test-drive'),
   // PKCE OAuth
   googleSignInPKCE:      () => ipcRenderer.invoke('google-signin-pkce'),
   googleSignOutPKCE:     () => ipcRenderer.invoke('google-signout-pkce'),
