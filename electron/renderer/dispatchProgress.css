@@ -1,0 +1,212 @@
+/* ============================================================
+   DispatchProgress v2 — intégré dans le prompt-bar
+   ============================================================ */
+
+/* ── Zone principale (injectée en bas du prompt-bar) ── */
+.dp-zone {
+  margin-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 5px;
+  overflow: hidden;
+
+  /* Entrée animée */
+  max-height: 0;
+  opacity: 0;
+  transition:
+    max-height 280ms cubic-bezier(0.16,1,0.3,1),
+    opacity    200ms ease,
+    margin-top 280ms cubic-bezier(0.16,1,0.3,1),
+    padding-top 280ms cubic-bezier(0.16,1,0.3,1);
+}
+.dp-zone.dp-visible {
+  max-height: 44px;
+  opacity: 1;
+}
+.dp-zone.dp-exit {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  padding-top: 0;
+  transition:
+    max-height 250ms cubic-bezier(0.4,0,1,1),
+    opacity    200ms ease,
+    margin-top 250ms ease,
+    padding-top 250ms ease;
+}
+
+/* ── Barre de progression fine (en haut de la zone) ── */
+.dp-progress-line {
+  height: 2px;
+  width: 0%;
+  background: linear-gradient(90deg, #7C3AED, #06B6D4, #10a37f);
+  border-radius: 1px;
+  margin-bottom: 5px;
+  transition: width 0.6s cubic-bezier(0.16,1,0.3,1);
+}
+.dp-progress-line.dp-line-done {
+  background: linear-gradient(90deg, #10a37f, #4ADE80);
+}
+
+/* ── Rangée label + items + bouton fermer ── */
+.dp-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+/* Label */
+.dp-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.25);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Track scrollable ── */
+.dp-track {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 1px 0;
+  /* S'étend jusqu'au bouton d'attachment (l'icône 📎) */
+  /* Le padding-right du prompt-actions est ~90px ; on s'arrête juste avant */
+  max-width: calc(100% - 24px); /* 24px = bouton close */
+}
+.dp-track::-webkit-scrollbar { display: none; }
+
+/* ── Item individuel ── */
+.dp-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  padding: 2px 4px;
+  border-radius: 6px;
+  cursor: default;
+  transition:
+    background 180ms ease,
+    transform  180ms cubic-bezier(0.16,1,0.3,1),
+    opacity    180ms ease;
+}
+
+.dp-item.dp-idle    { background: rgba(255,255,255,0.03); opacity: 0.6; }
+.dp-item.dp-loading { background: rgba(99,102,241,0.15);  transform: scale(1.1); opacity: 1; }
+.dp-item.dp-ok      { background: rgba(52,211,153,0.12);  opacity: 1; }
+.dp-item.dp-error   { background: rgba(239,68,68,0.12);   opacity: 0.75; }
+
+/* ── Logo ── */
+.dp-logo {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dp-logo img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  border-radius: 3px;
+  filter: brightness(0.85);
+  display: block;
+}
+.dp-item.dp-loading .dp-logo img { filter: brightness(1); }
+.dp-item.dp-ok      .dp-logo img { filter: brightness(1.1); }
+.dp-item.dp-error   .dp-logo img { filter: brightness(0.4) saturate(0); }
+.dp-emoji { font-size: 13px; line-height: 1; }
+
+/* ── Indicateur de statut ── */
+.dp-status-icon {
+  height: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dp-dot {
+  display: block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+}
+
+.dp-spinner {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid rgba(255,255,255,0.1);
+  border-top-color: #818cf8;
+  border-radius: 50%;
+  animation: dp-spin 0.65s linear infinite;
+}
+@keyframes dp-spin { to { transform: rotate(360deg); } }
+
+.dp-check {
+  display: block;
+  font-size: 8px;
+  font-weight: 700;
+  color: #34d399;
+  line-height: 1;
+}
+
+.dp-cross {
+  display: block;
+  font-size: 8px;
+  font-weight: 700;
+  color: #f87171;
+  line-height: 1;
+}
+
+/* ── Bouton fermer ── */
+.dp-close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.18);
+  font-size: 9px;
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 5px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 140ms ease, background 140ms ease;
+  align-self: flex-start;
+  margin-top: -2px;
+}
+.dp-close:hover {
+  color: rgba(255,255,255,0.65);
+  background: rgba(255,255,255,0.06);
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
+/* ≤ 680px : label masqué, items légèrement plus petits */
+@media (max-width: 680px) {
+  .dp-label { display: none; }
+  .dp-logo  { width: 16px; height: 16px; }
+  .dp-logo img { width: 13px; height: 13px; }
+  .dp-item  { padding: 2px 3px; }
+}
+
+/* ≤ 420px : encore plus compact */
+@media (max-width: 420px) {
+  .dp-logo  { width: 14px; height: 14px; }
+  .dp-logo img { width: 11px; height: 11px; }
+  .dp-item  { padding: 1px 2px; gap: 1px; border-radius: 4px; }
+  .dp-zone  { padding-top: 4px; margin-top: 4px; }
+  .dp-progress-line { margin-bottom: 3px; }
+}

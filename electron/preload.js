@@ -1,0 +1,32 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('teamai', {
+  getProviders:          () => ipcRenderer.invoke('get-providers'),
+  dispatchPrompt:        (t) => ipcRenderer.invoke('dispatch-prompt', t),
+  openAuthWindow:        (url, partition) => ipcRenderer.invoke('open-auth-window', url, partition),
+  openLoginWindow:       (pid, url, partition) => ipcRenderer.invoke('open-login-window', pid, url, partition),
+  closeLoginWindow:      (pid) => ipcRenderer.invoke('close-login-window', pid),
+  getVersion:            () => ipcRenderer.invoke('get-version'),
+  loadProviders:         () => ipcRenderer.invoke('load-providers'),
+  checkUpdate:           () => ipcRenderer.invoke('check-update'),
+  updateApp:             () => ipcRenderer.invoke('update-app'),
+  openUrl:               (url) => ipcRenderer.invoke('open-url', url),
+  setZoom:               (l) => ipcRenderer.invoke('set-zoom', l),
+  getZoom:               () => ipcRenderer.invoke('get-zoom'),
+  openGoogleAccount:     () => ipcRenderer.invoke('open-google-account'),
+  getGoogleStatus:       () => ipcRenderer.invoke('get-google-status'),
+  getGoogleProfile:      () => ipcRenderer.invoke('get-google-profile'),
+  getDriveStatus:        () => ipcRenderer.invoke('get-drive-status'),
+  exportReportToDrive:   (opts) => ipcRenderer.invoke('export-report-to-drive', opts),
+  exportLogToDrive:      (opts) => ipcRenderer.invoke('export-log-to-drive', opts),
+  testDrive:             () => ipcRenderer.invoke('test-drive'),
+  getSysInfo:            () => ipcRenderer.invoke('get-sysinfo'),
+  // PKCE OAuth
+  googleSignInPKCE:      () => ipcRenderer.invoke('google-signin-pkce'),
+  googleSignOutPKCE:     () => ipcRenderer.invoke('google-signout-pkce'),
+  googleGetTokens:       () => ipcRenderer.invoke('google-get-tokens'),
+  onExecJsAll:           (cb) => ipcRenderer.on('exec-js-all', (e, text) => cb(text)),
+  onLoginWindowClosed:   (cb) => ipcRenderer.on('login-window-closed', (e, pid) => cb(pid)),
+  onGoogleStatusChanged: (cb) => ipcRenderer.on('google-status-changed', (e, s) => cb(s)),
+  onSetFocusOnRelaunch:  (cb) => ipcRenderer.on('set-focus-on-relaunch', () => cb()),
+});

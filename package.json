@@ -1,0 +1,16 @@
+{
+  "name": "teamai",
+  "version": "0.20.0",
+  "description": "TeamAI — Multi-IA browser",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  }
+}
