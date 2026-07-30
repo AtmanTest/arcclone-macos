@@ -16,6 +16,128 @@ const Settings = {
   }
 };
 
+// ── LogExporter ────────────────────────────────────────────────────────
+const LogExporter = {
+  async build() {
+    const lines = [];
+    const t = (k, v) => lines.push(`| ${k.padEnd(25)} | ${String(v ?? '—').padEnd(25)} |`);
+    const sep = () => lines.push('|' + ''.padEnd(27, '-') + '|' + ''.padEnd(27, '-') + '|');
+
+    lines.push('# TeamAI — Diagnostic Log');
+    lines.push(''); lines.push(`Généré le : ${new Date().toLocaleString()}`);
+    lines.push(`Platforme : ${navigator.platform}`);
+    lines.push(`User-Agent : ${navigator.userAgent}`);
+    lines.push('');
+
+    // ── Version ──
+    lines.push('## 🏷 Version');
+    lines.push('');
+    lines.push('| Propriété                 | Valeur                     |');
+    lines.push('|---------------------------|----------------------------|');
+    try {
+      const v = await teamai.getVersion();
+      t('Version', v.version);
+      t('Commit', v.commit?.slice(0, 12));
+      t('Branche', v.branch);
+      t('URL', v.url);
+    } catch (e) { t('Erreur version', e.message); }
+    sep();
+    try {
+      const si = await teamai.getSysInfo();
+      t('RAM process', `${si.ram} Mo`);
+      t('CPU process', `${si.cpu}%`);
+    } catch (e) { t('Erreur sysinfo', e.message); }
+    lines.push('');
+
+    // ── Profils ──
+    lines.push('## 📋 Profils');
+    lines.push('');
+    if (typeof ProfileManager !== 'undefined') {
+      lines.push(`- Profil actif : **${ProfileManager.active?.name || '—'}** (id: ${ProfileManager._activeId || '—'})`);
+      lines.push(`- Nombre de profils : ${ProfileManager._profiles.length}`);
+      for (const p of ProfileManager._profiles) {
+        lines.push(`  - ${p.name} : ${p.providers?.length || 0} provider(s) — \`${(p.providers || []).join('`, `')}\``);
+      }
+    } else {
+      lines.push('- ProfileManager non chargé');
+    }
+    lines.push('');
+
+    // ── Sessions localStorage ──
+    lines.push('## 💾 localStorage');
+    lines.push('');
+    lines.push('| Clé              | Valeur (tronquée 300)       |');
+    lines.push('|------------------|------------------------------|');
+    const keys = ['teamai_profiles', 'teamai_active_profile', 'teamai_bookmarks',
+      'teamai_default_mode', 'teamai_autosave_mode', 'teamai_dispatch_bar_enabled',
+      'teamai_drive_auto'];
+    for (const k of keys) {
+      try {
+        const v = localStorage.getItem(k);
+        lines.push(`| ${k.padEnd(17)} | ${String(v ?? '—').slice(0, 300).padEnd(29)} |`);
+      } catch { lines.push(`| ${k.padEnd(17)} | ERR`.padEnd(45) + '|'); }
+    }
+    lines.push('');
+
+    // ── Providers ──
+    lines.push('## 🔌 Providers');
+    lines.push('');
+    if (typeof WinManager !== 'undefined' && WinManager.providers) {
+      lines.push(`Total : ${WinManager.providers.length}`);
+      for (const p of WinManager.providers) {
+        const active = (typeof ProfileManager !== 'undefined') ? ProfileManager.isProviderActive(p.id) : true;
+        lines.push(`- ${p.icon || '🌐'} **${p.label || p.id}** (\`${p.id}\`) ${active ? '' : '_(hors profil)_'}`);
+      }
+    }
+    lines.push('');
+
+    // ── Webviews ──
+    lines.push('## 🖼 Webviews actives');
+    lines.push('');
+    let totalFrames = 0;
+    if (typeof WinManager !== 'undefined') {
+      const allFrames = WinManager._profileFrames || {};
+      for (const [pid, frames] of Object.entries(allFrames)) {
+        const pName = ProfileManager._profiles?.find(x => x.id === pid)?.name || pid;
+        lines.push(`- Profil **${pName}** (\`${pid}\`) : ${frames.size} webview(s)`);
+        totalFrames += frames.size;
+        frames.forEach((entry, id) => {
+          const combo = entry.combo;
+          const pid2 = combo?.value || '?';
+          const url = entry.urlBar?.value || '';
+          lines.push(`  - \`${id}\` → ${pid2} ${url ? `(${url.slice(0, 80)})` : ''}`);
+        });
+      }
+      lines.push(`\n**Total webviews :** ${totalFrames}`);
+    }
+    lines.push('');
+
+    // ── Erreurs récentes ──
+    lines.push('## ⚠ Erreurs récentes');
+    lines.push('');
+    lines.push('_La console développeur (Cmd+Option+I) permet de voir les erreurs JS en temps réel._');
+    lines.push('');
+
+    // ── Layout ──
+    lines.push('## 📐 Layout');
+    lines.push('');
+    if (typeof LayoutModel !== 'undefined') {
+      lines.push(`- Mode : **${LayoutModel.mode}**`);
+      lines.push(`- Vues : ${LayoutModel.views.length}`);
+      for (const v of LayoutModel.views) {
+        lines.push(`  - \`${v.id}\` → ${v.label || v.providerId} (${v.url || ''})`);
+      }
+    }
+    lines.push('');
+
+    // ── Fin ──
+    lines.push('---');
+    lines.push(`_Diagnostic exporté depuis TeamAI v${document.getElementById('version-badge')?.textContent || '?'}_`);
+
+    return lines.join('\n');
+  }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
 
   // ── Ouvrir / fermer le modal ──────────────────────────────────────────
@@ -248,5 +370,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── GitHub ───────────────────────────────────────────────────────────
   document.getElementById('settings-open-github')?.addEventListener('click', () => {
     if (typeof teamai !== 'undefined' && teamai.openUrl) teamai.openUrl('https://github.com/AtmanTest/arcclone-macos');
+  });
+
+  // ── Export Logs ───────────────────────────────────────────────────────
+  document.getElementById('settings-export-logs')?.addEventListener('click', async () => {
+    const btn = document.getElementById('settings-export-logs');
+    if (!btn) return;
+    btn.textContent = '⏳ Collecte...';
+    btn.disabled = true;
+    try {
+      const md = await LogExporter.build();
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = `teamai-logs-${new Date().toISOString().slice(0, 10)}.md`; a.click();
+      btn.textContent = '✅ Exporté !';
+      setTimeout(() => { btn.textContent = '📥 Export Logs (.md)'; btn.disabled = false; }, 2000);
+    } catch (e) {
+      btn.textContent = `❌ ${e.message}`;
+      setTimeout(() => { btn.textContent = '📥 Export Logs (.md)'; btn.disabled = false; }, 3000);
+    }
   });
 });
