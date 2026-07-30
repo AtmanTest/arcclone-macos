@@ -291,6 +291,30 @@ function setupIPC() {
   h('test-drive',             () => testDrive());
   h('export-report-to-drive', (e, opts) => exportReportToDrive(opts));
   h('export-log-to-drive',    (e, opts) => exportLogToDrive(opts));
+  h('drive-api',              async (e, { method, path, body, type }) => {
+    const tokens = getStoredTokens();
+    if (!tokens || !tokens.access_token) throw new Error('Google non connecté');
+    const url = `https://www.googleapis.com/drive/v3/${path}`;
+    return new Promise((resolve, reject) => {
+      const req = net.request({ method: method || 'GET', url });
+      req.setHeader('Authorization', `Bearer ${tokens.access_token}`);
+      if (type) req.setHeader('Content-Type', type);
+      let data = '';
+      req.on('response', (res) => {
+        res.on('data', c => { data += c; });
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            if (res.statusCode >= 400) reject(new Error(json.error?.message || `HTTP ${res.statusCode}`));
+            else resolve(json);
+          } catch { resolve(data); }
+        });
+      });
+      req.on('error', reject);
+      if (body) req.write(typeof body === 'string' ? body : JSON.stringify(body));
+      req.end();
+    });
+  });
   h('get-version',            () => { 
     const v = loadJSON(CFG.VERSION); 
     let branch = 'main';
