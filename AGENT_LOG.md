@@ -48,3 +48,6 @@ Chaque agent lit et écrit ici pour se synchroniser sans endpoint ni webhook.
 ```
 
 [2026-08-20 00:05 CEST] [HERMES] REBASE — feature/freestyle rebasé sur origin/main (histoire divergente, 2 clones: arcclone-macos + arcclone-fix). Conflits résolus: index.html, sidebar.js, reportManager.js, smoke.js, version.json, changelog.js, README.md. Fix: classe .sidebar-uniform ajoutée à style.css (manquante). Tests: 183 ✅ / 0 ❌.
+
+[2026-08-20 00:35 CEST] [HERMES] SYNC — feature/freestyle synchronisée avec origin (pull --rebase, 15 commits rejoués, 2e passe de conflits: index.html/sidebar.js/main.js/app.js/profileManager.js/reportManager.js/changelog.js/version.json/README/.gitignore). Logo SVG retiré de l'HTML (revert distant respecté, fichier logo.svg conservé). Widget CPU/RAM = 
+[2026-08-20 00:35 CEST] [HERMES] SYNC — feature/freestyle synchronisée avec origin (pull --rebase, 15 commits rejoués, 2e passe de conflits: index.html/sidebar.js/main.js/app.js/profileManager.js/reportManager.js/changelog.js/version.json/README/.gitignore). Logo SVG retiré de l'HTML (revert distant respecté, fichier logo.svg conservé). Widget CPU/RAM = % réels + refresh 3s. Tests: 183 ✅ / 0 ❌. Push: 2d80d79..2fbc142.
