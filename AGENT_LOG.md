@@ -46,3 +46,5 @@ Chaque agent lit et écrit ici pour se synchroniser sans endpoint ni webhook.
 [2026-07-29 10:30 CEST] [HERMES] FEAT — Logo SVG TeamAI (T stylisé violet + nodes réseau multi-AI). Commit: next
 [2026-07-29 10:32 CEST] [HERMES] FIX — 5 régressions reportManager.js (multiline strings) + tests adaptés (colors, CSS, focus). 182 ✅
 ```
+
+[2026-08-20 00:05 CEST] [HERMES] REBASE — feature/freestyle rebasé sur origin/main (histoire divergente, 2 clones: arcclone-macos + arcclone-fix). Conflits résolus: index.html, sidebar.js, reportManager.js, smoke.js, version.json, changelog.js, README.md. Fix: classe .sidebar-uniform ajoutée à style.css (manquante). Tests: 183 ✅ / 0 ❌.
